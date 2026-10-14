@@ -1098,7 +1098,7 @@ def _cabeca():
         radai_nidus.SEM_VOLUME, radai_nidus.LIMITACAO_CLINICA,
         radai_nidus.LIMITACAO_RM)
     return radai_ui.cabeca_de_funcao(
-        u"◎", u"Projeção Vascular",
+        u"cruzamento", u"Projeção Vascular",
         u"a mesma lesão em duas incidências, e onde as duas se cruzam",
         ajuda, u"nidus")
 
