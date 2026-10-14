@@ -261,21 +261,26 @@ def _mascara_poligono(poligono, lado, largura=None):
     l1 = min(alt, int(math.ceil(max(ys_p) - 0.5)) + 1)
     if c1 <= c0 or l1 <= l0:
         return m
-    ys, xs = np.mgrid[l0:l1, c0:c1]
-    ys = ys + 0.5
-    xs = xs + 0.5
-    dentro = np.zeros(ys.shape, dtype=bool)
-    n = len(pts)
-    for i in range(n):
-        x0, y0 = pts[i]
-        x1, y1 = pts[(i + 1) % n]
-        if y0 == y1:
-            continue
-        cruza = ((y0 > ys) != (y1 > ys))
-        with np.errstate(divide="ignore", invalid="ignore"):
-            xint = (x1 - x0) * (ys - y0) / (y1 - y0) + x0
-        dentro ^= cruza & (xs < xint)
-    m[l0:l1, c0:c1] = dentro
+    p = np.asarray(pts, dtype=np.float64)
+    ax, ay = p[:, 0], p[:, 1]
+    bx, by = np.roll(ax, -1), np.roll(ay, -1)
+    ok = ay != by
+    ax, ay, bx, by = ax[ok], ay[ok], bx[ok], by[ok]
+    xs = np.arange(c0, c1, dtype=np.float64) + 0.5
+    yc = np.arange(l0, l1, dtype=np.float64)[:, None] + 0.5
+    cruza = (ay[None, :] > yc) != (by[None, :] > yc)
+    linha, aresta = np.nonzero(cruza)
+    if not linha.size:
+        return m
+    yy = yc[linha, 0]
+    # GUARDA: mesma conta de antes; o pixel conta a aresta que cruza à direita do centro dele.
+    xint = ((bx[aresta] - ax[aresta]) * (yy - ay[aresta])
+            / (by[aresta] - ay[aresta]) + ax[aresta])
+    k = np.searchsorted(xs, xint, side="left")
+    h = np.zeros((l1 - l0, c1 - c0 + 1), dtype=np.int32)
+    np.add.at(h, (linha, k), 1)
+    direita = h[:, ::-1].cumsum(axis=1)[:, ::-1][:, 1:]
+    m[l0:l1, c0:c1] = (direita % 2) == 1
     return m
 
 

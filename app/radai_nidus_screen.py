@@ -188,7 +188,7 @@ var ND = {b:'', desc:'', lista:[], lado:@LADO@, jan:'angio', modo:'mip',
           bom:null, historico:[], fila:null, restaurou:false};
 
 var ND_EPS = 0.5, ND_TETO_VERTICES = 120, ND_PASSO_MIN = 0.6;
-var ND_TETO_HISTORICO = 60, ND_FILA_A_CADA_MS = 15000;
+var ND_TETO_HISTORICO = 60, ND_FILA_A_CADA_MS = 15000, ND_FILA_TENTATIVAS = 960;
 var ND_TRAVAVEIS = ['nd_lao','nd_cra','nd_lao_r','nd_cra_r','nd_m_mip','nd_m_minip',
  'nd_inverter','nd_osso_bt','nd_segmentar','nd_laje','nd_caixa_bt','nd_caixa_limpar',
  'nd_bt_guardar','nd_bt_cruzar'];
@@ -820,6 +820,9 @@ function ndFilaVigiar(){
      ndMsg2(String(c.mensagem||c.estado), 'a segmentação não terminou: o osso continua na projeção.', 'erro');
      return }
     ND.fila.tentativas++;
+    if(ND.fila.tentativas>ND_FILA_TENTATIVAS){ ND.fila=null; ndPintarOsso();
+     ndMsg('a fila não responde: quando a segmentação terminar, escolha a série de novo','erro');
+     return }
     ndFilaVigiar();
    }).catch(function(){ if(b!==ND.b) return; ND.fila=null; ndPintarOsso();
     ndMsg('a fila não responde: quando a segmentação terminar, escolha a série de novo','erro') });
@@ -1293,6 +1296,7 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
     confira com o osso &agrave; mostra</span>
   </div>
   <div class="nd-grupo">
+   <p class="nd-legenda"><b data-radai-frase>linhas finas: o que foi retroprojetado</b></p>
    <p class="nd-legenda"><span data-radai-frase>A cor de cada linha diz de qual
     incid&ecirc;ncia ela veio. A linha mais forte &eacute; onde as duas se
     cruzam.</span></p>
