@@ -603,8 +603,9 @@ async function _abrir(){
  _tentar('carga', function(){ if(_CARGA) _CARGA() });
  await _esperar();
  if(!ND.b){
-  document.getElementById('nd_serie').value='0';
-  _tentar('escolher', function(){ ndEscolher() });
+  _tentar('listar', function(){ ndListar('X') });
+  await _esperar();
+  _tentar('escolher', function(){ ndEscolher(0) });
   await _esperar();
  }
  _carregou();
@@ -686,34 +687,66 @@ def teste_o_javascript_nao_le_nome_solto():
 
 
 def teste_a_tela_acorda_e_pede_as_series():
-    secao(u"a tela acorda, e a lista de series e pedida")
+    secao(u"a tela acorda com a escolha da série aberta, e a pasta lista quando pedem")
     if _sem_node():
         return
     d = _encenar(u"""
  _tentar('carga', function(){ if(_CARGA) _CARGA() });
  await _esperar();
- pronto({pediu:_FETCHES.some(function(f){
-          return f.url.indexOf('/api/nidus/series')>=0 }),
-         guardadas:ND.guardadas.length,
-         opcoes:document.getElementById('nd_serie').innerHTML.length});
+ var r={escolhendo:ND.escolhendo, guardadas:ND.guardadas.length,
+        varreu:_FETCHES.some(function(f){
+          return f.url.indexOf('/api/nidus/series')>=0 })};
+ _tentar('listar', function(){ ndListar('X') });
+ await _esperar();
+ r.itens=document.getElementById('nd_series').innerHTML;
+ _tentar('escolher', function(){ ndEscolher(1) });
+ await _esperar();
+ r.b=ND.b; r.rotulo=document.getElementById('nd_serie_rot').textContent;
+ r.fechou=!ND.escolhendo;
+ pronto(r);
 """)
     checar(u"a carga da pagina nao levanta", not d["erros"],
            u" | ".join(d["erros"])[:160])
-    checar(u"e a lista de series e pedida", d.get("pediu"), str(d.get("urls")))
+    checar(u"e abre a escolha da série (a tabela do acervo e a pasta)",
+           d.get("escolhendo") is True)
+    checar(u"  sem varrer pasta nenhuma sozinha", d.get("varreu") is False)
     checar(u"a lista de incidencias nasce vazia", d.get("guardadas") == 0,
            str(d.get("guardadas")))
-    checar(u"e o seletor de serie foi preenchido", (d.get("opcoes") or 0) > 20)
+    checar(u"a pasta pedida vira uma lista de botões, um por série",
+           (d.get("itens") or u"").count(u'class="nd-it"') == 2,
+           (d.get("itens") or u"")[:120])
+    checar(u"escolher na lista abre a série, fecha a escolha e diz qual é",
+           d.get("b") == u"B2" and d.get("fechou") is True
+           and u"outra serie" in (d.get("rotulo") or u""), str(d)[:160])
 
     iscado = _encenar(u"""
  _tentar('carga', function(){ if(_CARGA) _CARGA() });
  await _esperar();
- pronto({pediu:_FETCHES.some(function(f){
-          return f.url.indexOf('/api/nidus/series')>=0 })});
+ pronto({escolhendo:!!ND.escolhendo});
 """, ajuste=lambda js: js.replace("guardadas:[], sessao:null",
                                   "guardadas:[null,null], sessao:null"))
-    checar(u"e com os dois nulos de volta a lista NAO e pedida (isca)",
-           not iscado.get("pediu") and bool(iscado.get("erros")),
+    checar(u"e com os dois nulos de volta a escolha NAO abre (isca)",
+           not iscado.get("escolhendo") and bool(iscado.get("erros")),
            u" | ".join(iscado.get("erros") or [])[:120])
+
+
+def teste_a_tabela_do_acervo_no_lugar_do_seletor():
+    secao(u"a tabela do acervo da Suite (C2) no lugar do seletor de série")
+    import radai_nidus_screen as S
+    p = S.pagina()
+    checar(u"o seletor de série saiu", u'id="nd_serie"' not in p
+           and u"<select" not in p.split(u'id="nd_lado"')[-1].split(u"</aside>")[0])
+    checar(u"a escolha tem a tabela do acervo e a aba da pasta",
+           u'id="nd_acervo" data-ui-acervo' in p
+           and u'data-guia="acervo"' in p and u'data-guia="pasta"' in p
+           and u'id="nd_series"' in p)
+    checar(u"a tabela é a da casca, com o filtro de modalidade da tela",
+           u"window.uiTabelaAcervo('nd_acervo'" in S.JS
+           and u"ND_MODALIDADES.indexOf(l.modalidade)" in S.JS)
+    checar(u"abrir pela tabela usa só o bilhete da linha, nunca caminho",
+           u"bilhete:linha.bilhete" in S.JS and u"linha.pasta" not in S.JS)
+    checar(u"«Listar séries» sem pasta treme o campo (C3)",
+           u"window.uiTremer(ndEl('nd_pasta'))" in S.JS)
 
 
 def teste_guardar_dispara_a_retroprojecao():
@@ -1064,8 +1097,7 @@ def teste_o_erro_volta_ao_estado_bom():
  r.c={salvas:salvo?salvo.guardadas.length:-1};
  delete _RESP['/api/nidus/tubos'];
  var antes=_FETCHES.length;
- document.getElementById('nd_serie').value='0';
- ndEscolher(); await _esperar(); _carregou(); await _esperar();
+ ndEscolher(0); await _esperar(); _carregou(); await _esperar();
  r.d={guardadas:ND.guardadas.length, tubos:_urls(antes).some(function(u){
    return u.indexOf('/api/nidus/tubos')>=0 }), msg:_msg()};
  pronto(r);
@@ -1133,7 +1165,7 @@ def teste_o_osso_na_tela():
  _RESP['/api/nidus/forma']=function(u){ var f=_padrao(u);
   f.osso={tem:false, motivo:'esta série ainda não tem segmentação do ContourLab: o osso continua na projeção'};
   return f };
- document.getElementById('nd_serie').value='1'; ndEscolher(); await _esperar(); _carregou();
+ ndEscolher(1); await _esperar(); _carregou();
  r.sem={tem:ND.tem_osso, sg:document.getElementById('nd_segmentar').hidden,
    src:_proj().src, txt:document.getElementById('nd_osso_txt').innerHTML};
  ND_FILA_A_CADA_MS=0;
@@ -1225,9 +1257,8 @@ def teste_serie_nova_nao_herda_a_sessao():
  _tentar('guardar', function(){ ndGuardar() });
  await _esperar();
  var antiga = ND.sessao;
- document.getElementById('nd_serie').value='1';
  var antes=_FETCHES.length;
- _tentar('trocar', function(){ ndEscolher() });
+ _tentar('trocar', function(){ ndEscolher(1) });
  await _esperar();
  pronto({antiga:antiga, agora:ND.sessao||null, guardadas:ND.guardadas.length,
          pediu_linhas:_FETCHES.slice(antes).some(function(f){
@@ -1279,9 +1310,8 @@ def teste_a_tela_diz_a_escala_da_rm():
  _RESP['/api/nidus/forma']=function(u){ var f=_padrao(u); f.hu=false; f.modalidade='MR'; return f };
  _tentar('listar', function(){ ndListar('X') });
  await _esperar();
- r.opcoes=document.getElementById('nd_serie').innerHTML;
- document.getElementById('nd_serie').value='1';
- _tentar('rm', function(){ ndEscolher() });
+ r.opcoes=document.getElementById('nd_series').innerHTML;
+ _tentar('rm', function(){ ndEscolher(1) });
  await _esperar();
  r.rm=document.getElementById('nd_escala').textContent;
  pronto(r);
@@ -1299,6 +1329,7 @@ def teste_a_tela_diz_a_escala_da_rm():
 
 TELA = (teste_o_javascript_nao_le_nome_solto,
         teste_a_tela_acorda_e_pede_as_series,
+        teste_a_tabela_do_acervo_no_lugar_do_seletor,
         teste_guardar_dispara_a_retroprojecao,
         teste_o_lapis_traca_e_afina,
         teste_so_o_lapis,
@@ -2016,18 +2047,18 @@ def teste_segmentar_vai_para_a_fila():
 def teste_a_demo_saiu():
     secao(u"o Nidus não usa mais o módulo da demo (C5)")
     import asyncio
-    import radai_batch
+    import radai_dicom
     fonte_tela = fonte("radai_nidus_screen.py")
     checar(u"a tela não importa nem cita o módulo da demo",
            u"radai_demo" not in fonte_tela and u"nd_demo" not in fonte_tela
            and u"_series_da_demo" not in fonte_tela)
     rotas = _rotas_montadas()
-    guarda = radai_batch.varrer
+    guarda = radai_dicom.buscar_series
     try:
-        radai_batch.varrer = lambda pasta, **k: []
+        radai_dicom.buscar_series = lambda *a, **k: radai_dicom.nova_busca()
         d = asyncio.run(rotas["/api/nidus/series"](_Pedido({"pasta": u"X"})))
     finally:
-        radai_batch.varrer = guarda
+        radai_dicom.buscar_series = guarda
     checar(u"a lista só traz as séries da pasta", d.get("series") == [], str(d)[:120])
 
 
@@ -2170,21 +2201,34 @@ def teste_no_navegador():
                 pg.on("pageerror", lambda e: erros.append(str(e)[:160]))
                 pg.goto("http://127.0.0.1:%d/nidus/projecao" % porta)
                 pg.wait_for_timeout(500)
+                rot = u"%dx%d" % (larg, alt)
+                checar(u"[%s] a tela abre com a escolha da série, a tabela do "
+                       u"acervo à vista" % rot,
+                       pg.is_visible(".ui-modal #nd_acervo"))
+                pg.click("#nd_origem-t-pasta")
+                pg.click("#nd_listar")
+                pg.wait_for_timeout(300)
+                checar(u"[%s] «Listar séries» sem pasta não lista nada" % rot,
+                       pg.evaluate("document.querySelectorAll('#nd_series .nd-it').length") == 0
+                       and pg.evaluate("document.activeElement.id") == u"nd_pasta")
                 pg.fill("#nd_pasta", share)
                 pg.click("#nd_listar")
                 pg.wait_for_function(
-                    "document.getElementById('nd_serie').options.length > 1",
+                    "document.querySelectorAll('#nd_series .nd-it').length > 1",
                     timeout=60000)
-                ops = pg.eval_on_selector_all("#nd_serie option",
+                ops = pg.eval_on_selector_all("#nd_series .nd-it",
                                               "os => os.map(o => o.textContent)")
                 boa = [i for i, o in enumerate(ops) if u"CTA" in o]
                 ruim = [i for i, o in enumerate(ops) if u"captura" in o]
-                pg.select_option("#nd_serie", str(boa[0]))
+                pg.click('#nd_series .nd-it[data-i="%d"]' % boa[0])
+                pg.wait_for_timeout(400)
+                checar(u"[%s] escolher fecha a escolha e diz a série no lado" % rot,
+                       not pg.is_visible(".ui-modal")
+                       and u"CTA" in pg.inner_text("#nd_serie_rot"))
                 pg.wait_for_function(
                     "document.getElementById('nd_proj').naturalWidth > 0 && !ND.projetando",
                     timeout=60000)
                 pg.wait_for_timeout(2600)
-                rot = u"%dx%d" % (larg, alt)
                 checar(u"[%s] tudo numa tela, sem rolar" % rot,
                        pg.evaluate("document.documentElement.scrollHeight"
                                    " <= window.innerHeight + 1"),
@@ -2216,7 +2260,9 @@ def teste_no_navegador():
                        pg.evaluate("document.querySelectorAll('#nd_guardadas li').length") == 1)
                 if larg == 1280:
                     pg.screenshot(path=os.path.join(base, "nidus_1280.png"))
-                pg.select_option("#nd_serie", str(ruim[0]))
+                pg.click("#nd_escolher")
+                pg.wait_for_timeout(400)
+                pg.click('#nd_series .nd-it[data-i="%d"]' % ruim[0])
                 pg.wait_for_function("!ND.abrindo", timeout=60000)
                 pg.wait_for_timeout(400)
                 msg = pg.inner_text("#nd_msg")
@@ -2297,25 +2343,32 @@ def teste_as_rotas_leem_a_serie_uma_vez():
 
 
 def teste_a_rm_entra_no_seletor():
-    secao(u"a RM entra no seletor (v8.3)")
+    secao(u"a lista da pasta: TC e RM, pela varredura da Suite")
     import asyncio
-    import radai_batch
+    import radai_dicom
     import radai_nidus_screen as S
     rotas = _rotas_montadas()
     pedidos = []
 
-    def _varrer(pasta, **k):
-        pedidos.append(k)
-        return []
+    def _buscar(raiz, busca=None, modalidades=None, min_cortes=1, **k):
+        pedidos.append({"raiz": raiz, "modalidades": modalidades,
+                        "min_cortes": min_cortes})
+        return radai_dicom.nova_busca()
 
-    guarda = radai_batch.varrer
+    guarda = radai_dicom.buscar_series
     try:
-        radai_batch.varrer = _varrer
+        radai_dicom.buscar_series = _buscar
         asyncio.run(rotas["/api/nidus/series"](_Pedido({"pasta": u"X"})))
     finally:
-        radai_batch.varrer = guarda
+        radai_dicom.buscar_series = guarda
     mods = tuple((pedidos[:1] or [{}])[0].get("modalidades") or ())
     checar(u"a lista pede TC e RM", "CT" in mods and "MR" in mods, str(mods))
+    checar(u"  pela busca da Suite, e não pela do «Rodar agora»",
+           bool(pedidos) and "radai_batch" not in fonte("radai_nidus_screen.py"))
+    checar(u"  com o caminho longo e o mínimo de cortes da tela",
+           bool(pedidos) and pedidos[0]["min_cortes"] == S.MIN_CORTES
+           and (os.name != "nt" or pedidos[0]["raiz"].startswith(u"\\\\?\\")),
+           str(pedidos[:1]))
 
 
 def main():
