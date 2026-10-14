@@ -1973,13 +1973,18 @@ def teste_o_osso_sai_pela_segmentacao():
     m3, info3 = S.osso_da_segmentacao(N.abrir(img, "CT"), alheio, uid)
     checar(u"o FULL de outra série da pasta não serve", m3 is None
            and info3.get("tem") is False, str(info3))
-    guarda = S._e_desta_serie
+    import radai_viewseg as V
+    guarda = V._e_desta_serie
     try:
-        S._e_desta_serie = lambda n, u: True
+        V._e_desta_serie = lambda n, u: True
         m4, _i4 = S.osso_da_segmentacao(N.abrir(img, "CT"), alheio, uid)
     finally:
-        S._e_desta_serie = guarda
+        V._e_desta_serie = guarda
     checar(u"  isca: sem a guarda do UID, o FULL alheio seria usado", m4 is not None)
+    tela = fonte("radai_nidus_screen.py")
+    checar(u"o osso vem pela C6 (`radai_viewseg.mascaras_da_serie`), sem nome "
+           u"interno do ContourLab", u"V.mascaras_da_serie(" in tela
+           and not re.search(r"\bV\._", tela) and u"engine._" not in tela)
 
     vazia = os.path.join(base, "vazia")
     os.makedirs(vazia)

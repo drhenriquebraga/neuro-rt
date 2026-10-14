@@ -1481,59 +1481,18 @@ def _pastas_da_serie(pasta, uid):
     return fora
 
 
-def _e_desta_serie(nome, uid):
-    base = nome[:-4] if nome.lower().endswith(u".dcm") else nome
-    cauda = base.rsplit(u"_", 1)[-1]
-    return bool(uid) and cauda in (uid[-8:], uid.replace(u".", u"")[-8:])
-
-
 def osso_da_segmentacao(serie, pasta, uid):
-    import numpy as np
     import radai_viewseg as V
     uid = str(uid or u"")
     if not uid:
         return None, {"tem": False, "motivo": SEM_UID}
-    forma = serie.forma_do_array
+    forma = tuple(serie.forma_do_array)
     for p in _pastas_da_serie(pasta, uid):
-        for nome in V._rs_da_pasta(p, uid):
-            # GUARDA: o FULL de outra série da mesma pasta não serve; o nome termina no UID desta.
-            if not _e_desta_serie(nome, uid):
-                continue
-            if (V.rotulo_do_arquivo(nome).get("cod") or u"") != u"full":
-                continue
-            caminho = V._arquivo_rs(p, uid, nome)
-            if not caminho:
-                continue
-            lido = V._rs_lido(caminho, V._geometria(serie.img))
-            m = np.zeros(forma, dtype=bool)
-            nomes = []
-            for roi in lido.get("rois") or ():
-                if not roi.get("cortes") or not e_osso(roi.get("nome")):
-                    continue
-                nomes.append(roi["nome"])
-                radai_nidus.mascara_dos_cortes(roi["cortes"], forma, destino=m)
-            if nomes and m.any():
-                return m, {"tem": True, "fonte": u"FULL",
-                           "estruturas": len(nomes)}
-        c = V._caminho_do_mapa(p, uid)
-        if not c:
+        m, info = V.mascaras_da_serie(p, uid, serie.img, aceita=e_osso)
+        if m is None or tuple(m.shape) != forma:
             continue
-        try:
-            mapa = V._MapaLeve(c, forma)
-        except ValueError:
-            continue
-        m = np.zeros(forma, dtype=bool)
-        nomes = []
-        for nome, inf in mapa.info.items():
-            if not e_osso(nome):
-                continue
-            nomes.append(nome)
-            for z, (y0, x0, sub) in mapa.fatias.get(inf["chave"], {}).items():
-                m[z, y0:y0 + sub.shape[0], x0:x0 + sub.shape[1]] |= (
-                    sub == inf["indice"])
-        if nomes and m.any():
-            return m, {"tem": True, "fonte": u"Estudo 3D",
-                       "estruturas": len(nomes)}
+        return m, {"tem": True, "fonte": info.get("fonte") or u"",
+                   "estruturas": int(info.get("estruturas") or 0)}
     return None, {"tem": False, "motivo": SEM_SEGMENTACAO}
 
 
