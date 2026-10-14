@@ -1496,23 +1496,16 @@ def osso_da_segmentacao(serie, pasta, uid):
     return None, {"tem": False, "motivo": SEM_SEGMENTACAO}
 
 
-def pedir_a_fila(itens, porta):
-    import json
-    import urllib.error
-    import urllib.request
-    url = "http://127.0.0.1:%d/api/fila/enfileirar" % int(porta)
-    req = urllib.request.Request(
-        url, data=json.dumps({"itens": itens}).encode("utf-8"),
-        headers={"Content-Type": "application/json"}, method="POST")
+def pedir_a_fila(itens):
     try:
-        with urllib.request.urlopen(req, timeout=20) as r:
-            d = json.loads(r.read().decode("utf-8") or "{}")
-    except urllib.error.HTTPError as e:
-        if e.code in (404, 405):
-            return {"ok": False, "indisponivel": True}
-        return {"ok": False, "erro": u"a fila respondeu %d" % e.code}
+        import radai_queue_state
     except Exception:
         return {"ok": False, "indisponivel": True}
+    try:
+        d = radai_queue_state.enfileirar({"itens": list(itens or ())})
+    except Exception as e:
+        return {"ok": False, "erro": u"%s: %s" % (type(e).__name__,
+                                                  str(e)[:200])}
     return d if isinstance(d, dict) else {"ok": False, "indisponivel": True}
 
 
@@ -1776,9 +1769,7 @@ def montar(app):
             item = {"pasta": pasta, "uid": uid or u"", "modo": u"auto",
                     "chaves": {}, "copiar_rs_para": [], "origem": u"nidus",
                     "rotulo": str(c.get("rotulo") or u"")[:80]}
-            porta = request.url.port or (request.scope.get("server") or
-                                         (None, 8777))[1]
-            r = await radai_web.no_threadpool(pedir_a_fila, [item], porta)
+            r = await radai_web.no_threadpool(pedir_a_fila, [item])
             if r.get("indisponivel"):
                 return {"ok": False, "indisponivel": True,
                         "erro": FILA_INDISPONIVEL}

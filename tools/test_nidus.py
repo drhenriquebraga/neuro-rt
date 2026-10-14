@@ -1998,31 +1998,31 @@ def teste_o_osso_sai_pela_segmentacao():
 
 def teste_segmentar_vai_para_a_fila():
     secao(u"«segmentar primeiro (AUTO)» vai à fila única (contrato C1)")
+    import ast
     import asyncio
-    import threading
-    from http.server import BaseHTTPRequestHandler, HTTPServer
+    import inspect
+    import textwrap
     import radai_nidus_screen as S
+    import radai_queue_state as F
     import radai_thumbnail
     rotas = _rotas_montadas()
     pedidos = []
     guarda = (S.pedir_a_fila, radai_thumbnail.resolver)
     try:
         radai_thumbnail.resolver = lambda b: (u"pasta_X", u"1.2.3")
-        S.pedir_a_fila = lambda itens, porta: (
-            pedidos.append((itens, porta))
+        S.pedir_a_fila = lambda itens: (
+            pedidos.append(itens)
             or {"ok": True, "cartoes": [{"id": "c7", "posicao": 2}]})
         r = asyncio.run(rotas["/api/nidus/segmentar"](
             _Pedido({"b": "X", "rotulo": "CTA cranio"}, porta=8791)))
-        item = (pedidos[:1] or [([{}], 0)])[0][0][0]
+        item = (pedidos[:1] or [[{}]])[0][0]
         checar(u"o pedido é o do contrato: modo auto, origem nidus",
                item == {"pasta": u"pasta_X", "uid": u"1.2.3", "modo": u"auto",
                         "chaves": {}, "copiar_rs_para": [], "origem": u"nidus",
                         "rotulo": u"CTA cranio"}, str(item))
-        checar(u"e vai à porta do próprio servidor", pedidos[0][1] == 8791,
-               str(pedidos[:1]))
         checar(u"a tela recebe o cartão", r.get("ok") and r.get("id") == "c7"
                and r.get("posicao") == 2, str(r))
-        S.pedir_a_fila = lambda itens, porta: {"ok": False, "indisponivel": True}
+        S.pedir_a_fila = lambda itens: {"ok": False, "indisponivel": True}
         r2 = asyncio.run(rotas["/api/nidus/segmentar"](_Pedido({"b": "X"})))
         checar(u"sem a fila, a resposta diz «fila indisponível»",
                r2.get("ok") is False and r2.get("erro") == S.FILA_INDISPONIVEL
@@ -2030,23 +2030,40 @@ def teste_segmentar_vai_para_a_fila():
     finally:
         S.pedir_a_fila, radai_thumbnail.resolver = guarda
 
-    class _Sem(BaseHTTPRequestHandler):
-        def do_POST(self):
-            self.send_response(404)
-            self.end_headers()
-
-        def log_message(self, *a):
-            pass
-    srv = HTTPServer(("127.0.0.1", 0), _Sem)
-    t = threading.Thread(target=srv.serve_forever, daemon=True)
-    t.start()
+    recebidos = []
+    guarda_f = F.enfileirar
     try:
-        r3 = S.pedir_a_fila([{}], srv.server_address[1])
+        F.enfileirar = lambda corpo, origem=None: (
+            recebidos.append(corpo)
+            or {"ok": True, "cartoes": [{"id": "c9", "posicao": 1}]})
+        r3 = S.pedir_a_fila([{"uid": u"1.2.3"}])
     finally:
-        srv.shutdown()
-        srv.server_close()
-    checar(u"a rota da fila faltando (404) vira «indisponível»",
-           r3.get("indisponivel") is True, str(r3))
+        F.enfileirar = guarda_f
+    checar(u"o pedido vai a radai_queue_state.enfileirar, no mesmo processo "
+           u"(contrato C1)",
+           recebidos == [{"itens": [{"uid": u"1.2.3"}]}]
+           and r3.get("cartoes") == [{"id": "c9", "posicao": 1}],
+           "%s | %s" % (recebidos, r3))
+    guarda_m = sys.modules.get("radai_queue_state")
+    try:
+        sys.modules["radai_queue_state"] = None
+        r4 = S.pedir_a_fila([{}])
+    finally:
+        sys.modules["radai_queue_state"] = guarda_m
+    checar(u"sem o módulo da fila, «indisponível»",
+           r4.get("indisponivel") is True, str(r4))
+
+    def _fala_por_http(fonte):
+        arv = ast.parse(textwrap.dedent(fonte))
+        return [getattr(n.func, "attr", None) or getattr(n.func, "id", None)
+                for n in ast.walk(arv) if isinstance(n, ast.Call)
+                and (getattr(n.func, "attr", None) or getattr(n.func, "id", None))
+                in ("urlopen", "Request", "HTTPConnection")]
+    checar(u"e não fala HTTP consigo mesmo",
+           not _fala_por_http(inspect.getsource(S.pedir_a_fila)),
+           str(_fala_por_http(inspect.getsource(S.pedir_a_fila))))
+    checar(u"  (isca) o pedido por urlopen é acusado",
+           bool(_fala_por_http(u"def f(r):\n    return urllib.request.urlopen(r)\n")))
 
 
 def teste_a_demo_saiu():
