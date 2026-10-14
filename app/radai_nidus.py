@@ -91,6 +91,38 @@ LADO_ALTA = 1024
 
 FUNDO_MAXIMO = 384
 
+
+class SerieRecusada(ValueError):
+    pass
+
+
+RECUSA_COR = (
+    u"A série é uma imagem colorida (%d componentes por pixel) — captura de "
+    u"tela ou reconstrução exportada —, e não os cortes da angioTC ou da RM: "
+    u"escolha a série de cortes.")
+
+RECUSA_DIMENSAO = (
+    u"O volume desta série não é 3D (dimensão %d): ela não é uma pilha de "
+    u"cortes, e não dá projeção. Escolha a série de cortes.")
+
+RECUSA_POUCOS_CORTES = (
+    u"A série tem %d corte(s): não há volume para projetar.")
+
+
+def conferir_serie(img):
+    import SimpleITK as sitk
+    comp = int(img.GetNumberOfComponentsPerPixel())
+    if comp != 1:
+        raise SerieRecusada(RECUSA_COR % comp)
+    if u"vector" in str(img.GetPixelIDTypeAsString()).lower():
+        img = sitk.VectorIndexSelectionCast(img, 0)
+    dim = int(img.GetDimension())
+    if dim != 3:
+        raise SerieRecusada(RECUSA_DIMENSAO % dim)
+    if min(int(s) for s in img.GetSize()) < 2:
+        raise SerieRecusada(RECUSA_POUCOS_CORTES % min(img.GetSize()))
+    return img
+
 def lado_para_o_exame(img, teto=LADO_ALTA):
     import math as _m
     try:
@@ -214,18 +246,19 @@ def tubo(img, poligono, lao_rao=0.0, cra_cau=0.0, lado=LADO_PADRAO,
     return sitk.GetArrayFromImage(voltou).view(np.bool_)
 
 
-def _mascara_poligono(poligono, lado):
+def _mascara_poligono(poligono, lado, largura=None):
     import numpy as np
-    m = np.zeros((lado, lado), dtype=bool)
+    alt, larg = int(lado), int(lado if largura is None else largura)
+    m = np.zeros((alt, larg), dtype=bool)
     pts = [(float(x), float(y)) for x, y in (poligono or ())]
     if len(pts) < 3:
         return m
     xs_p = [p[0] for p in pts]
     ys_p = [p[1] for p in pts]
     c0 = max(0, int(math.floor(min(xs_p) - 0.5)))
-    c1 = min(lado, int(math.ceil(max(xs_p) - 0.5)) + 1)
+    c1 = min(larg, int(math.ceil(max(xs_p) - 0.5)) + 1)
     l0 = max(0, int(math.floor(min(ys_p) - 0.5)))
-    l1 = min(lado, int(math.ceil(max(ys_p) - 0.5)) + 1)
+    l1 = min(alt, int(math.ceil(max(ys_p) - 0.5)) + 1)
     if c1 <= c0 or l1 <= l0:
         return m
     ys, xs = np.mgrid[l0:l1, c0:c1]
@@ -244,6 +277,54 @@ def _mascara_poligono(poligono, lado):
         dentro ^= cruza & (xs < xint)
     m[l0:l1, c0:c1] = dentro
     return m
+
+
+OSSO_DILATACAO_VOXELS = 1
+
+
+def dilatar(m, voltas=1):
+    import numpy as np
+    m = np.asarray(m, dtype=bool)
+    for _ in range(int(voltas)):
+        d = m.copy()
+        d[1:] |= m[:-1]
+        d[:-1] |= m[1:]
+        d[:, 1:] |= m[:, :-1]
+        d[:, :-1] |= m[:, 1:]
+        d[:, :, 1:] |= m[:, :, :-1]
+        d[:, :, :-1] |= m[:, :, 1:]
+        m = d
+    return m
+
+
+def mascara_dos_cortes(cortes, forma, destino=None):
+    import numpy as np
+    forma = tuple(int(s) for s in forma)
+    m = np.zeros(forma, dtype=bool) if destino is None else destino
+    for z, polis in (cortes or {}).items():
+        z = int(z)
+        if not 0 <= z < forma[0]:
+            continue
+        plano = np.zeros(forma[1:], dtype=bool)
+        for p in polis or ():
+            # GUARDA: paridade entre os contornos do corte; o furo (por XOR ou por fenda) fica furo.
+            plano ^= _mascara_poligono([(float(x), float(y)) for x, y in p],
+                                       forma[1], forma[2])
+        m[z] |= plano
+    return m
+
+
+def sem_osso(img, osso, valor):
+    import numpy as np
+    import SimpleITK as sitk
+    a = sitk.GetArrayFromImage(img)
+    m = dilatar(osso, OSSO_DILATACAO_VOXELS)
+    if m.shape != a.shape:
+        raise ValueError(u"a máscara do osso não tem a forma desta série")
+    a[m] = np.asarray(valor).astype(a.dtype)
+    out = sitk.GetImageFromArray(a)
+    out.CopyInformation(img)
+    return out
 
 
 def eixos_lps(img):
@@ -269,6 +350,8 @@ def eixos_lps(img):
 def para_lps(a, eixos):
     import numpy as np
     perm, inverter = eixos[0], eixos[1]
+    if np.ndim(a) != len(perm):
+        raise SerieRecusada(RECUSA_DIMENSAO % np.ndim(a))
     v = np.transpose(a, perm)
     fatia = tuple(slice(None, None, -1) if inv else slice(None)
                   for inv in inverter)
@@ -373,6 +456,7 @@ class Serie(object):
 
     def __init__(self, img, modalidade=None):
         import SimpleITK as sitk
+        img = conferir_serie(img)
         self.img = img
         self.modalidade = str(modalidade or u"")
         self.eixos = eixos_lps(img)
@@ -381,12 +465,38 @@ class Serie(object):
         self.escala = escala_de(img, modalidade)
         self.lado_util = lado_para_o_exame(img)
         self._recorte = (None, None)
+        self.osso = None
+        self._sem_osso = None
 
-    def img_na_caixa(self, caixa, modo="mip"):
+    @property
+    def forma_do_array(self):
+        return tuple(int(s) for s in reversed(self.img.GetSize()))
+
+    def tirar_osso(self, mascara, info=None):
+        import numpy as np
+        m = np.asarray(mascara, dtype=bool)
+        if m.shape != self.forma_do_array:
+            raise ValueError(u"a máscara do osso não tem a forma desta série")
+        self._recorte = (None, None)
+        if not m.any():
+            self.osso, self._sem_osso = None, None
+            return False
+        self._sem_osso = sem_osso(self.img, m, self.escala["min"])
+        self.osso = dict(info or {}, voxels=int(m.sum()))
+        return True
+
+    def base(self, modo="mip", osso=False):
+        # GUARDA: o osso só sai no MIP; no MinIP o valor que o apaga viraria buraco escuro.
+        if osso and modo == "mip" and self._sem_osso is not None:
+            return self._sem_osso
+        return self.img
+
+    def img_na_caixa(self, caixa, modo="mip", osso=False):
         import SimpleITK as sitk
+        base = self.base(modo, osso)
         if caixa is None:
-            return self.img
-        chave = tuple(caixa)
+            return base
+        chave = (tuple(caixa), base is not self.img)
         if self._recorte[0] == chave:
             return self._recorte[1]
         self._recorte = (None, None)
@@ -402,7 +512,7 @@ class Serie(object):
             if inverter[eixo]:
                 i0, i1 = n - i1, n - i0
             ini[dim], ext[dim] = i0, max(1, i1 - i0)
-        out = sitk.RegionOfInterest(self.img, ext, ini)
+        out = sitk.RegionOfInterest(base, ext, ini)
         self._recorte = (chave, out)
         return out
 

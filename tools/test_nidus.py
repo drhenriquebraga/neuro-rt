@@ -479,10 +479,12 @@ def identificadores_soltos(js):
 
 
 PALCO = u"""
-var _FETCHES = [], _ERROS = [], _EL = {}, _CARGA = null, _NINC = 1;
+var _FETCHES = [], _ERROS = [], _EL = {}, _CARGA = null, _NINC = 1, _RESP = {};
+var _BRILHO = [];
 
 function Elemento(id){
  this.id=id; this.innerHTML=''; this.textContent=''; this.value='';
+ this.disabled=false; this.hidden=false;
  this.style={}; this._attrs={}; this._ouvintes={}; this._c=[];
  var eu=this;
  this.classList={
@@ -502,7 +504,8 @@ Elemento.prototype.addEventListener=function(n,f){
 Elemento.prototype.getAttribute=function(k){
  return this._attrs[k]===undefined?null:this._attrs[k] };
 Elemento.prototype.setAttribute=function(k,v){ this._attrs[k]=v };
-Elemento.prototype.removeAttribute=function(k){ delete this._attrs[k] };
+Elemento.prototype.removeAttribute=function(k){ delete this._attrs[k];
+ if(k==='src') this.src='' };
 Elemento.prototype.getBoundingClientRect=function(){
  return {left:0, top:0, width:400, height:400, right:400, bottom:400} };
 Elemento.prototype.disparar=function(n,ev){
@@ -514,7 +517,7 @@ for(var _sel in _GRUPOS_BRUTOS){
  _GRUPOS[_sel] = _GRUPOS_BRUTOS[_sel].map(function(at){
   var e = new Elemento(at.id||'');
   for(var k in at){ e.setAttribute(k, at[k]) }
-  e.className = at['class'] || '';   // e isso ja acende o `on` do gabarito
+  e.className = at['class'] || '';
   if(at.id) _EL[at.id] = e;
   return e;
  });
@@ -523,12 +526,13 @@ for(var _sel in _GRUPOS_BRUTOS){
 var document = {
  getElementById:function(id){ return _EL[id]||(_EL[id]=new Elemento(id)) },
  querySelectorAll:function(sel){ return _GRUPOS[sel]||[] },
+ querySelector:function(){ return null },
  addEventListener:function(){}
 };
 var window = { addEventListener:function(n,f){
  if(n==='DOMContentLoaded') _CARGA=f } };
 
-function _resposta(url){
+function _padrao(url){
  if(url.indexOf('/api/nidus/series')>=0)
   return {series:[{bilhete:'B1', desc:'angio cranio', cortes:400,
                    espessura_mm:0.5},
@@ -537,7 +541,9 @@ function _resposta(url){
  if(url.indexOf('/api/nidus/forma')>=0)
   return {forma:[400,512,512], espacamento:[0.5,0.45,0.45],
           passos:{'256':1.28,'512':0.64,'768':0.43,'1024':0.32},
-          lado_util:768};
+          lado_util:768,
+          telas:{'0':[512,512],'1':[400,512],'2':[400,512]},
+          osso:{tem:true, fonte:'FULL', estruturas:12}};
  if(url.indexOf('/api/nidus/tubos')>=0)
   return {sessao:'S'+_NINC, incidencias:_NINC, teto:12, cruzam:_NINC>1,
           angulos:[]};
@@ -549,11 +555,25 @@ function _resposta(url){
   return {altura:512, largura:512, camadas:cam, corte:5, n:400,
           incidencias:_NINC};
  }
+ if(url.indexOf('/api/nidus/estado')>=0) return {erro:''};
+ if(url.indexOf('/api/nidus/eixos')>=0) return {L:[1,0,0], P:[0,0,1], S:[0,-1,0]};
+ if(url.indexOf('/api/nidus/segmentar')>=0) return {ok:true, id:'c1', posicao:1};
+ if(url.indexOf('/api/fila/estado')>=0)
+  return {cartoes:[{id:'c1', estado:'pronto', posicao:0}]};
+ if(url.indexOf('/api/nidus/osso')>=0)
+  return {osso:{tem:true, fonte:'FULL', estruturas:3}};
  return {};
+}
+function _resposta(url, op){
+ for(var k in _RESP){
+  if(url.indexOf(k)>=0)
+   return (typeof _RESP[k]==='function') ? _RESP[k](url, op) : _RESP[k];
+ }
+ return _padrao(url);
 }
 function fetch(url, op){
  _FETCHES.push({url:String(url), op:op||null});
- var d=_resposta(String(url));
+ var d=_resposta(String(url), op);
  return Promise.resolve({json:function(){ return Promise.resolve(d) }});
 }
 """
@@ -564,9 +584,21 @@ async function _esperar(n){ for(var i=0;i<(n||6);i++){ await _tique() } }
 function _tentar(nome,f){ try{ return f() }catch(e){ _ERROS.push(nome+': '+e) } }
 function _ligado(b){ return !!(b && (b.classList.contains('on')
   || /(^| )on( |$)/.test(b.className))) }
-function _ev(x,y){ return {clientX:x, clientY:y, preventDefault:function(){},
-                           stopPropagation:function(){}} }
+function _ev(x,y,extra){ var e={clientX:x, clientY:y, button:0, shiftKey:false,
+  preventDefault:function(){}, stopPropagation:function(){}};
+  for(var k in (extra||{})) e[k]=extra[k]; return e }
 function _svg(){ return document.getElementById('nd_svg') }
+function _proj(){ return document.getElementById('nd_proj') }
+function _carregou(){ var im=_proj(); if(im.onload) im.onload() }
+function _falhou_img(){ var im=_proj(); if(im.onerror) im.onerror() }
+function _msg(){ return document.getElementById('nd_msg').textContent }
+function _urls(de){ return _FETCHES.slice(de||0).map(function(f){ return f.url }) }
+function _circulo(cx, cy, R, n){
+ var s=_svg();
+ s.disparar('mousedown', _ev(cx+R, cy));
+ for(var i=1;i<n;i++){ var t=2*Math.PI*i/n;
+  s.disparar('mousemove', _ev(cx+R*Math.cos(t), cy+R*Math.sin(t))) }
+}
 async function _abrir(){
  _tentar('carga', function(){ if(_CARGA) _CARGA() });
  await _esperar();
@@ -575,6 +607,8 @@ async function _abrir(){
   _tentar('escolher', function(){ ndEscolher() });
   await _esperar();
  }
+ _carregou();
+ await _esperar();
 }
 function pronto(o){
  o.erros=_ERROS.slice();
@@ -601,7 +635,7 @@ def _botoes_da_pagina():
     import radai_nidus_screen as S
     html = S.pagina()
     grupos = {}
-    for cid in ("nd_res", "nd_incid", "nd_ferr", "nd_jan"):
+    for cid in ("nd_incid", "nd_jan"):
         m = re.search(r'id="%s"[^>]*>(.*?)</div>' % cid, html, re.S)
         bs = []
         for tag in re.findall(r"<button\b[^>]*>", m.group(1) if m else u""):
@@ -632,6 +666,14 @@ def _encenar(corpo, ajuste=None):
                         or u"o palco não respondeu")[:400])
 
 
+def _sem_node():
+    if _node():
+        return False
+    checar(u"(sem node — o palco nao rodou)", True,
+           u"instale o node para a prova por execucao")
+    return True
+
+
 def teste_o_javascript_nao_le_nome_solto():
     secao(u"o JavaScript da tela nao le nome que ninguem declarou")
     import radai_nidus_screen as S
@@ -645,9 +687,7 @@ def teste_o_javascript_nao_le_nome_solto():
 
 def teste_a_tela_acorda_e_pede_as_series():
     secao(u"a tela acorda, e a lista de series e pedida")
-    if not _node():
-        checar(u"(sem node — o palco nao rodou)", True,
-               u"instale o node para a prova por execucao")
+    if _sem_node():
         return
     d = _encenar(u"""
  _tentar('carga', function(){ if(_CARGA) _CARGA() });
@@ -678,23 +718,20 @@ def teste_a_tela_acorda_e_pede_as_series():
 
 def teste_guardar_dispara_a_retroprojecao():
     secao(u"guardar dispara a retroprojecao (o «vou salvando»)")
-    if not _node():
-        checar(u"(sem node — o palco nao rodou)", True)
+    if _sem_node():
         return
     d = _encenar(u"""
  await _abrir();
  _ERROS.length = 0;
  var antes = _FETCHES.length;
- _tentar('desenhar', function(){ ndDesenhar() });
  ND.pontos = [[10,10],[60,10],[60,60],[10,60]];
  _tentar('guardar', function(){ ndGuardar() });
  await _esperar();
- var depois = _FETCHES.slice(antes).map(function(f){ return f.url });
+ var depois = _urls(antes);
  pronto({novas:depois,
          retro:depois.some(function(u){ return u.indexOf('/api/nidus/tubos')>=0 }),
          guardadas:ND.guardadas.length,
-         sessao:ND.sessao||null,
-         msg:document.getElementById('nd_msg').textContent});
+         sessao:ND.sessao||null, msg:_msg()});
 """)
     checar(u"guardar nao levanta", not d["erros"], u" | ".join(d["erros"])[:160])
     checar(u"a incidencia entra na lista", d.get("guardadas") == 1,
@@ -703,19 +740,17 @@ def teste_guardar_dispara_a_retroprojecao():
            str(d.get("novas")))
     checar(u"a sessao volta do servidor", bool(d.get("sessao")),
            str(d.get("sessao")))
-    checar(u"e a mensagem fala da incidencia guardada",
+    checar(u"e a mensagem fala da incidencia",
            u"incid" in (d.get("msg") or u"").lower(), d.get("msg"))
 
     d2 = _encenar(u"""
  await _abrir();
- _tentar('desenhar', function(){ ndDesenhar() });
  ND.pontos = [[10,10],[60,10],[60,60],[10,60]];
  _tentar('guardar', function(){ ndGuardar() });
  await _esperar();
  _tentar('guardar2', function(){ ndGuardar() });
  await _esperar();
- pronto({guardadas:ND.guardadas.length,
-         msg:document.getElementById('nd_msg').textContent});
+ pronto({guardadas:ND.guardadas.length});
 """)
     checar(u"guardar de novo, sem desenhar, nao duplica a incidencia",
            d2.get("guardadas") == 1, str(d2.get("guardadas")))
@@ -724,15 +759,14 @@ def teste_guardar_dispara_a_retroprojecao():
  await _abrir();
  _ERROS.length = 0;
  var antes = _FETCHES.length;
- _tentar('desenhar', function(){ ndDesenhar() });
  ND.pontos = [[10,10],[60,10],[60,60],[10,60]];
  _tentar('guardar', function(){ ndGuardar() });
  await _esperar();
- pronto({retro:_FETCHES.slice(antes).some(function(u){
-          return u.url.indexOf('/api/nidus/tubos')>=0 })});
+ pronto({retro:_urls(antes).some(function(u){
+          return u.indexOf('/api/nidus/tubos')>=0 })});
 """, ajuste=lambda js: js.replace(
-        "ndMsg('incidência '+ND.guardadas.length+' guardada — LAO '",
-        "ndMsg('incidência '+(qual?'B':'A')+' guardada — LAO '"))
+        "ndMsg('incidência '+ND.guardadas.length+' guardada — '",
+        "ndMsg('incidência '+(qual?'B':'A')+' guardada — '"))
     checar(u"e com o `qual` de volta a retroprojecao PARA (isca)",
            not iscado.get("retro")
            and any("qual" in e for e in iscado.get("erros") or []),
@@ -741,17 +775,14 @@ def teste_guardar_dispara_a_retroprojecao():
 
 def teste_o_lapis_traca_e_afina():
     secao(u"o lapis: arrasto, e o traco e afinado antes de sair")
-    if not _node():
-        checar(u"(sem node — o palco nao rodou)", True)
+    if _sem_node():
         return
     d = _encenar(u"""
  await _abrir();
- _tentar('ferramenta', function(){ ndFerramenta('lapis') });
- _tentar('desenhar', function(){ ndDesenhar() });
  var N_AM = 240, R = 80, cx = 200, cy = 200, s = _svg();
  function _p(i){
   var t = 2*Math.PI*i/N_AM;
-  var j = ((i*2654435761) % 1000)/1000 - 0.5;   // tremor reprodutivel
+  var j = ((i*2654435761) % 1000)/1000 - 0.5;
   return [cx + (R + j*1.6)*Math.cos(t), cy + (R + j*1.6)*Math.sin(t)];
  }
  var p0 = _p(0);
@@ -760,8 +791,7 @@ def teste_o_lapis_traca_e_afina():
  var bruto = ND.pontos.slice();
  s.disparar('mouseup', _ev(p0[0], p0[1]));
  pronto({bruto:bruto, fino:ND.pontos.slice(), lado:ND.lado,
-         marca:document.getElementById('nd_marca').innerHTML,
-         msg:document.getElementById('nd_msg').textContent});
+         marca:document.getElementById('nd_marca').innerHTML, msg:_msg()});
 """)
     checar(u"o arrasto nao levanta", not d["erros"], u" | ".join(d["erros"])[:160])
     bruto, fino = d.get("bruto") or [], d.get("fino") or []
@@ -775,7 +805,6 @@ def teste_o_lapis_traca_e_afina():
            str(len(fino)))
     checar(u"o traco fechado e desenhado em SVG",
            "<path" in (d.get("marca") or u""), (d.get("marca") or u"")[:60])
-
     try:
         import numpy as np
         import radai_nidus as N
@@ -789,91 +818,367 @@ def teste_o_lapis_traca_e_afina():
         checar(u"(sem numpy — a area do traco nao foi medida)", True)
 
 
-def teste_os_dois_modos_convivem():
-    secao(u"os dois modos convivem, e a tela diz qual esta valendo")
-    if not _node():
-        checar(u"(sem node — o palco nao rodou)", True)
+def teste_so_o_lapis():
+    secao(u"só o lápis: desenha sem ligar nada, e soltar fecha a área")
+    import radai_nidus_screen as S
+    pg = S.pagina()
+    checar(u"saiu o modo de cliques",
+           u'data-f="clique"' not in pg and u"ndClique" not in S.JS
+           and u"dblclick" not in S.JS)
+    checar(u"saiu o botão «Circular a área»",
+           u"nd_bt_desenhar" not in pg and u"Circular a &aacute;rea" not in pg
+           and u"ndDesenhar" not in S.JS)
+    regra = re.search(r"\.nd-marca\{([^}]*)\}", S.CSS)
+    regra = regra.group(1) if regra else u""
+    checar(u"o pontilhado é mais fino (1 px) e os pontos mais próximos (2 2)",
+           u"stroke-width:1;" in regra and u"stroke-dasharray:2 2" in regra,
+           regra)
+    if _sem_node():
+        return
+    corpo = u"""
+ await _abrir();
+ var r={};
+ _circulo(200, 200, 60, 40);
+ r.durante=document.getElementById('nd_marca').innerHTML;
+ _svg().disparar('mouseup', _ev(260, 200));
+ r.depois=document.getElementById('nd_marca').innerHTML;
+ r.n=ND.pontos.length;
+ _svg().disparar('click', _ev(10,10));
+ r.clique_nao_soma=(ND.pontos.length===r.n);
+ ND.pontos=[];
+ _svg().disparar('mousedown', _ev(100,100,{shiftKey:true}));
+ _svg().disparar('mousemove', _ev(150,150,{shiftKey:true}));
+ r.shift_nao_desenha=(!ND.tracando && ND.pontos.length===0);
+ _svg().disparar('mousedown', _ev(100,100,{button:1}));
+ r.meio_nao_desenha=(!ND.tracando && ND.pontos.length===0);
+ pronto(r);
+"""
+    d = _encenar(corpo)
+    checar(u"o lápis desenha logo depois de abrir, sem outro botão ligado",
+           (d.get("n") or 0) >= 8 and not d.get("erros"),
+           u"%s %s" % (d.get("n"), d.get("erros")))
+    checar(u"durante o traço a área fica aberta",
+           u" Z" not in (d.get("durante") or u""), (d.get("durante") or u"")[-40:])
+    checar(u"e soltar fecha do último ponto ao primeiro (o Z)",
+           u' Z"' in (d.get("depois") or u""), (d.get("depois") or u"")[-40:])
+    checar(u"um clique solto não acrescenta vértice", d.get("clique_nao_soma"))
+    checar(u"Shift + arrastar move a imagem, e não desenha",
+           d.get("shift_nao_desenha"))
+    checar(u"e o botão do meio também não desenha", d.get("meio_nao_desenha"))
+    iscado = _encenar(corpo, ajuste=lambda js: js.replace(
+        u"if(!ndPodeDesenhar()){", u"if(!ND.desenhando){"))
+    checar(u"  isca: o lápis que pede outro botão ligado é acusado",
+           (iscado.get("n") or 0) < 3, str(iscado.get("n")))
+
+
+def teste_os_padroes_de_abertura():
+    secao(u"padrões: invertida, todo o volume, MIP e a resolução máxima")
+    import radai_nidus as N
+    import radai_nidus_screen as S
+    pg = S.pagina()
+    checar(u"a opção de resolução saiu da tela",
+           u'id="nd_res"' not in pg and u"ndResolucao" not in S.JS)
+    checar(u"o palco nasce invertido no HTML",
+           u'class="nd-palco inv" id="nd_palco"' in pg
+           and re.search(r'id="nd_inverter"[^>]*aria-pressed="true"', pg))
+    checar(u"o MIP nasce ligado", re.search(r'class="nd-bt on" id="nd_m_mip"', pg))
+    checar(u"a resolução da tela é a máxima da lib",
+           S.LADO_DA_TELA == N.LADO_ALTA == max(S.LADOS))
+    if _sem_node():
         return
     d = _encenar(u"""
  await _abrir();
- _tentar('desenhar', function(){ ndDesenhar() });
- var s=_svg(), r={};
- r.inicial = ND.ferramenta;
- s.disparar('click', _ev(100,100)); s.disparar('click', _ev(160,100));
- s.disparar('click', _ev(160,160));
- r.por_clique = ND.pontos.length;
- s.disparar('mousedown', _ev(50,50)); s.disparar('mousemove', _ev(60,60));
- s.disparar('mouseup', _ev(60,60));
- r.clique_ignora_arrasto = ND.pontos.length;
- _tentar('lapis', function(){ ndFerramenta('lapis') });
- r.depois = ND.ferramenta;
- var bts = document.querySelectorAll('#nd_ferr .nd-bt');
- r.botoes = bts.map(function(b){ return [b.getAttribute('data-f'), _ligado(b)] });
- s.disparar('mousedown', _ev(100,100));
- for(var i=0;i<30;i++) s.disparar('mousemove', _ev(100+i*2, 100+i));
- r.por_arrasto = ND.pontos.length;
- s.disparar('mouseup', _ev(160,130));
- var n = ND.pontos.length;
- s.disparar('click', _ev(10,10));
- r.lapis_ignora_clique = (ND.pontos.length === n);
- pronto(r);
+ pronto({lado:ND.lado, vb:_svg().getAttribute('viewBox'), inv:ND.inverter,
+   palco:document.getElementById('nd_palco').className,
+   aria:document.getElementById('nd_inverter').getAttribute('aria-pressed'),
+   modo:ND.modo, laje:ND.laje, lajev:document.getElementById('nd_lajev').textContent,
+   src:_proj().src});
 """)
-    checar(u"o modo de fabrica e o de cliques", d.get("inicial") == "clique",
-           str(d.get("inicial")))
-    checar(u"tres cliques marcam tres vertices", d.get("por_clique") == 3,
-           str(d.get("por_clique")))
-    checar(u"e o arrasto nao desenha no modo de cliques",
-           d.get("clique_ignora_arrasto") == 3,
-           str(d.get("clique_ignora_arrasto")))
-    checar(u"o lapis assume", d.get("depois") == "lapis", str(d.get("depois")))
-    checar(u"e o arrasto desenha nele", (d.get("por_arrasto") or 0) >= 8,
-           str(d.get("por_arrasto")))
-    checar(u"e o clique nao acrescenta vertice no lapis",
-           d.get("lapis_ignora_clique"))
-    bts = d.get("botoes") or []
-    checar(u"a barra de ferramenta tem os dois botoes", len(bts) == 2, str(bts))
-    acesos = [b[0] for b in bts if b[1]]
-    checar(u"e so o corrente esta aceso", acesos == ["lapis"], str(bts))
+    checar(u"o JS desenha na grade máxima", d.get("lado") == N.LADO_ALTA
+           and d.get("vb") == u"0 0 %d %d" % (N.LADO_ALTA, N.LADO_ALTA),
+           u"%s %s" % (d.get("lado"), d.get("vb")))
+    checar(u"e pede a projeção nela", u"lado=%d" % N.LADO_ALTA in (d.get("src") or u""),
+           (d.get("src") or u"")[-90:])
+    checar(u"inverter cores ligado ao abrir", d.get("inv") is True
+           and u"inv" in (d.get("palco") or u"") and d.get("aria") == u"true",
+           u"%s %s" % (d.get("palco"), d.get("aria")))
+    checar(u"MIP e todo o volume ao abrir", d.get("modo") == u"mip"
+           and d.get("laje") == 0 and d.get("lajev") == u"todo o volume")
 
 
-def teste_a_grade_do_desenho_acompanha_a_resolucao():
-    secao(u"a grade do desenho acompanha a resolucao escolhida")
-    if not _node():
-        checar(u"(sem node — o palco nao rodou)", True)
+def teste_as_barras_de_angulo():
+    secao(u"LAO/RAO e CRA/CAU em barra de arrastar")
+    import radai_nidus_screen as S
+    pg = S.pagina()
+    checar(u"a barra do LAO/RAO vai de -180 a 180",
+           re.search(r'type="range" id="nd_lao_r" min="-180" max="180"', pg))
+    checar(u"a barra do CRA/CAU vai de -90 a 90",
+           re.search(r'type="range" id="nd_cra_r" min="-90" max="90"', pg))
+    checar(u"e o campo digitado ficou", u'id="nd_lao"' in pg and u'id="nd_cra"' in pg)
+    if _sem_node():
+        return
+    corpo = u"""
+ await _abrir();
+ var r=document.getElementById('nd_lao_r'), c=document.getElementById('nd_cra_r');
+ r.value='-35'; r.disparar('input');
+ var prev={rot:document.getElementById('nd_lao_v').textContent,
+   txt:document.getElementById('nd_lao').value, lao:ND.lao};
+ r.disparar('change');
+ _carregou();
+ c.value='-20'; c.disparar('change');
+ _carregou();
+ pronto({prev:prev, lao:ND.lao, cra:ND.cra,
+   rl:document.getElementById('nd_lao_v').textContent,
+   rc:document.getElementById('nd_cra_v').textContent, src:_proj().src});
+"""
+    d = _encenar(corpo)
+    p = d.get("prev") or {}
+    checar(u"arrastar mostra o ângulo (RAO 35°) sem projetar ainda",
+           p.get("rot") == u"RAO 35°" and p.get("txt") == u"-35" and p.get("lao") == 0,
+           str(p))
+    checar(u"soltar a barra gira o gantry", d.get("lao") == -35 and d.get("cra") == -20,
+           u"%s %s" % (d.get("lao"), d.get("cra")))
+    checar(u"e a projeção é pedida no ângulo novo",
+           u"lao=-35&cra=-20" in (d.get("src") or u""), (d.get("src") or u"")[-90:])
+    checar(u"negativo diz RAO e CAU", d.get("rl") == u"RAO 35°"
+           and d.get("rc") == u"CAU 20°", u"%s %s" % (d.get("rl"), d.get("rc")))
+    iscado = _encenar(corpo, ajuste=lambda js: js.replace(
+        u"ndPrever(k, +r.value||0)", u"ndMudarAngulo(k, +r.value||0)"))
+    checar(u"  isca: barra que projeta a cada passo do arrasto é acusada",
+           (iscado.get("prev") or {}).get("lao") != 0)
+
+
+def teste_a_lista_diz_rao_e_cau():
+    secao(u"a lista das guardadas diz RAO e CAU quando o ângulo é negativo")
+    if _sem_node():
+        return
+    corpo = u"""
+ await _abrir();
+ ndAngulo(-30,-15); _carregou();
+ ND.pontos=[[10,10],[60,10],[60,60],[10,60]]; ndGuardar(); await _esperar();
+ ndAngulo(30,10); _carregou();
+ ND.pontos=[[10,10],[60,10],[60,60],[10,60]]; ndGuardar(); await _esperar();
+ pronto({lista:document.getElementById('nd_guardadas').innerHTML});
+"""
+    d = _encenar(corpo)
+    lista = d.get("lista") or u""
+    checar(u"a negativa sai como RAO 30° / CAU 15°", u"RAO 30° / CAU 15°" in lista,
+           lista[:160])
+    checar(u"a positiva sai como LAO 30° / CRA 10°", u"LAO 30° / CRA 10°" in lista)
+    checar(u"e nenhum ângulo sai com sinal", u"-30" not in lista and u"-15" not in lista)
+    iscado = _encenar(corpo, ajuste=lambda js: js.replace(
+        u"(n<0?neg:pos)+' '+Math.abs(n)", u"pos+' '+n"))
+    checar(u"  isca: a lista que escreve «LAO -30» é acusada",
+           u"RAO 30°" not in (iscado.get("lista") or u""))
+
+
+def teste_girar_guarda_o_traco():
+    secao(u"girar com um traço desenhado guarda o traço antes")
+    if _sem_node():
+        return
+    corpo = u"""
+ await _abrir();
+ ND.pontos=[[10,10],[60,10],[60,60],[10,60]];
+ ndIncidencia(45,0,'x');
+ var msg=_msg();
+ await _esperar();
+ pronto({g:ND.guardadas.map(function(x){ return [x.lao, x.cra, x.pontos.length] }),
+   pontos:ND.pontos.length, lao:ND.lao, msg:msg});
+"""
+    d = _encenar(corpo)
+    checar(u"o traço vai para a lista com o ângulo em que foi desenhado",
+           d.get("g") == [[0, 0, 4]], str(d.get("g")))
+    checar(u"e a incidência nova começa limpa, no ângulo novo",
+           d.get("pontos") == 0 and d.get("lao") == 45)
+    checar(u"e a tela diz que guardou", u"guardado antes de girar" in (d.get("msg") or u""),
+           d.get("msg"))
+    iscado = _encenar(corpo, ajuste=lambda js: js.replace(
+        u"if(ND.pontos.length>=3){\n  if(ND.guardadas.length>=ND.teto){",
+        u"if(false){\n  if(ND.guardadas.length>=ND.teto){"))
+    checar(u"  isca: girar que apaga o traço é acusado", iscado.get("g") == [])
+
+
+def teste_serie_que_nao_abre_trava_a_tela():
+    secao(u"série que não abre: a tela trava, e diz por quê")
+    if _sem_node():
+        return
+    corpo = u"""
+ _RESP['/api/nidus/forma']={erro:'A série é uma imagem colorida (3 componentes por pixel) — captura de tela ou reconstrução exportada —, e não os cortes da angioTC ou da RM: escolha a série de cortes.'};
+ await _abrir();
+ var antes=_FETCHES.length;
+ _circulo(200,200,60,30); _svg().disparar('mouseup', _ev(260,200));
+ var tracou=ND.pontos.length;
+ ND.pontos=[[1,1],[50,1],[50,50]];
+ _tentar('guardar', function(){ ndGuardar() });
+ _tentar('caixa', function(){ ndCaixaModo(); ndCaixaLimpar() });
+ _tentar('girar', function(){ ndIncidencia(45,0,'x') });
+ await _esperar();
+ pronto({aberta:ND.aberta, tracou:tracou, guardadas:ND.guardadas.length,
+   novas:_urls(antes), src:_proj().src||'',
+   dis:document.getElementById('nd_bt_guardar').disabled,
+   dis_lao:document.getElementById('nd_lao_r').disabled, msg:_msg()});
+"""
+    d = _encenar(corpo)
+    checar(u"a série fica fechada", d.get("aberta") is False)
+    checar(u"o lápis não desenha nela", d.get("tracou") == 0, str(d.get("tracou")))
+    checar(u"guardar, recortar e girar não chegam ao servidor",
+           d.get("guardadas") == 0 and not d.get("novas") and not d.get("src"),
+           u"%s %s" % (d.get("novas"), d.get("src")))
+    checar(u"os botões ficam apagados", d.get("dis") is True and d.get("dis_lao") is True)
+    checar(u"e a mensagem diz o motivo e o que fazer",
+           u"colorida" in (d.get("msg") or u"")
+           and u"nada pode ser desenhado" in (d.get("msg") or u""), d.get("msg"))
+    iscado = _encenar(corpo, ajuste=lambda js: js.replace(
+        u"function ndGuardar(auto){\n if(!ND.aberta) return;",
+        u"function ndGuardar(auto){\n").replace(
+        u"if(!g.length || !ND.b || !ND.aberta) return;",
+        u"if(!g.length || !ND.b) return;"))
+    checar(u"  isca: guardar sem a trava chega à retroprojeção",
+           any(u"/api/nidus/tubos" in u for u in iscado.get("novas") or []))
+
+
+def teste_o_erro_volta_ao_estado_bom():
+    secao(u"erro: a tela volta ao último estado bom, e nada desenhado se perde")
+    if _sem_node():
+        return
+    corpo = u"""
+ window.sessionStorage={_d:{}, setItem:function(k,v){ this._d[k]=String(v) },
+  getItem:function(k){ return this._d[k]===undefined?null:this._d[k] }};
+ await _abrir();
+ ND.pontos=[[10,10],[60,10],[60,60],[10,60]]; ndGuardar(); await _esperar();
+ var r={};
+ _RESP['/api/nidus/estado']={erro:"ValueError: axes don't match array"};
+ ndAngulo(60,20);
+ _falhou_img(); await _esperar();
+ r.a={lao:ND.lao, cra:ND.cra, guardadas:ND.guardadas.length, msg:_msg(), src:_proj().src};
+ _carregou(); await _esperar();
+ r.a.voltando=ND.voltando;
+ var sessao=ND.sessao;
+ _RESP['/api/nidus/tubos']={erro:"ValueError: axes don't match array"};
+ ND.pontos=[[20,20],[80,20],[80,80]]; ndGuardar(); await _esperar();
+ r.b={guardadas:ND.guardadas.length,
+   pend:ND.guardadas.filter(function(x){ return x.pendente }).length,
+   sessao_igual:ND.sessao===sessao, msg:_msg(),
+   cruzar:!document.getElementById('nd_bt_cruzar').hidden};
+ var salvo=JSON.parse(window.sessionStorage.getItem('radai_nidus_'+ND.b)||'null');
+ r.c={salvas:salvo?salvo.guardadas.length:-1};
+ delete _RESP['/api/nidus/tubos'];
+ var antes=_FETCHES.length;
+ document.getElementById('nd_serie').value='0';
+ ndEscolher(); await _esperar(); _carregou(); await _esperar();
+ r.d={guardadas:ND.guardadas.length, tubos:_urls(antes).some(function(u){
+   return u.indexOf('/api/nidus/tubos')>=0 }), msg:_msg()};
+ pronto(r);
+"""
+    d = _encenar(corpo)
+    a, b, c, e = (d.get(k) or {} for k in ("a", "b", "c", "d"))
+    checar(u"a projeção que falha devolve a tela ao último ângulo bom",
+           a.get("lao") == 0 and a.get("cra") == 0 and u"lao=0&cra=0" in (a.get("src") or u""),
+           str(a)[:160])
+    checar(u"e avisa, com o motivo", u"voltou ao último estado bom" in (a.get("msg") or u"")
+           and u"axes" in (a.get("msg") or u""), a.get("msg"))
+    checar(u"e o desenho guardado continua lá", a.get("guardadas") == 1)
+    checar(u"quando o estado bom chega, a volta termina", a.get("voltando") is False)
+    checar(u"a retroprojeção que falha não perde a incidência nova",
+           b.get("guardadas") == 2 and b.get("pend") == 1, str(b))
+    checar(u"e as linhas continuam as do último estado bom", b.get("sessao_igual"))
+    checar(u"e «Cruzar de novo» aparece, com a mensagem",
+           b.get("cruzar") and u"retroprojeção falhou" in (b.get("msg") or u""), b.get("msg"))
+    checar(u"o progresso fica salvo depois do erro", c.get("salvas") == 2, str(c))
+    checar(u"e volta ao reabrir a série, e é cruzado de novo",
+           e.get("guardadas") == 2 and e.get("tubos")
+           and u"marcação salva" in (e.get("msg") or u""), str(e))
+    iscado = _encenar(corpo, ajuste=lambda js: js.replace(
+        u"ndAplicar(ND.bom, false);", u""))
+    checar(u"  isca: sem a volta, a tela fica no ângulo que falhou",
+           (iscado.get("a") or {}).get("lao") == 60)
+
+
+def teste_o_brilho_cobre_projecao_e_mpr():
+    secao(u"o brilho de processamento na projeção e nos três MPR")
+    if _sem_node():
+        return
+    corpo = u"""
+ window.uiCarregando=function(e, liga, txt){ _BRILHO.push([e.id, liga===false?0:1]) };
+ await _abrir();
+ var antes=_BRILHO.length;
+ ndAngulo(30,0);
+ var ja=_BRILHO.slice(antes);
+ pronto({todos:_BRILHO, ja:ja});
+"""
+    d = _encenar(corpo)
+    ligados = set(x[0] for x in d.get("todos") or [] if x[1] == 1)
+    checar(u"a projeção e os três MPR acendem o brilho ao abrir",
+           set([u"nd_palco", u"nd_pp0", u"nd_pp1", u"nd_pp2"]) <= ligados,
+           sorted(ligados))
+    checar(u"e girar acende o da projeção na hora, sem esperar",
+           [u"nd_palco", 1] in (d.get("ja") or []), str(d.get("ja")))
+    checar(u"e ele se apaga quando a imagem chega",
+           [u"nd_palco", 0] in (d.get("todos") or []))
+    iscado = _encenar(corpo, ajuste=lambda js: js.replace(
+        u"if(brilho) ndCarregando(true, palco,", u"if(false) ndCarregando(true, palco,"))
+    ligados_i = set(x[0] for x in iscado.get("todos") or [] if x[1] == 1)
+    checar(u"  isca: MPR sem brilho é acusado", u"nd_pp0" not in ligados_i)
+
+
+def teste_o_osso_na_tela():
+    secao(u"o osso: tirado pela segmentação, ou «segmentar primeiro (AUTO)»")
+    if _sem_node():
         return
     d = _encenar(u"""
  await _abrir();
- var r={inicial:ND.lado, vb0:_svg().getAttribute('viewBox')};
- var bts=document.querySelectorAll('#nd_res .nd-bt');
- r.aceso_no_html = bts.filter(function(b){ return _ligado(b) })
-                      .map(function(b){ return b.getAttribute('data-r') });
- _tentar('res', function(){ ndResolucao(1024) });
- r.depois=ND.lado; r.vb1=_svg().getAttribute('viewBox');
- r.aceso = bts.filter(function(b){ return _ligado(b) })
-              .map(function(b){ return b.getAttribute('data-r') });
+ var r={tem:ND.tem_osso, bt:document.getElementById('nd_osso_bt').hidden,
+   src1:_proj().src};
+ ndOssoAlternar(); r.src2=_proj().src; _carregou();
+ _RESP['/api/nidus/forma']=function(u){ var f=_padrao(u);
+  f.osso={tem:false, motivo:'esta série ainda não tem segmentação do ContourLab: o osso continua na projeção'};
+  return f };
+ document.getElementById('nd_serie').value='1'; ndEscolher(); await _esperar(); _carregou();
+ r.sem={tem:ND.tem_osso, sg:document.getElementById('nd_segmentar').hidden,
+   src:_proj().src, txt:document.getElementById('nd_osso_txt').innerHTML};
+ ND_FILA_A_CADA_MS=0;
+ var antes=_FETCHES.length;
+ ndSegmentar(); await _esperar(16);
+ r.fila=_urls(antes);
+ var seg=_FETCHES.filter(function(f){ return f.url.indexOf('/api/nidus/segmentar')>=0 })[0];
+ r.corpo=seg?JSON.parse(seg.op.body):null;
+ r.depois={tem:ND.tem_osso, src:_proj().src, msg:_msg()};
+ _RESP['/api/nidus/segmentar']={ok:false, indisponivel:true,
+  erro:'fila indisponível: a fila da estação não respondeu.'};
+ ND.tem_osso=false; ND.fila=null; ndSegmentar(); await _esperar();
+ r.indisp=_msg();
  pronto(r);
 """)
-    checar(u"o `lado` de fabrica e o do botao aceso no HTML",
-           [str(d.get("inicial"))] == (d.get("aceso_no_html") or []),
-           u"JS %s · HTML %s" % (d.get("inicial"), d.get("aceso_no_html")))
-    checar(u"o viewBox nasce do `lado`",
-           (d.get("vb0") or u"") == u"0 0 %s %s" % (d.get("inicial"),
-                                                    d.get("inicial")),
-           str(d.get("vb0")))
-    checar(u"e ele acompanha a troca de resolucao",
-           d.get("vb1") == u"0 0 1024 1024", str(d.get("vb1")))
-    checar(u"e o botao aceso acompanha", d.get("aceso") == ["1024"],
-           str(d.get("aceso")))
+    checar(u"com a segmentação, o osso sai da projeção ao abrir",
+           d.get("tem") is True and d.get("bt") is False
+           and u"osso=1" in (d.get("src1") or u""), (d.get("src1") or u"")[-60:])
+    checar(u"e o botão põe o osso de volta", u"osso=0" in (d.get("src2") or u""))
+    sem = d.get("sem") or {}
+    checar(u"sem segmentação, o osso fica, e não se adivinha pela densidade",
+           sem.get("tem") is False and u"osso=0" in (sem.get("src") or u""))
+    checar(u"e a tela oferece «Segmentar primeiro (AUTO)»", sem.get("sg") is False
+           and u"não tem segmentação" in (sem.get("txt") or u""))
+    fila = d.get("fila") or []
+    ordem = [u for u in fila if u"/api/nidus/segmentar" in u or u"/api/fila/estado" in u
+             or u"/api/nidus/osso" in u]
+    checar(u"segmentar vai à fila, acompanha o cartão e relê o osso quando termina",
+           len(ordem) >= 3 and u"segmentar" in ordem[0] and u"fila/estado" in ordem[1]
+           and u"nidus/osso" in ordem[-1], str(ordem))
+    checar(u"o pedido leva só o bilhete (o caminho fica no servidor)",
+           sorted((d.get("corpo") or {}).keys()) == [u"b", u"rotulo"], str(d.get("corpo")))
+    dep = d.get("depois") or {}
+    checar(u"e com a segmentação pronta o osso sai sozinho",
+           dep.get("tem") is True and u"osso=1" in (dep.get("src") or u""), str(dep)[:120])
+    checar(u"fila sem a rota: a tela diz «fila indisponível»",
+           u"fila indisponível" in (d.get("indisp") or u""), d.get("indisp"))
 
 
 def teste_as_incidencias_se_somam_nos_tres_planos():
     secao(u"as incidencias acumuladas aparecem JUNTAS nos tres planos")
-    if not _node():
-        checar(u"(sem node — o palco nao rodou)", True)
+    if _sem_node():
         return
     d = _encenar(u"""
  await _abrir();
- _tentar('desenhar', function(){ ndDesenhar() });
  var r={};
  for(var k=0;k<5;k++){
   _NINC = k+1;
@@ -912,12 +1217,10 @@ def teste_as_incidencias_se_somam_nos_tres_planos():
 
 def teste_serie_nova_nao_herda_a_sessao():
     secao(u"serie nova nao herda a sessao da anterior")
-    if not _node():
-        checar(u"(sem node — o palco nao rodou)", True)
+    if _sem_node():
         return
     d = _encenar(u"""
  await _abrir();
- _tentar('desenhar', function(){ ndDesenhar() });
  ND.pontos = [[10,10],[60,10],[60,60],[10,60]];
  _tentar('guardar', function(){ ndGuardar() });
  await _esperar();
@@ -943,7 +1246,6 @@ def teste_serie_nova_nao_herda_a_sessao():
 
 def teste_o_passo_do_detector_aparece():
     secao(u"o passo do detector aparece, e vem da lib")
-    import radai_nidus_screen as S
     bruto = fonte("radai_nidus_screen.py")
     checar(u"a rota da forma devolve o passo de cada resolucao",
            '"passos": serie.passos(LADOS)' in bruto)
@@ -951,47 +1253,30 @@ def teste_o_passo_do_detector_aparece():
            len(re.findall(r"\(256,\s*512,\s*768", bruto)) <= 1,
            u"%d copias da lista de lados"
            % len(re.findall(r"\(256,\s*512,\s*768", bruto)))
-    if not _node():
-        checar(u"(sem node — o palco nao rodou)", True)
+    if _sem_node():
         return
     d = _encenar(u"""
  await _abrir();
- var r={normal:document.getElementById('nd_passo').textContent};
- _tentar('alta', function(){ ndResolucao(1024) });
- r.alta=document.getElementById('nd_passo').textContent;
- _tentar('rapida', function(){ ndResolucao(256) });
- r.rapida=document.getElementById('nd_passo').textContent;
- pronto(r);
+ pronto({passo:document.getElementById('nd_passo').textContent});
 """)
-    for k, esperado in (("normal", u"0,64"), ("alta", u"0,32"),
-                        ("rapida", u"1,28")):
-        checar(u"o passo em «%s» aparece na tela" % k,
-               esperado in (d.get(k) or u""), repr(d.get(k)))
+    checar(u"o passo da resolução máxima aparece na tela",
+           u"0,32" in (d.get("passo") or u""), repr(d.get("passo")))
     checar(u"e pedir acima do que a serie oferece e dito na tela",
-           u"interpola" in (d.get("alta") or u"").lower(), repr(d.get("alta")))
-    checar(u"e o que cabe na serie nao leva aviso nenhum",
-           u"interpola" not in (d.get("normal") or u"").lower(),
-           repr(d.get("normal")))
+           u"interpola" in (d.get("passo") or u"").lower(), repr(d.get("passo")))
 
 
 def teste_a_tela_diz_a_escala_da_rm():
     secao(u"a tela diz a escala da RM e a modalidade da serie (v8.3)")
-    if not _node():
-        checar(u"(sem node — o palco nao rodou)", True)
+    if _sem_node():
         return
     d = _encenar(u"""
  await _abrir();
  var r={tc:document.getElementById('nd_escala').textContent};
- var _velha=_resposta;
- _resposta=function(url){
-  if(url.indexOf('/api/nidus/series')>=0)
-   return {series:[{bilhete:'B1', modalidade:'CT', desc:'angio', cortes:400,
+ _RESP['/api/nidus/series']={series:[{bilhete:'B1', modalidade:'CT', desc:'angio', cortes:400,
                     espessura_mm:0.5},
                    {bilhete:'B2', modalidade:'MR', desc:'T1 pos-Gd',
                     cortes:180, espessura_mm:1.0}]};
-  if(url.indexOf('/api/nidus/forma')>=0){
-   var f=_velha(url); f.hu=false; f.modalidade='MR'; return f }
-  return _velha(url) };
+ _RESP['/api/nidus/forma']=function(u){ var f=_padrao(u); f.hu=false; f.modalidade='MR'; return f };
  _tentar('listar', function(){ ndListar('X') });
  await _esperar();
  r.opcoes=document.getElementById('nd_serie').innerHTML;
@@ -1016,8 +1301,15 @@ TELA = (teste_o_javascript_nao_le_nome_solto,
         teste_a_tela_acorda_e_pede_as_series,
         teste_guardar_dispara_a_retroprojecao,
         teste_o_lapis_traca_e_afina,
-        teste_os_dois_modos_convivem,
-        teste_a_grade_do_desenho_acompanha_a_resolucao,
+        teste_so_o_lapis,
+        teste_os_padroes_de_abertura,
+        teste_as_barras_de_angulo,
+        teste_a_lista_diz_rao_e_cau,
+        teste_girar_guarda_o_traco,
+        teste_serie_que_nao_abre_trava_a_tela,
+        teste_o_erro_volta_ao_estado_bom,
+        teste_o_brilho_cobre_projecao_e_mpr,
+        teste_o_osso_na_tela,
         teste_as_incidencias_se_somam_nos_tres_planos,
         teste_serie_nova_nao_herda_a_sessao,
         teste_o_passo_do_detector_aparece,
@@ -1386,11 +1678,563 @@ def _png_wh(dados):
 
 class _Pedido(object):
 
-    def __init__(self, corpo):
+    def __init__(self, corpo, porta=8777):
+        import types
         self._c = corpo
+        self.url = types.SimpleNamespace(port=porta)
+        self.scope = {"server": ("127.0.0.1", porta)}
 
     async def json(self):
         return self._c
+
+
+def _com_dubles(img, pasta=u"", uid=u""):
+    import engine
+    import radai_thumbnail
+    lidas = []
+
+    def _ler(p, u=None):
+        lidas.append(p)
+        return img
+    guarda = (radai_thumbnail.resolver, engine.load_sitk)
+    radai_thumbnail.resolver = lambda b: ((pasta or (u"pasta_" + b)),
+                                          (uid if pasta else (u"1.2." + b)))
+    engine.load_sitk = _ler
+
+    def soltar():
+        radai_thumbnail.resolver, engine.load_sitk = guarda
+    return lidas, soltar
+
+
+def teste_a_serie_colorida_e_recusada():
+    secao(u"a série colorida ou 4D é recusada com motivo (o «axes don't match array»)")
+    import asyncio
+    import numpy as np
+    import SimpleITK as sitk
+    import radai_nidus as N
+    img, _a, _m = cabeca(nz=24, ny=32, nx=32)
+    a = sitk.GetArrayFromImage(img).astype(np.uint8)
+    rgb = sitk.GetImageFromArray(np.stack([a, a, a], -1), isVector=True)
+    rgb.CopyInformation(img)
+    q = sitk.JoinSeries([img, img])
+    try:
+        np.transpose(sitk.GetArrayViewFromImage(rgb), N.eixos_lps(rgb)[0])
+        cru = u""
+    except ValueError as e:
+        cru = str(e)
+    checar(u"reproduzido: a transposição crua da série colorida dá a mensagem do autor",
+           u"axes don't match array" in cru, cru)
+    for nome, im, palavra in ((u"colorida", rgb, u"colorida"),
+                              (u"4D", q, u"não é 3D")):
+        try:
+            N.abrir(im, "CT")
+            msg = u"(abriu)"
+        except N.SerieRecusada as e:
+            msg = str(e)
+        except Exception as e:
+            msg = u"%s: %s" % (type(e).__name__, e)
+        checar(u"a série %s é recusada com o motivo, e não com o do numpy" % nome,
+               palavra in msg and u"axes" not in msg, msg[:90])
+    try:
+        um = N.abrir(sitk.Compose(img), "CT")
+        ok = um.forma == N.abrir(img, "CT").forma
+    except Exception as e:
+        ok = False
+    checar(u"o pixel vetorial de um componente abre como escalar", ok)
+    try:
+        N.para_lps(np.zeros((2, 3, 4, 3)), ((0, 1, 2), (False,) * 3, (1, 1, 1)))
+        g = u""
+    except N.SerieRecusada as e:
+        g = str(e)
+    checar(u"a guarda da transposição fala a língua da tela", u"não é 3D" in g, g)
+
+    rotas = _rotas_montadas()
+    lidas, soltar = _com_dubles(rgb)
+    try:
+        f = rotas["/api/nidus/forma"](b="RGB")
+        checar(u"a rota da forma devolve o motivo",
+               u"colorida" in (f.get("erro") or u"")
+               and u"axes" not in (f.get("erro") or u""), str(f)[:120])
+        r = rotas["/api/nidus/projecao"](b="RGB", lao=0.0, cra=0.0, modo="mip",
+                                         janela="angio", lado=256, laje=0.0,
+                                         caixa="", osso=0)
+        checar(u"a projeção não esconde o erro num 404 calado",
+               r.status_code == 422 and u"colorida".encode("utf-8") in r.body,
+               str(r.status_code))
+        e = rotas["/api/nidus/estado"](b="RGB")
+        checar(u"e a tela acha o motivo pela rota do estado",
+               u"colorida" in (e.get("erro") or u""))
+        t = asyncio.run(rotas["/api/nidus/tubos"](_Pedido(
+            {"b": "RGB", "lado": 256,
+             "incidencias": [{"lao": 0, "cra": 0,
+                              "pontos": [[1, 1], [9, 1], [9, 9]]}]})))
+        checar(u"a retroprojeção da série recusada diz o motivo",
+               u"colorida" in (t.get("erro") or u""), str(t)[:120])
+        checar(u"e a série recusada foi lida do disco uma vez só",
+               len(lidas) == 1, u"%d leituras" % len(lidas))
+    finally:
+        soltar()
+
+
+def _cilindro(nz=40, ny=64, nx=64):
+    import numpy as np
+    import SimpleITK as sitk
+    z, y, x = np.mgrid[0:nz, 0:ny, 0:nx].astype(np.float32)
+    cy, cx = (ny - 1) / 2.0, (nx - 1) / 2.0
+    r = np.sqrt((y - cy) ** 2 + (x - cx) ** 2)
+    corpo = (z >= 4) & (z < nz - 4)
+    v = np.full((nz, ny, nx), -1000.0, dtype=np.float32)
+    v[corpo & (r < 30)] = 35.0
+    cranio = corpo & (r >= 26) & (r < 30)
+    v[cranio] = 1200.0
+    vaso = corpo & (np.sqrt((y - cy) ** 2 + (x - (cx + 8)) ** 2) < 2.2)
+    v[vaso] = 400.0
+    img = sitk.GetImageFromArray(v.astype(np.int16))
+    img.SetSpacing((1.0, 1.0, 1.0))
+    img.SetOrigin((-cx, -cy, 0.0))
+    return img, cranio, vaso, corpo & (r < 26), (cx, cy)
+
+
+def _rs_full(caminho, rois, img):
+    import pydicom
+    from pydicom.dataset import Dataset, FileDataset
+    from pydicom.sequence import Sequence
+    from pydicom.uid import ExplicitVRLittleEndian, generate_uid
+    meta = Dataset()
+    meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.481.3"
+    meta.MediaStorageSOPInstanceUID = generate_uid()
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    ds = FileDataset(None, {}, file_meta=meta, preamble=bytes(128))
+    ds.SOPClassUID = meta.MediaStorageSOPClassUID
+    ds.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
+    ds.Modality = "RTSTRUCT"
+    ds.PatientID = "FANTOMA"
+    ds.StructureSetLabel = "RadAI"
+    ox, oy, oz = img.GetOrigin()
+    sx, sy, sz = img.GetSpacing()
+    ssr, rcs = [], []
+    for k, (nome, cortes) in enumerate(sorted(rois.items()), start=1):
+        it = Dataset()
+        it.ROINumber = k
+        it.ROIName = nome
+        ssr.append(it)
+        cs = []
+        for z, polis in sorted(cortes.items()):
+            for pts in polis:
+                c = Dataset()
+                c.ContourGeometricType = "CLOSED_PLANAR"
+                c.NumberOfContourPoints = len(pts)
+                dados = []
+                for px, py in pts:
+                    dados += [round(ox + px * sx, 3), round(oy + py * sy, 3),
+                              round(oz + z * sz, 3)]
+                c.ContourData = dados
+                cs.append(c)
+        rc = Dataset()
+        rc.ReferencedROINumber = k
+        rc.ROIDisplayColor = [255, 255, 0]
+        rc.ContourSequence = Sequence(cs)
+        rcs.append(rc)
+    ds.StructureSetROISequence = Sequence(ssr)
+    ds.ROIContourSequence = Sequence(rcs)
+    try:
+        ds.save_as(caminho, enforce_file_format=True)
+    except TypeError:
+        ds.save_as(caminho, write_like_original=False)
+
+
+def _anel(cx, cy, raio, n=96):
+    import math
+    return [(cx + raio * math.cos(2 * math.pi * i / n),
+             cy + raio * math.sin(2 * math.pi * i / n)) for i in range(n)]
+
+
+def teste_o_osso_sai_pela_segmentacao():
+    secao(u"o osso sai pela segmentação gravada (FULL ou Estudo 3D), e o vaso fica")
+    import numpy as np
+    import radai_nidus as N
+    import radai_nidus_screen as S
+    import radai_rotulos
+    for nome, esperado in ((u"Skull_ai", True), (u"Vertebrae_C1_ai", True),
+                           (u"Bone_Mandible", True), (u"Rib_L_3_ai", True),
+                           (u"skull", True), (u"Brain_ai", False),
+                           (u"A_Vertebral_L_ai", False),
+                           (u"vertebral_artery_left", False),
+                           (u"A_Carotid_L_ai", False), (u"SpinalCord_ai", False)):
+        checar(u"«%s» %s osso" % (nome, u"é" if esperado else u"não é"),
+               S.e_osso(nome) is esperado)
+
+    img, cranio, vaso, interior, (cx, cy) = _cilindro()
+    uid = u"1.2.826.0.1.3680043.8.498.20261014"
+    forma = cranio.shape
+
+    def medir(pasta, rotulo):
+        rotas = _rotas_montadas()
+        lidas, soltar = _com_dubles(img, pasta, uid)
+        try:
+            f = rotas["/api/nidus/forma"](b=rotulo)
+            planos = {}
+            for o in (1, 0):
+                r = rotas["/api/nidus/projecao"](b=rotulo, lao=0.0, cra=0.0,
+                                                 modo="mip", janela="osso",
+                                                 lado=128, laje=0.0, caixa="",
+                                                 osso=o)
+                planos[o] = getattr(r, "body", b"")
+            return f, planos
+        finally:
+            soltar()
+
+    def plano_cru(com_osso, mascara):
+        s = N.abrir(img, "CT")
+        if mascara is not None:
+            s.tirar_osso(mascara, {"tem": True})
+        p, _i = N.projetar(s.img, 0.0, 0.0, "mip", lado=128, escala=s.escala,
+                           amostra=s.base("mip", com_osso))
+        return p
+
+    base = _cleanup.temporaria("radai_ac_nidus_osso_")
+    mapa = os.path.join(base, "mapa")
+    os.makedirs(mapa)
+    radai_rotulos.gravar(mapa, uid, {"total": {"skull": cranio,
+                                               "brain": interior}}, ref=img)
+    f, planos = medir(mapa, u"MAPA")
+    o = f.get("osso") or {}
+    checar(u"Estudo 3D: o osso é achado pela segmentação da série",
+           o.get("tem") is True and o.get("fonte") == u"Estudo 3D", str(o))
+    checar(u"e a projeção sem osso é outra imagem", planos[1] != planos[0])
+
+    com = plano_cru(False, None)
+    sem = plano_cru(True, cranio)
+    checar(u"com o osso, o MIP é o crânio (1200 HU) em toda a cabeça",
+           float(np.percentile(com[com > 0], 50)) > 1000.0)
+    checar(u"sem o osso, nada passa de 1000 HU (a borda também saiu)",
+           float(sem.max()) < 1000.0, u"%.0f" % float(sem.max()))
+    checar(u"e o vaso contrastado continua na projeção",
+           float(sem.max()) >= 350.0, u"%.0f" % float(sem.max()))
+    m_mapa, _im = S.osso_da_segmentacao(N.abrir(img, "CT"), mapa, uid)
+    checar(u"e do Estudo 3D sai só o osso: o encéfalo (e o vaso dentro) fica",
+           m_mapa is not None and not (m_mapa & interior).any()
+           and bool((m_mapa == cranio).all()))
+
+    full = os.path.join(base, "full")
+    os.makedirs(full)
+    cortes = dict((z, [_anel(cx, cy, 30.0), _anel(cx, cy, 26.0)])
+                  for z in range(4, forma[0] - 4))
+    vasos = dict((z, [_anel(cx + 8, cy, 2.2, 24)]) for z in range(4, forma[0] - 4))
+    _rs_full(os.path.join(full, u"RS_RadAI_FULL_20261014_%s.dcm" % uid[-8:]),
+             {u"Skull_ai": cortes, u"A_Vertebral_L_ai": vasos}, img)
+    f2, planos2 = medir(full, u"FULL")
+    o2 = f2.get("osso") or {}
+    checar(u"FULL: o osso é achado no RTSTRUCT da série",
+           o2.get("tem") is True and o2.get("fonte") == u"FULL"
+           and o2.get("estruturas") == 1, str(o2))
+    m, _info = S.osso_da_segmentacao(N.abrir(img, "CT"), full, uid)
+    dsc = 2.0 * float((m & cranio).sum()) / max(1.0, float(m.sum() + cranio.sum()))
+    checar(u"e a máscara do anel (com o furo) é o crânio do fantoma (DSC %.3f)" % dsc,
+           dsc >= 0.9, u"%.3f" % dsc)
+    checar(u"e o vaso com nome de osso («A_Vertebral») não entra",
+           not (m & vaso).any())
+
+    alheio = os.path.join(base, "alheio")
+    os.makedirs(alheio)
+    _rs_full(os.path.join(alheio, u"RS_RadAI_FULL_20261014_99999999.dcm"),
+             {u"Skull_ai": cortes}, img)
+    m3, info3 = S.osso_da_segmentacao(N.abrir(img, "CT"), alheio, uid)
+    checar(u"o FULL de outra série da pasta não serve", m3 is None
+           and info3.get("tem") is False, str(info3))
+    guarda = S._e_desta_serie
+    try:
+        S._e_desta_serie = lambda n, u: True
+        m4, _i4 = S.osso_da_segmentacao(N.abrir(img, "CT"), alheio, uid)
+    finally:
+        S._e_desta_serie = guarda
+    checar(u"  isca: sem a guarda do UID, o FULL alheio seria usado", m4 is not None)
+
+    vazia = os.path.join(base, "vazia")
+    os.makedirs(vazia)
+    f5, planos5 = medir(vazia, u"VAZIA")
+    o5 = f5.get("osso") or {}
+    checar(u"sem segmentação, a tela diz e oferece segmentar",
+           o5.get("tem") is False and o5.get("motivo") == S.SEM_SEGMENTACAO, str(o5))
+    checar(u"e o osso não é adivinhado pela densidade: a projeção é a mesma",
+           planos5[1] == planos5[0] and len(planos5[1]) > 100)
+
+
+def teste_segmentar_vai_para_a_fila():
+    secao(u"«segmentar primeiro (AUTO)» vai à fila única (contrato C1)")
+    import asyncio
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    import radai_nidus_screen as S
+    import radai_thumbnail
+    rotas = _rotas_montadas()
+    pedidos = []
+    guarda = (S.pedir_a_fila, radai_thumbnail.resolver)
+    try:
+        radai_thumbnail.resolver = lambda b: (u"pasta_X", u"1.2.3")
+        S.pedir_a_fila = lambda itens, porta: (
+            pedidos.append((itens, porta))
+            or {"ok": True, "cartoes": [{"id": "c7", "posicao": 2}]})
+        r = asyncio.run(rotas["/api/nidus/segmentar"](
+            _Pedido({"b": "X", "rotulo": "CTA cranio"}, porta=8791)))
+        item = (pedidos[:1] or [([{}], 0)])[0][0][0]
+        checar(u"o pedido é o do contrato: modo auto, origem nidus",
+               item == {"pasta": u"pasta_X", "uid": u"1.2.3", "modo": u"auto",
+                        "chaves": {}, "copiar_rs_para": [], "origem": u"nidus",
+                        "rotulo": u"CTA cranio"}, str(item))
+        checar(u"e vai à porta do próprio servidor", pedidos[0][1] == 8791,
+               str(pedidos[:1]))
+        checar(u"a tela recebe o cartão", r.get("ok") and r.get("id") == "c7"
+               and r.get("posicao") == 2, str(r))
+        S.pedir_a_fila = lambda itens, porta: {"ok": False, "indisponivel": True}
+        r2 = asyncio.run(rotas["/api/nidus/segmentar"](_Pedido({"b": "X"})))
+        checar(u"sem a fila, a resposta diz «fila indisponível»",
+               r2.get("ok") is False and r2.get("erro") == S.FILA_INDISPONIVEL
+               and u"fila indisponível" in S.FILA_INDISPONIVEL, str(r2))
+    finally:
+        S.pedir_a_fila, radai_thumbnail.resolver = guarda
+
+    class _Sem(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.send_response(404)
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+    srv = HTTPServer(("127.0.0.1", 0), _Sem)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    try:
+        r3 = S.pedir_a_fila([{}], srv.server_address[1])
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    checar(u"a rota da fila faltando (404) vira «indisponível»",
+           r3.get("indisponivel") is True, str(r3))
+
+
+def teste_a_demo_saiu():
+    secao(u"o Nidus não usa mais o módulo da demo (C5)")
+    import asyncio
+    import radai_batch
+    fonte_tela = fonte("radai_nidus_screen.py")
+    checar(u"a tela não importa nem cita o módulo da demo",
+           u"radai_demo" not in fonte_tela and u"nd_demo" not in fonte_tela
+           and u"_series_da_demo" not in fonte_tela)
+    rotas = _rotas_montadas()
+    guarda = radai_batch.varrer
+    try:
+        radai_batch.varrer = lambda pasta, **k: []
+        d = asyncio.run(rotas["/api/nidus/series"](_Pedido({"pasta": u"X"})))
+    finally:
+        radai_batch.varrer = guarda
+    checar(u"a lista só traz as séries da pasta", d.get("series") == [], str(d)[:120])
+
+
+def _serie_cta(destino, rgb=False):
+    from datetime import datetime
+    import numpy as np
+    import pydicom
+    from pydicom.dataset import Dataset, FileDataset
+    from pydicom.uid import ExplicitVRLittleEndian, generate_uid
+    os.makedirs(destino, exist_ok=True)
+    st, se, fr = generate_uid(), generate_uid(), generate_uid()
+    nz, ny, nx = (30, 64, 64) if rgb else (48, 80, 80)
+    z, y, x = np.mgrid[0:nz, 0:ny, 0:nx].astype(np.float32)
+    r = np.sqrt(((z - nz / 2) / (nz * .46)) ** 2 + ((y - ny / 2) / (ny * .42)) ** 2
+                + ((x - nx / 2) / (nx * .38)) ** 2)
+    v = np.full((nz, ny, nx), -1000, np.int16)
+    v[r < 1] = 35
+    v[(r >= .9) & (r < 1)] = 1200
+    d = np.sqrt((x - nx / 2) ** 2 + (y - ny * .45) ** 2 + (z - nz / 2) ** 2)
+    v[d < 5] = 350
+    for i in range(nz):
+        meta = Dataset()
+        meta.MediaStorageSOPClassUID = ("1.2.840.10008.5.1.4.1.1.7" if rgb
+                                        else "1.2.840.10008.5.1.4.1.1.2")
+        meta.MediaStorageSOPInstanceUID = generate_uid()
+        meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        ds = FileDataset(None, {}, file_meta=meta, preamble=bytes(128))
+        ds.SOPClassUID = meta.MediaStorageSOPClassUID
+        ds.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
+        ds.Modality = "CT"
+        ds.PatientName = "FANTOMA^NIDUS"
+        ds.PatientID = "FANTOMA"
+        ds.StudyInstanceUID, ds.SeriesInstanceUID = st, se
+        ds.FrameOfReferenceUID = fr
+        ds.SeriesNumber = 2 if rgb else 1
+        ds.InstanceNumber = i + 1
+        ds.SeriesDescription = "captura 3D" if rgb else "CTA fantoma"
+        ds.StudyDate = ds.SeriesDate = datetime.now().strftime("%Y%m%d")
+        ds.ImagePositionPatient = [-nx * 0.75, -ny * 0.75, i * 1.5]
+        ds.ImageOrientationPatient = [1, 0, 0, 0, 1, 0]
+        ds.PatientPosition = "HFS"
+        ds.SliceThickness = 1.5
+        ds.PixelSpacing = [1.5, 1.5]
+        ds.Rows, ds.Columns = ny, nx
+        if rgb:
+            ds.SamplesPerPixel = 3
+            ds.PlanarConfiguration = 0
+            ds.PhotometricInterpretation = "RGB"
+            ds.BitsAllocated = ds.BitsStored = 8
+            ds.HighBit = 7
+            ds.PixelRepresentation = 0
+            a = np.clip((v[i] + 1000) / 10, 0, 255).astype(np.uint8)
+            ds.PixelData = np.stack([a, a, a], -1).tobytes()
+        else:
+            ds.SamplesPerPixel = 1
+            ds.PhotometricInterpretation = "MONOCHROME2"
+            ds.BitsAllocated = ds.BitsStored = 16
+            ds.HighBit = 15
+            ds.PixelRepresentation = 1
+            ds.RescaleIntercept = 0
+            ds.RescaleSlope = 1
+            ds.PixelData = v[i].tobytes()
+        nome = ("SC_%04d.dcm" if rgb else "CT_%04d.dcm") % (i + 1)
+        try:
+            ds.save_as(os.path.join(destino, nome), enforce_file_format=True)
+        except TypeError:
+            ds.save_as(os.path.join(destino, nome), write_like_original=False)
+
+
+def _chromium():
+    base = os.path.join(os.environ.get("LOCALAPPDATA", ""), "ms-playwright")
+    if not os.path.isdir(base):
+        return None
+    for nome in sorted(os.listdir(base), reverse=True):
+        if not nome.startswith("chromium-"):
+            continue
+        for sub in ("chrome-win64", "chrome-win"):
+            exe = os.path.join(base, nome, sub, "chrome.exe")
+            if os.path.isfile(exe):
+                return exe
+    return None
+
+
+def _servidor():
+    import socket
+    import threading
+    import time
+    import uvicorn
+    from fastapi import FastAPI
+    import radai_nidus_screen as S
+    app = FastAPI()
+    S.montar(app)
+    s = socket.socket()
+    s.bind(("127.0.0.1", 0))
+    porta = s.getsockname()[1]
+    s.close()
+    srv = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=porta,
+                                       log_level="warning"))
+    threading.Thread(target=srv.run, daemon=True).start()
+    for _ in range(100):
+        if srv.started:
+            return srv, porta
+        time.sleep(0.1)
+    srv.should_exit = True
+    return None, porta
+
+
+def _caixa_de(pg, sel):
+    return pg.evaluate("(function(){ var e=document.querySelector(%r);"
+                       " if(!e) return null; var r=e.getBoundingClientRect();"
+                       " return {x:r.left, y:r.top, w:r.width, h:r.height,"
+                       " b:r.bottom, d:r.right} })()" % sel)
+
+
+def teste_no_navegador():
+    secao(u"no navegador: uma tela só, o lápis, e a série colorida que trava")
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception:
+        checar(u"(sem Playwright — o navegador não rodou)", True)
+        return
+    exe = _chromium()
+    if not exe:
+        checar(u"(sem Chromium — o navegador não rodou)", True)
+        return
+    base = _cleanup.temporaria("radai_ac_nidus_nav_")
+    share = os.path.join(base, "share", "FANTOMA")
+    _serie_cta(os.path.join(share, "CTA"))
+    _serie_cta(os.path.join(share, "SC3D"), rgb=True)
+    srv, porta = _servidor()
+    checar(u"o servidor de teste subiu", srv is not None)
+    if srv is None:
+        return
+    erros = []
+    try:
+        with sync_playwright() as p:
+            nav = p.chromium.launch(executable_path=exe, headless=True)
+            for larg, alt in ((1600, 900), (1280, 800)):
+                pg = nav.new_page(viewport={"width": larg, "height": alt})
+                pg.on("pageerror", lambda e: erros.append(str(e)[:160]))
+                pg.goto("http://127.0.0.1:%d/nidus/projecao" % porta)
+                pg.wait_for_timeout(500)
+                pg.fill("#nd_pasta", share)
+                pg.click("#nd_listar")
+                pg.wait_for_function(
+                    "document.getElementById('nd_serie').options.length > 1",
+                    timeout=60000)
+                ops = pg.eval_on_selector_all("#nd_serie option",
+                                              "os => os.map(o => o.textContent)")
+                boa = [i for i, o in enumerate(ops) if u"CTA" in o]
+                ruim = [i for i, o in enumerate(ops) if u"captura" in o]
+                pg.select_option("#nd_serie", str(boa[0]))
+                pg.wait_for_function(
+                    "document.getElementById('nd_proj').naturalWidth > 0 && !ND.projetando",
+                    timeout=60000)
+                pg.wait_for_timeout(2600)
+                rot = u"%dx%d" % (larg, alt)
+                checar(u"[%s] tudo numa tela, sem rolar" % rot,
+                       pg.evaluate("document.documentElement.scrollHeight"
+                                   " <= window.innerHeight + 1"),
+                       pg.evaluate("[document.documentElement.scrollHeight, window.innerHeight]"))
+                cmd, palco, mpr, lado = (_caixa_de(pg, s) for s in (
+                    "#nd_cmd", "#nd_palco", "#nd_mpr .nd-planos", "#nd_lado"))
+                checar(u"[%s] as ferramentas em cima do visor" % rot,
+                       cmd and palco and cmd["b"] <= palco["y"] + 1, (cmd, palco))
+                checar(u"[%s] os três MPR à direita, com a altura do visor" % rot,
+                       mpr and mpr["x"] >= palco["d"] - 1
+                       and abs(mpr["h"] - palco["h"]) <= 2
+                       and abs(mpr["y"] - palco["y"]) <= 2, (palco, mpr))
+                checar(u"[%s] o visor é quadrado e grande" % rot,
+                       abs(palco["w"] - palco["h"]) <= 1 and palco["h"] >= 300, palco)
+                pg.mouse.move(palco["x"] + palco["w"] * .6, palco["y"] + palco["h"] * .5)
+                pg.mouse.down()
+                for k in range(1, 40):
+                    import math
+                    t = 2 * math.pi * k / 40
+                    pg.mouse.move(palco["x"] + palco["w"] * (.5 + .1 * math.cos(t)),
+                                  palco["y"] + palco["h"] * (.5 + .1 * math.sin(t)))
+                pg.mouse.up()
+                checar(u"[%s] o lápis desenha sem ligar nada" % rot,
+                       pg.evaluate("ND.pontos.length") >= 8
+                       and u" Z" in pg.inner_html("#nd_marca"))
+                pg.click("#nd_bt_guardar")
+                pg.wait_for_function("ND.sessao && !ND.cruzando", timeout=60000)
+                checar(u"[%s] guardar cruza a incidência" % rot,
+                       pg.evaluate("document.querySelectorAll('#nd_guardadas li').length") == 1)
+                if larg == 1280:
+                    pg.screenshot(path=os.path.join(base, "nidus_1280.png"))
+                pg.select_option("#nd_serie", str(ruim[0]))
+                pg.wait_for_function("!ND.abrindo", timeout=60000)
+                pg.wait_for_timeout(400)
+                msg = pg.inner_text("#nd_msg")
+                checar(u"[%s] a série colorida diz por que não abre" % rot,
+                       u"colorida" in msg and u"axes" not in msg, msg)
+                pg.mouse.move(palco["x"] + 50, palco["y"] + 50)
+                pg.mouse.down()
+                pg.mouse.move(palco["x"] + 150, palco["y"] + 150)
+                pg.mouse.up()
+                checar(u"[%s] e nela o lápis e o Guardar ficam travados" % rot,
+                       pg.evaluate("ND.pontos.length") == 0
+                       and pg.is_disabled("#nd_bt_guardar")
+                       and pg.is_disabled("#nd_lao_r"))
+                pg.close()
+            nav.close()
+    finally:
+        srv.should_exit = True
+    checar(u"nenhum erro de JavaScript", not erros, u"; ".join(erros[:3]))
 
 
 def teste_as_rotas_leem_a_serie_uma_vez():
@@ -1511,7 +2355,11 @@ def main():
               teste_o_tubo_em_bits_e_o_mesmo_tubo,
               teste_o_pixel_da_tela_e_quadrado,
               teste_as_rotas_leem_a_serie_uma_vez,
-              teste_a_rm_entra_no_seletor) + TELA:
+              teste_a_rm_entra_no_seletor,
+              teste_a_serie_colorida_e_recusada,
+              teste_o_osso_sai_pela_segmentacao,
+              teste_segmentar_vai_para_a_fila,
+              teste_a_demo_saiu) + TELA + (teste_no_navegador,):
         try:
             t()
         except Exception as e:
