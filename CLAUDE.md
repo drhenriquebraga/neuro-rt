@@ -57,6 +57,33 @@ pasta é o integrador da Suite.
 - As projeções podem mostrar o rosto: imagem de série real não sai da
   máquina.
 - A projeção usa o núcleo 3D do Recon3D (`radai_recon3d`): contrato.
+- **Série que a transposição para LPS não aceita é recusada na abertura**
+  (`radai_nidus.SerieRecusada`: imagem colorida, volume que não é 3D, poucos
+  cortes), com o motivo, e não é relida a cada pedido: era a causa do
+  «ValueError: axes don't match array». **Cada ação vira um estado salvo** na
+  aba; erro de projeção volta ao último estado bom e avisa; erro da
+  retroprojeção guarda a incidência como não cruzada, com «Cruzar de novo»;
+  reabrir a série traz a marcação de volta (`/api/nidus/estado`). As rotas
+  de imagem respondem 422 ou 500 com o motivo, e não 404 calado.
+- **Só o lápis** (saíram «cliques» e «circular a área»): soltar o clique
+  fecha a área do último ponto ao primeiro. LAO/RAO e CRA/CAU em barra de
+  arrastar, e a lista das guardadas diz RAO e CAU no ângulo negativo.
+- **A resolução é sempre a máxima** (`radai_nidus.LADO_ALTA`, 1024), e a
+  opção saiu: nidus não se vê em resolução baixa. Abre invertida, com todo o
+  volume e MIP.
+- **O osso sai da projeção pela segmentação que o ContourLab gravou** (o
+  FULL ou o mapa de rótulos do Estudo 3D), por
+  `radai_viewseg.mascaras_da_serie` (o contrato C6), uma chamada por pasta da
+  série, com `radai_nidus_screen.e_osso` como filtro. Série sem segmentação:
+  a tela oferece «Segmentar primeiro (AUTO)» pela fila única (C1), e nunca
+  adivinha o osso pela densidade. O acompanhamento do cartão para depois de
+  4 h sem resposta.
+- **A série se escolhe pela tabela do acervo da Suite** (C2, filtrada para TC
+  e RM) ou pela aba «Aponte uma pasta», com a busca da Suite
+  (`radai_dicom.buscar_series`); a tela não varre o `ROOT` sozinha ao abrir.
+  Ferramentas em cima, os três MPR empilhados à direita do visor, sem rolar
+  em 1280×800. O brilho de processamento da casca acende na projeção e nos
+  MPR; a barra da fila aparece recolhida, com contador.
 
 ## Como trabalhar
 
