@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import hashlib
 import itertools
 import json
 import os
@@ -22,9 +23,28 @@ SEM_UID = (
     u"sem o UID da série não dá para achar a segmentação dela: o osso "
     u"continua na projeção")
 
+SEM_OSSO_NA_ENTREGA = (
+    u"a entrega desta série não tem osso que sirva para a projeção: o osso "
+    u"continua na projeção")
+
 FILA_INDISPONIVEL = (
     u"fila indisponível: a fila da estação não respondeu. Mande a série pelo "
     u"«Rodar agora» e escolha-a de novo quando terminar.")
+
+FORA_DO_ACERVO = (
+    u"esta série não está mais no acervo: recarregue a lista e escolha-a de "
+    u"novo")
+
+PROJECAO_VELHA = u"pedido de projeção substituído por um mais novo"
+
+ORDEM_DO_OSSO = (((u"full", u"oar"), True), ((u"fast",), False))
+
+
+def chave_da_serie(pasta, uid):
+    uid = str(uid or u"").strip()
+    base = (u"uid:" + uid) if uid else (
+        u"pasta:" + os.path.normcase(os.path.abspath(str(pasta or u""))))
+    return hashlib.sha256(base.encode("utf-8")).hexdigest()[:24]
 
 CSS = u"""
 .nd-wrap{max-width:1760px;margin:0 auto;padding:0 18px 6px}
@@ -195,21 +215,26 @@ CSS = u"""
 """
 
 JS = u"""
-var ND = {b:'', desc:'', lista:[], lado:@LADO@, jan:'angio', modo:'mip',
-          lao:0, cra:0, laje:0, inverter:true, osso:true, tem_osso:false,
+var ND_PADROES = {lao:0, cra:0, modo:'mip', jan:'angio', laje:0, inverter:true,
+                  osso:true};
+var ND = {b:'', chave:'', desc:'', lista:[], lado:@LADO@, tem_osso:false,
           ossoInfo:null, tracando:false, pontos:[], guardadas:[], sessao:null,
           planos:{0:0.5,1:0.5,2:0.5}, forma:null,
           passos:null, lado_util:0, teto:12,
           zoom:{k:1, x:0, y:0},
           caixa:null, caixaOn:false, telas:null, abrindo:false,
           aberta:false, motivo:'', projetando:false, cruzando:false,
-          recruzar:false, voltando:false, refazendo:false,
-          bom:null, historico:[], fila:null, restaurou:false,
+          recruzar:false, voltando:false, refeitas:0, recuperavel:false,
+          bom:null, historico:[], fila:null, restaurou:false, ultima:null,
+          substituirOsso:false, seqProj:0,
           tabela:null, modal:null, escolhendo:false};
+ndPadroes();
 var ND_MODALIDADES = @MODALIDADES@;
+var ND_ABA = Math.random().toString(36).slice(2, 10);
 
 var ND_EPS = 0.5, ND_TETO_VERTICES = 120, ND_PASSO_MIN = 0.6;
 var ND_TETO_HISTORICO = 60, ND_FILA_A_CADA_MS = 15000, ND_FILA_TENTATIVAS = 960;
+var ND_FILA_FALHAS = 4;
 var ND_TRAVAVEIS = ['nd_lao','nd_cra','nd_lao_r','nd_cra_r','nd_m_mip','nd_m_minip',
  'nd_inverter','nd_osso_bt','nd_segmentar','nd_laje','nd_caixa_bt','nd_caixa_limpar',
  'nd_bt_guardar','nd_bt_cruzar'];
@@ -241,9 +266,14 @@ function ndFoto(){
   inverter:ND.inverter, osso:ND.osso, caixa:ND.caixa, guardadas:ND.guardadas,
   pontos:ND.pontos, sessao:ND.sessao});
 }
-function ndChaveSalva(){ return 'radai_nidus_'+ND.b }
+function ndPadroes(){
+ for(var k in ND_PADROES) ND[k]=ND_PADROES[k];
+ ND.planos={0:0.5,1:0.5,2:0.5};
+}
+// GUARDA: a chave é a impressão do UID que o servidor manda; o bilhete muda a cada processo.
+function ndChaveSalva(){ return 'radai_nidus_'+ND.chave }
 function ndRegistrar(acao){
- if(!ND.b) return;
+ if(!ND.chave) return;
  var f=ndFoto();
  ND.historico.push({acao:acao, foto:f});
  while(ND.historico.length>ND_TETO_HISTORICO) ND.historico.shift();
@@ -252,6 +282,7 @@ function ndRegistrar(acao){
  catch(e){}
 }
 function ndSalvo(){
+ if(!ND.chave) return null;
  try{
   var s=window.sessionStorage, t=s?s.getItem(ndChaveSalva()):null;
   return t?JSON.parse(t):null;
@@ -285,12 +316,19 @@ function ndTravas(){
   c.hidden=!ND.guardadas.some(function(x){ return x && x.pendente });
   c.disabled=!aberta || ND.cruzando;
  }
+ var rt=ndEl('nd_bt_retomar');
+ if(rt) rt.hidden=!(ND.recuperavel && ND.ultima && !aberta && !ND.abrindo);
  var p=ndEl('nd_palco');
  if(p) p.classList.toggle('desenhavel', ndPodeDesenhar());
 }
-function ndBloquear(motivo){
+function ndBloquear(motivo, recuperavel){
  ND.aberta=false; ND.motivo=motivo||''; ND.tracando=false;
+ ND.recuperavel=!!recuperavel;
  ndTravas();
+}
+function ndRetomar(){
+ if(!ND.ultima || ND.aberta || ND.abrindo) return;
+ ndAbrirSerie(ND.ultima);
 }
 
 function ndFrases(alvo, frases){
@@ -367,13 +405,18 @@ function ndAbrirSerie(s){
  ndFecharEscolha();
  if(ND.tabela && s.origem!=='acervo') ND.tabela.marcar(null);
  ndRotuloDaSerie(s.rotulo);
+ ND.ultima=s; ND.chave='';
  ND.b=s.bilhete; ND.desc=s.desc||''; ND.guardadas=[]; ND.pontos=[]; ND.forma=null;
  ND.sessao=null; ND.tracando=false; ND.passos=null; ND.lado_util=0;
  ND.caixa=null; ND.caixaOn=false; ND.telas=null; ND.abrindo=true;
  ND.aberta=false; ND.motivo=''; ND.projetando=false; ND.cruzando=false;
- ND.recruzar=false; ND.voltando=false; ND.refazendo=false;
+ ND.recruzar=false; ND.voltando=false; ND.refeitas=0; ND.recuperavel=false;
  ND.bom=null; ND.historico=[]; ND.fila=null; ND.tem_osso=false; ND.ossoInfo=null;
- ND.restaurou=false;
+ ND.restaurou=false; ND.substituirOsso=false;
+ // GUARDA: série nova abre nos padrões; só o estado salvo DELA os muda (depois do abrir).
+ ndPadroes();
+ [0,1,2].forEach(function(eixo){ var r=ndEl('nd_pos'+eixo); if(r) r.value='50' });
+ ndSincronizar();
  ndTravas(); ndModalidade(s.modalidade); ndZoomAjustar(); ndPintarCaixas();
  ndPintarMarca();
  // GUARDA: a imagem da série anterior sai já; sob o carregamento ela pareceria a nova.
@@ -384,7 +427,9 @@ function ndAbrirSerie(s){
  ndPasso(); ndEscala(null); ndOsso(null);
  ndMsg('abrindo a série…','');
  var b=ND.b;
- fetch('/api/nidus/forma?b='+encodeURIComponent(ND.b))
+ fetch('/api/nidus/abrir',{method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({b:b, origem:s.origem||''})})
   .then(function(r){return r.json()}).then(function(d){
    if(b!==ND.b) return;
    ND.abrindo=false;
@@ -395,6 +440,7 @@ function ndAbrirSerie(s){
     ndPintarGuardadas();
     return;
    }
+   ND.chave=String(d.chave||'');
    ND.forma=d.forma; ND.telas=d.telas||null;
    if(d.modalidade) ndModalidade(d.modalidade);
    ND.passos=d.passos||null; ND.lado_util=d.lado_util||0;
@@ -413,7 +459,7 @@ function ndAbrirSerie(s){
   })
   .catch(function(e){ if(b!==ND.b) return;
    ND.abrindo=false; ndCarregando(false);
-   ndBloquear('não consegui abrir: '+e); ndMsg(ND.motivo,'erro') });
+   ndBloquear('não consegui abrir: '+e, true); ndMsg(ND.motivo,'erro') });
  ndPintarGuardadas();
 }
 
@@ -439,7 +485,9 @@ function ndProjetar(){
   ND.projetando=false; ND.voltando=false;
   ndCarregando(false); ndMarcarBom(); ndTravas() };
  ndCarregando(true);
+ ND.seqProj++;
  img.src='/api/nidus/projecao?b='+encodeURIComponent(ND.b)
+   +'&n='+ND.seqProj+'&t='+ND_ABA
    +'&lao='+ND.lao+'&cra='+ND.cra+'&modo='+ND.modo+'&janela='+ND.jan
    +'&lado='+ND.lado+(ND.laje?('&laje='+ND.laje):'')
    +'&osso='+((ND.osso && ND.tem_osso)?1:0)
@@ -464,8 +512,12 @@ function ndFalhou(tipo){
 function ndVoltarAoBom(motivo){
  if(ND.voltando || !ND.bom){
   ND.voltando=false;
-  ndBloquear(motivo);
-  ndMsg2(motivo, 'a série parou de responder: escolha-a de novo na lista; a marcação continua salva.', 'erro');
+  // GUARDA: o salvo leva os parâmetros bons; reabrir no ângulo que falhou falharia de novo.
+  if(ND.bom){ var g0=ND.guardadas, p0=ND.pontos;
+   ndAplicar(ND.bom, false); ND.guardadas=g0; ND.pontos=p0; ndSincronizar() }
+  ndRegistrar('erro');
+  ndBloquear(motivo, true);
+  ndMsg2(motivo, 'a série parou de responder: «Tentar de novo» reabre a série, e a marcação continua salva.', 'erro');
   return;
  }
  ND.voltando=true;
@@ -828,6 +880,10 @@ function ndOsso(d){
  ND.tem_osso=!!(d && d.tem);
  ndPintarOsso();
 }
+function ndPedeSubstituir(){
+ var d=ND.ossoInfo;
+ return !!((d && !d.tem && d.entrega) || ND.substituirOsso);
+}
 function ndPintarOsso(){
  var d=ND.ossoInfo, t=ndEl('nd_osso_txt'), bt=ndEl('nd_osso_bt'), sg=ndEl('nd_segmentar');
  if(bt){
@@ -835,16 +891,24 @@ function ndPintarOsso(){
   bt.classList.toggle('on', !!(ND.tem_osso && ND.osso));
   bt.setAttribute('aria-pressed', (ND.tem_osso && ND.osso)?'true':'false');
  }
- if(sg) sg.hidden=!(d && !d.tem && ND.aberta && !ND.fila);
+ if(sg){
+  sg.hidden=!(d && !d.tem && ND.aberta && !ND.fila);
+  var st=ndEl('nd_segmentar_txt'), ts=ndPedeSubstituir()
+   ? 'Segmentar em AUTO (substitui a entrega)' : 'Segmentar primeiro (AUTO)';
+  if(st){ if(window.uiTexto) window.uiTexto(st, ts); else st.textContent=ts }
+ }
  if(!t) return;
- if(!d){ t.innerHTML=''; return }
- if(d.tem){
+ if(ND.fila && ND.fila.frase){
+  t.innerHTML='<span data-radai-frase>'+ndEsc(ND.fila.frase)+'</span>';
+ } else if(!d){ t.innerHTML=''; return }
+ else if(d.tem){
   t.innerHTML='<span data-radai-frase>'+(ND.osso
     ? 'o osso sai da projeção (MIP) pela segmentação do ContourLab'
     : 'o osso está à mostra: a segmentação do ContourLab foi achada, e está desligada')
    +'</span> <b>'+ndEsc(d.fonte||'')+' · '+(+d.estruturas||0)+'</b>';
  } else {
-  t.innerHTML='<span data-radai-frase>'+ndEsc(d.motivo||'esta série ainda não tem segmentação do ContourLab: o osso continua na projeção')+'</span>';
+  t.innerHTML='<span data-radai-frase>'+ndEsc(d.motivo||'esta série ainda não tem segmentação do ContourLab: o osso continua na projeção')+'</span>'
+   +(d.entrega?(' <b translate="no">'+ndEsc(d.entrega)+'</b>'):'');
  }
  if(window.radaiRetraduzir) window.radaiRetraduzir();
 }
@@ -855,59 +919,110 @@ function ndOssoAlternar(){
 }
 function ndSegmentar(){
  if(!ND.b || !ND.aberta) return;
+ if(!ndPedeSubstituir()){ ndPedirSegmentacao(false); return }
+ var entrega=String((ND.ossoInfo && ND.ossoInfo.entrega) || '');
+ var h='<p data-radai-frase>'+ndEsc(entrega
+   ? 'Esta série já tem uma entrega do ContourLab, e ela não tem osso que sirva para a projeção.'
+   : 'A fila deu esta série como pronta, e nenhuma segmentação com osso apareceu ao lado dela.')
+  +'</p>'+(entrega?('<p><b translate="no">'+ndEsc(entrega)+'</b></p>'):'')
+  +'<p data-radai-frase>Segmentar em AUTO grava o FULL e substitui a entrega desta série. A entrega nova também é sugestão, e passa pela revisão médica.</p>';
+ // GUARDA: substituir apaga a entrega que existe; sem a confirmação, nada vai para a fila.
+ if(!window.uiConfirmar){
+  ndMsg('a confirmação não abriu: nada foi para a fila','erro'); return }
+ window.uiConfirmar({titulo:'Substituir a entrega desta série?', html:h,
+  ok:'Segmentar em AUTO e substituir',
+  aoSim:function(){ ndPedirSegmentacao(true) }});
+}
+function ndPedirSegmentacao(substituir){
  var b=ND.b, sg=ndEl('nd_segmentar');
  if(sg) sg.disabled=true;
+ var corpo={b:b, rotulo:ND.desc||''};
+ if(substituir) corpo.substituir=true;
  fetch('/api/nidus/segmentar',{method:'POST',
    headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({b:b, rotulo:ND.desc||''})})
+   body:JSON.stringify(corpo)})
   .then(function(r){return r.json()}).then(function(d){
    if(b!==ND.b) return;
-   if(!d || !d.ok){ if(sg) sg.disabled=false;
+   if(sg) sg.disabled=false;
+   if(!d || !d.ok){
     ndMsg((d && d.erro) ? String(d.erro) : 'fila indisponível','erro'); return }
-   ND.fila={id:d.id, tentativas:0};
+   ND.fila={id:d.id, tentativas:0, falhas:0, frase:''};
+   ND.substituirOsso=false;
    ndPintarOsso();
    ndMsg('na fila: quando a segmentação AUTO do ContourLab terminar, o osso sai da projeção','ok');
    if(window.radaiFilaAbrir){ try{ window.radaiFilaAbrir() }catch(e){} }
-   ndFilaVigiar();
+   ndFilaVigiar(0);
   }).catch(function(){ if(sg) sg.disabled=false; ndMsg('fila indisponível','erro') });
 }
-function ndFilaVigiar(){
+function ndFilaSituacao(estado, rodando){
+ var f=ND.fila; if(!f) return;
+ var t='';
+ if(estado==='rodando')
+  t='a segmentação AUTO desta série está rodando: quando terminar, o osso sai da projeção';
+ else if(rodando===false)
+  t='a fila está parada: o cartão espera alguém clicar em «Iniciar» na barra da fila, e só então a segmentação AUTO começa';
+ else if(rodando===true)
+  t='na fila, e a fila está rodando: a segmentação AUTO desta série começa na vez dela';
+ // GUARDA: sem o campo `rodando` a situação da fila é desconhecida, e a tela não a inventa.
+ if(!t || t===f.frase) return;
+ f.frase=t;
+ ndMsg(t, (estado!=='rodando' && rodando===false) ? '' : 'ok');
+ ndPintarOsso();
+}
+function ndFilaVigiar(espera){
  var b=ND.b;
  if(!ND.fila) return;
  setTimeout(function(){
   if(b!==ND.b || !ND.fila) return;
   var id=ND.fila.id;
   fetch('/api/fila/estado',{method:'POST',
-    headers:{'Content-Type':'application/json'}, body:'{}'})
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids:[id]})})
    .then(function(r){return r.json()}).then(function(d){
     if(b!==ND.b || !ND.fila) return;
+    ND.fila.falhas=0;
     var cs=(d && d.cartoes) ? d.cartoes : (Array.isArray(d) ? d : []);
     var c=cs.filter(function(x){ return x && x.id===id })[0];
-    if(c && (c.estado==='pronto' || c.estado==='parcial')){
-     ND.fila=null; ndOssoRecarregar(); return }
-    if(c && (c.estado==='falhou' || c.estado==='cancelado')){
+    if(!c){ ND.fila=null; ndOssoRecarregar('saiu'); return }
+    if(c.estado==='pronto' || c.estado==='parcial'){
+     ND.fila=null; ndOssoRecarregar('pronto'); return }
+    if(c.estado==='falhou' || c.estado==='cancelado'){
      ND.fila=null; ndPintarOsso();
      ndMsg2(String(c.mensagem||c.estado), 'a segmentação não terminou: o osso continua na projeção.', 'erro');
      return }
+    ndFilaSituacao(c.estado, (d && typeof d.rodando==='boolean') ? d.rodando : null);
     ND.fila.tentativas++;
     if(ND.fila.tentativas>ND_FILA_TENTATIVAS){ ND.fila=null; ndPintarOsso();
-     ndMsg('a fila não responde: quando a segmentação terminar, escolha a série de novo','erro');
+     ndMsg('o cartão continua na fila, e esta tela parou de acompanhá-lo: quando a segmentação terminar, escolha a série de novo','');
      return }
     ndFilaVigiar();
-   }).catch(function(){ if(b!==ND.b) return; ND.fila=null; ndPintarOsso();
-    ndMsg('a fila não responde: quando a segmentação terminar, escolha a série de novo','erro') });
- }, ND_FILA_A_CADA_MS);
+   }).catch(function(){ if(b!==ND.b || !ND.fila) return;
+    ND.fila.falhas++;
+    // GUARDA: a fila só é dada como muda depois de falhas SEGUIDAS; o cartão que responde esperando respondeu.
+    if(ND.fila.falhas>=ND_FILA_FALHAS){ ND.fila=null; ndPintarOsso();
+     ndMsg('a fila não responde: quando a segmentação terminar, escolha a série de novo','erro');
+     return }
+    ndFilaVigiar() });
+ }, (espera==null) ? ND_FILA_A_CADA_MS : espera);
 }
-function ndOssoRecarregar(){
+function ndOssoRecarregar(porque){
  var b=ND.b;
  fetch('/api/nidus/osso',{method:'POST', headers:{'Content-Type':'application/json'},
    body:JSON.stringify({b:b})})
   .then(function(r){return r.json()}).then(function(d){
    if(b!==ND.b) return;
-   ndOsso((d && d.osso) || null);
+   if(!d || !d.osso){ ndPintarOsso();
+    ndMsg2((d && d.erro) ? String(d.erro) : 'sem resposta', 'não consegui reler a segmentação: escolha a série de novo.', 'erro');
+    return }
+   ndOsso(d.osso);
    if(ND.tem_osso){ ND.osso=true; ndPintarOsso(); ndRegistrar('osso'); ndProjetar();
-    ndMsg('a segmentação terminou: o osso saiu da projeção','ok') }
-  }).catch(function(){});
+    ndMsg('a segmentação terminou: o osso saiu da projeção','ok'); return }
+   if(porque==='pronto') ND.substituirOsso=true;
+   ndPintarOsso();
+   ndMsg(porque==='saiu'
+    ? 'o cartão saiu da fila, e nenhuma segmentação com osso apareceu ao lado da série: o osso continua na projeção'
+    : 'a fila fechou o cartão, e nenhuma segmentação com osso apareceu ao lado da série: o osso continua na projeção',
+    'erro');
+  }).catch(function(){ if(b===ND.b) ndPintarOsso() });
 }
 
 function ndGuardar(auto){
@@ -976,9 +1091,10 @@ function ndPintarGuardadas(){
  ndTravas();
 }
 
-function ndCalcular(){
+function ndCalcular(refazer){
  var g=ND.guardadas.filter(Boolean);
  if(!g.length || !ND.b || !ND.aberta) return;
+ if(refazer!==true) ND.refeitas=0;
  if(ND.cruzando){ ND.recruzar=true; return }
  ND.cruzando=true; ND.recruzar=false; ndTravas();
  var b=ND.b;
@@ -991,7 +1107,7 @@ function ndCalcular(){
    if(b!==ND.b) return;
    ND.cruzando=false;
    if(!d || d.erro){ ndFalhaDaRetro((d && d.erro) ? String(d.erro) : 'sem resposta'); return }
-   ND.sessao=d.sessao; ND.teto=d.teto||12; ND.refazendo=false;
+   ND.sessao=d.sessao; ND.teto=d.teto||12;
    g.forEach(function(x){ x.pendente=false });
    ndMarcarBom(); ndRegistrar('cruzar');
    var n=d.incidencias||g.length;
@@ -1013,9 +1129,17 @@ function ndCalcular(){
 }
 
 function ndFalhaDaRetro(motivo){
- ND.recruzar=false; ND.refazendo=false;
+ ND.recruzar=false;
  ndPintarGuardadas(); ndRegistrar('falhou');
  ndMsg2(motivo, 'a retroprojeção falhou: as linhas continuam as do último estado bom, e as incidências desenhadas estão salvas — «Cruzar de novo» tenta outra vez.', 'erro');
+}
+
+function ndLinhasFalharam(motivo){
+ ND.sessao=null;
+ ND.guardadas.forEach(function(x){ if(x) x.pendente=true });
+ [0,1,2].forEach(function(eixo){ var g=ndEl('nd_lin'+eixo); if(g) g.innerHTML='' });
+ ndPintarGuardadas(); ndRegistrar('falhou');
+ ndMsg2(motivo, 'as linhas da marcação não vieram do servidor, nem depois de uma nova tentativa: as incidências desenhadas estão salvas — «Cruzar de novo» tenta outra vez.', 'erro');
 }
 
 var ND_T_CORTE={};
@@ -1050,10 +1174,12 @@ function ndLinhas(eixo){
    +'&eixo='+eixo+'&pos='+ND.planos[eixo])
   .then(function(r){return r.json()}).then(function(d){
    if(s!==ND.sessao) return;
-   if(d.erro){
-    // GUARDA: sessão que o servidor esqueceu é refeita das incidências salvas, uma vez.
-    if(ND.guardadas.length && !ND.refazendo && !ND.cruzando){
-     ND.refazendo=true; ND.sessao=null; ndCalcular() }
+   if(!d || d.erro){
+    if(ND.cruzando) return;
+    // GUARDA: a sessão que falha é refeita das incidências salvas UMA vez por ato; a segunda falha avisa e para.
+    if(ND.guardadas.length && ND.refeitas<1){
+     ND.refeitas++; ND.sessao=null; ndCalcular(true); return }
+    ndLinhasFalharam((d && d.erro) ? String(d.erro) : 'sem resposta');
     return;
    }
    g.setAttribute('viewBox','0 0 '+d.largura+' '+d.altura);
@@ -1345,7 +1471,9 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
     data-radai-frase>nenhuma s&eacute;rie aberta</span></span>
    <div class="g"><button type="button" class="ui-bt" id="nd_escolher"
     onclick="ndAbrirEscolha()">@ICO_PASTA@<span
-    data-radai-frase>Escolher a s&eacute;rie</span></button></div>
+    data-radai-frase>Escolher a s&eacute;rie</span></button>
+    <button type="button" class="nd-bt" id="nd_bt_retomar" onclick="ndRetomar()" hidden
+     data-radai-frase>Tentar de novo</button></div>
    <span class="sub" id="nd_passo">&mdash;</span>
    <span class="sub" id="nd_escala"></span>
   </div>
@@ -1364,8 +1492,8 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
    <div class="g">
     <button type="button" class="nd-bt" id="nd_osso_bt" onclick="ndOssoAlternar()" hidden
      aria-pressed="false">@ICO_CUBO@<span data-radai-frase>Tirar o osso</span></button>
-    <button type="button" class="nd-bt" id="nd_segmentar" onclick="ndSegmentar()" hidden
-     data-radai-frase>Segmentar primeiro (AUTO)</button></div>
+    <button type="button" class="nd-bt" id="nd_segmentar" onclick="ndSegmentar()" hidden><span
+     id="nd_segmentar_txt" data-radai-frase>Segmentar primeiro (AUTO)</span></button></div>
    <span class="sub" data-radai-frase>vaso colado ao osso pode sair junto com ele:
     confira com o osso &agrave; mostra</span>
   </div>
@@ -1481,18 +1609,45 @@ def _pastas_da_serie(pasta, uid):
     return fora
 
 
+def _entrega_da_serie(pastas, uid):
+    try:
+        import radai_sets
+        import radai_viewseg as V
+    except Exception:
+        return u""
+    for p in pastas:
+        try:
+            nomes = os.listdir(p)
+        except Exception:
+            continue
+        for n in sorted(radai_sets.arquivos_da_serie(nomes, uid)):
+            r = V.rotulo_do_arquivo(n)
+            if r.get("entregue"):
+                return str(r.get("curto") or u"")
+    return u""
+
+
 def osso_da_segmentacao(serie, pasta, uid):
     import radai_viewseg as V
     uid = str(uid or u"")
     if not uid:
         return None, {"tem": False, "motivo": SEM_UID}
     forma = tuple(serie.forma_do_array)
-    for p in _pastas_da_serie(pasta, uid):
-        m, info = V.mascaras_da_serie(p, uid, serie.img, aceita=e_osso)
-        if m is None or tuple(m.shape) != forma:
-            continue
-        return m, {"tem": True, "fonte": info.get("fonte") or u"",
-                   "estruturas": int(info.get("estruturas") or 0)}
+    pastas = _pastas_da_serie(pasta, uid)
+    for p in pastas:
+        # GUARDA: FULL e OAR têm o osso exato; o OAR_Fast (contorno reduzido) só entra sem eles e sem o mapa.
+        for conjuntos, com_mapa in ORDEM_DO_OSSO:
+            m, info = V.mascaras_da_serie(p, uid, serie.img, aceita=e_osso,
+                                          conjuntos=conjuntos,
+                                          com_mapa=com_mapa)
+            if m is None or tuple(m.shape) != forma:
+                continue
+            return m, {"tem": True, "fonte": info.get("fonte") or u"",
+                       "estruturas": int(info.get("estruturas") or 0)}
+    entrega = _entrega_da_serie(pastas, uid)
+    if entrega:
+        return None, {"tem": False, "motivo": SEM_OSSO_NA_ENTREGA,
+                      "entrega": entrega}
     return None, {"tem": False, "motivo": SEM_SEGMENTACAO}
 
 
@@ -1586,9 +1741,11 @@ def montar(app):
             serie.osso_estado = {"tem": False, "motivo": u"%s: %s" % (
                 type(e).__name__, str(e)[:160])}
 
-    def _serie(b):
-        import radai_thumbnail
-        pasta, uid = radai_thumbnail.resolver(b)
+    def _serie(b, resolvido=None):
+        if resolvido is None:
+            import radai_thumbnail
+            resolvido = radai_thumbnail.resolver(b)
+        pasta, uid = resolvido
         if not pasta:
             return None
         chave = (pasta, uid or u"")
@@ -1611,6 +1768,7 @@ def montar(app):
                 while len(_RECUSADAS) > 32:
                     _RECUSADAS.popitem(last=False)
                 raise
+            serie.chave_estavel = chave_da_serie(pasta, uid or u"")
             _ler_osso(serie, pasta, uid or u"")
             _ABERTA.update({"chave": chave, "serie": serie,
                             "visto": time.time()})
@@ -1654,11 +1812,10 @@ def montar(app):
             return {"series": [],
                     "erro": u"%s: %s" % (type(e).__name__, str(e)[:200])}
 
-    @app.get("/api/nidus/forma")
-    def _forma(b: str = ""):
+    def _abrir(b, resolvido=None):
         try:
             t0 = time.perf_counter()
-            serie = _serie(b)
+            serie = _serie(b, resolvido)
             if serie is None:
                 return {"erro": u"recarregue a lista de séries"}
             _ERROS.pop(str(b), None)
@@ -1670,7 +1827,29 @@ def montar(app):
                     "hu": bool(serie.escala.get("hu", True)),
                     "telas": _telas_do_mpr(serie),
                     "osso": _estado_do_osso(serie),
+                    "chave": getattr(serie, "chave_estavel", u"") or u"",
                     "ms": int(round((time.perf_counter() - t0) * 1000))}
+        except Exception as e:
+            return {"erro": _falhou(u"abrir", b, e)}
+
+    @app.get("/api/nidus/forma")
+    def _forma(b: str = ""):
+        return _abrir(b)
+
+    @app.post("/api/nidus/abrir")
+    async def _abrir_pela_tela(request: Request):
+        b = ""
+        try:
+            c = await request.json() or {}
+            b = str(c.get("b") or "")
+            resolvido = None
+            if str(c.get("origem") or "") == "acervo":
+                import radai_tabela_acervo
+                resolvido = await radai_web.no_threadpool(
+                    radai_tabela_acervo.resolver, b)
+                if not resolvido or not resolvido[0]:
+                    return {"erro": FORA_DO_ACERVO}
+            return await radai_web.no_threadpool(_abrir, b, resolvido)
         except Exception as e:
             return {"erro": _falhou(u"abrir", b, e)}
 
@@ -1679,6 +1858,25 @@ def montar(app):
         return {"erro": _ERROS.get(str(b), u"")}
 
     _TRAVA_CX = threading.Lock()
+    _TRAVA_PROJ = threading.Lock()
+    _TRAVA_PEDIDAS = threading.Lock()
+    _PEDIDAS = OrderedDict()
+
+    def _anotar_pedida(aba, n):
+        if not aba or n <= 0:
+            return
+        with _TRAVA_PEDIDAS:
+            if n > _PEDIDAS.get(aba, 0):
+                _PEDIDAS[aba] = n
+                _PEDIDAS.move_to_end(aba)
+            while len(_PEDIDAS) > 32:
+                _PEDIDAS.popitem(last=False)
+
+    def _pedida_velha(aba, n):
+        if not aba or n <= 0:
+            return False
+        with _TRAVA_PEDIDAS:
+            return _PEDIDAS.get(aba, 0) > n
 
     @app.get("/api/nidus/eixos")
     def _eixos(lao: float = 0.0, cra: float = 0.0):
@@ -1691,28 +1889,37 @@ def montar(app):
     @app.get("/api/nidus/projecao")
     def _projecao(b: str = "", lao: float = 0.0, cra: float = 0.0,
                   modo: str = "mip", janela: str = "angio", lado: int = 256,
-                  laje: float = 0.0, caixa: str = "", osso: int = 0):
+                  laje: float = 0.0, caixa: str = "", osso: int = 0,
+                  n: int = 0, t: str = ""):
+        aba, seq = str(t or "")[:40], int(n or 0)
+        _anotar_pedida(aba, seq)
         try:
-            import radai_nidus as N
-            import radai_recon3d as R
-            serie = _serie(b)
-            if serie is None:
-                return JSONResponse(status_code=404, content={
-                    "erro": u"recarregue a lista de séries"})
-            _lado = int(lado or N.LADO_PADRAO)
-            if _lado not in LADOS:
-                _lado = N.LADO_PADRAO
-            cx = N.caixa_de_texto(caixa)
-            modo_ = "mip" if modo == "mip" else "minip"
-            amostra = serie.base(modo_, bool(osso))
-            if cx is not None:
-                with _TRAVA_CX:
-                    amostra = serie.img_na_caixa(cx, modo_, bool(osso))
-            plano, info = N.projetar(serie.img, lao, cra, modo, janela,
-                                     lado=_lado,
-                                     laje_mm=(float(laje) or None),
-                                     escala=serie.escala, amostra=amostra)
-            png = R.para_png(plano, info["centro"], info["largura"])
+            # GUARDA: uma projeção por vez (a grade de 1024 ocupa ~0,75 GiB); a pedida que envelheceu na espera não roda.
+            with _TRAVA_PROJ:
+                if _pedida_velha(aba, seq):
+                    return JSONResponse(status_code=409,
+                                        content={"erro": PROJECAO_VELHA},
+                                        headers={"Cache-Control": "no-store"})
+                import radai_nidus as N
+                import radai_recon3d as R
+                serie = _serie(b)
+                if serie is None:
+                    return JSONResponse(status_code=404, content={
+                        "erro": u"recarregue a lista de séries"})
+                _lado = int(lado or N.LADO_PADRAO)
+                if _lado not in LADOS:
+                    _lado = N.LADO_PADRAO
+                cx = N.caixa_de_texto(caixa)
+                modo_ = "mip" if modo == "mip" else "minip"
+                amostra = serie.base(modo_, bool(osso))
+                if cx is not None:
+                    with _TRAVA_CX:
+                        amostra = serie.img_na_caixa(cx, modo_, bool(osso))
+                plano, info = N.projetar(serie.img, lao, cra, modo, janela,
+                                         lado=_lado,
+                                         laje_mm=(float(laje) or None),
+                                         escala=serie.escala, amostra=amostra)
+                png = R.para_png(plano, info["centro"], info["largura"])
             _ERROS.pop(str(b), None)
             return Response(content=png, media_type="image/png",
                             headers={"Cache-Control": "no-store"})
@@ -1769,6 +1976,8 @@ def montar(app):
             item = {"pasta": pasta, "uid": uid or u"", "modo": u"auto",
                     "chaves": {}, "copiar_rs_para": [], "origem": u"nidus",
                     "rotulo": str(c.get("rotulo") or u"")[:80]}
+            if c.get("substituir") is True:
+                item["substituir"] = True
             r = await radai_web.no_threadpool(pedir_a_fila, [item])
             if r.get("indisponivel"):
                 return {"ok": False, "indisponivel": True,

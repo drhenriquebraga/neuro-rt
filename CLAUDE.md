@@ -60,27 +60,53 @@ pasta é o integrador da Suite.
 - **Série que a transposição para LPS não aceita é recusada na abertura**
   (`radai_nidus.SerieRecusada`: imagem colorida, volume que não é 3D, poucos
   cortes), com o motivo, e não é relida a cada pedido: era a causa do
-  «ValueError: axes don't match array». **Cada ação vira um estado salvo** na
-  aba; erro de projeção volta ao último estado bom e avisa; erro da
+  «ValueError: axes don't match array». **Cada ação vira um estado salvo** no
+  armazenamento da aba (`sessionStorage`), sob a chave que o abrir devolve
+  (`radai_nidus_screen.chave_da_serie`: a impressão SHA-256 do UID, sem
+  caminho e sem UID), e não sob o bilhete, que muda a cada processo: reabrir
+  a série na mesma aba, até depois de o servidor reiniciar, traz a marcação
+  de volta. `/api/nidus/estado` só devolve o último erro da série, que a
+  tela mostra. Erro de projeção volta ao último estado bom e avisa; a
+  segunda falha seguida trava a série, grava os parâmetros bons e oferece
+  «Tentar de novo», que a reabre (o Guardar volta com ela). Erro da
   retroprojeção guarda a incidência como não cruzada, com «Cruzar de novo»;
-  reabrir a série traz a marcação de volta (`/api/nidus/estado`). As rotas
-  de imagem respondem 422 ou 500 com o motivo, e não 404 calado.
+  as linhas que falham são refeitas uma vez por ato, e a segunda falha
+  avisa. As rotas de imagem respondem 422 ou 500 com o motivo, e não 404
+  calado.
 - **Só o lápis** (saíram «cliques» e «circular a área»): soltar o clique
   fecha a área do último ponto ao primeiro. LAO/RAO e CRA/CAU em barra de
   arrastar, e a lista das guardadas diz RAO e CAU no ângulo negativo.
 - **A resolução é sempre a máxima** (`radai_nidus.LADO_ALTA`, 1024), e a
-  opção saiu: nidus não se vê em resolução baixa. Abre invertida, com todo o
-  volume e MIP.
-- **O osso sai da projeção pela segmentação que o ContourLab gravou** (o
-  FULL ou o mapa de rótulos do Estudo 3D), por
+  opção saiu: nidus não se vê em resolução baixa. Cada projeção a 1024
+  reamostra uma grade de ~0,75 GiB, então `/api/nidus/projecao` roda **uma
+  por vez** (uma trava no servidor), e a pedida que envelheceu na espera não
+  roda: a tela manda o número do pedido e a aba (`n`, `t`), e a mais velha
+  responde 409. **Toda série abre nos padrões** (invertida, MIP, todo o
+  volume, janela angio, LAO 0 / CRA 0, osso fora, planos no meio); só o
+  estado salvo dela os muda.
+- **O osso sai da projeção pela segmentação que o ContourLab gravou**: o
+  FULL ou o OAR, o mapa de rótulos do Estudo 3D e, sem eles, o OAR_Fast
+  (`radai_nidus_screen.ORDEM_DO_OSSO`), por
   `radai_viewseg.mascaras_da_serie` (o contrato C6), uma chamada por pasta da
   série, com `radai_nidus_screen.e_osso` como filtro. Série sem segmentação:
   a tela oferece «Segmentar primeiro (AUTO)» pela fila única (C1), e nunca
-  adivinha o osso pela densidade. O acompanhamento do cartão para depois de
-  4 h sem resposta.
+  adivinha o osso pela densidade. Série com entrega (OAR ou OAR_Fast) sem
+  osso que sirva, ou que a fila deu como pronta sem osso: o botão diz
+  «Segmentar em AUTO (substitui a entrega)», pede confirmação e manda o
+  pedido com `substituir` (sem ele o lote pula a série com marcador de
+  pronta; a fila ainda descarta o campo, e a bateria guarda a pendência em
+  `PENDENTE_SUBSTITUIR_NA_FILA`). O acompanhamento lê o campo `rodando` de
+  `/api/fila/estado`: com a fila parada, diz que o cartão espera o
+  «Iniciar»; sem o campo, não inventa a situação. «A fila não responde» só
+  depois de falhas seguidas; o acompanhamento para em 4 h, e aí diz que o
+  cartão continua na fila.
 - **A série se escolhe pela tabela do acervo da Suite** (C2, filtrada para TC
   e RM) ou pela aba «Aponte uma pasta», com a busca da Suite
   (`radai_dicom.buscar_series`); a tela não varre o `ROOT` sozinha ao abrir.
+  As duas abrem por `POST /api/nidus/abrir` com a origem: a do acervo passa
+  por `radai_tabela_acervo.resolver` (só o que está no acervo), a da pasta
+  pelo bilhete. O `GET /api/nidus/forma` ficou para as baterias da Suite, e
+  chama a mesma função.
   Ferramentas em cima, os três MPR empilhados à direita do visor, sem rolar
   em 1280×800. O brilho de processamento da casca acende na projeção e nos
   MPR; a barra da fila aparece recolhida, com contador.
