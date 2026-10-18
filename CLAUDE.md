@@ -94,8 +94,9 @@ pasta é o integrador da Suite.
   osso que sirva, ou que a fila deu como pronta sem osso: o botão diz
   «Segmentar em AUTO (substitui a entrega)», pede confirmação e manda o
   pedido com `substituir` (sem ele o lote pula a série com marcador de
-  pronta; a fila ainda descarta o campo, e a bateria guarda a pendência em
-  `PENDENTE_SUBSTITUIR_NA_FILA`). O acompanhamento lê o campo `rodando` de
+  pronta). Desde a 2e a fila guarda o campo na carga e no `fila.json`, e o
+  lote refaz a série, substituindo a entrega pela regra do «Rodar agora»; a
+  bateria virou a pendência (`PENDENTE_SUBSTITUIR_NA_FILA = False`). O acompanhamento lê o campo `rodando` de
   `/api/fila/estado`: com a fila parada, diz que o cartão espera o
   «Iniciar»; sem o campo, não inventa a situação. «A fila não responde» só
   depois de falhas seguidas; o acompanhamento para em 4 h, e aí diz que o

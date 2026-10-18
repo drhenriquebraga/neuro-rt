@@ -55,3 +55,8 @@ rolar.
 - O acervo vem pela tabela comum da Suite (R1 Q24), e não pelo seletor.
 - O brilho de processamento da casca, por pelo menos 2 s, na projeção e nos
   MPR.
+- O pedido de refazer em AUTO, substituindo a entrega, chega ao lote desde a
+  onda 2e: a fila da Suite guarda o `substituir` (só o `true` literal,
+  depois da confirmação na tela), e a pendência da bateria virou `False`.
+- No tema claro, o rótulo e os botões sobre a projeção usam as fichas da
+  imagem, escuras nos dois temas.
