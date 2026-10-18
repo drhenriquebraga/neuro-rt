@@ -89,7 +89,7 @@ CSS = u"""
  margin-bottom:7px;white-space:nowrap;overflow:hidden}
 .nd-cx > .rot b{font-weight:400;color:var(--text-muted)}
 
-.nd-palco{position:relative;background:#000;border-radius:var(--r-lg,8px);
+.nd-palco{position:relative;background:var(--img-fundo,#000);border-radius:var(--r-lg,8px);
  overflow:hidden;display:flex;align-items:center;justify-content:center}
 .nd-proj .nd-palco{width:var(--nd-h,560px);height:var(--nd-h,560px)}
 .nd-palco img{width:100%;height:100%;object-fit:contain;display:block;
@@ -103,13 +103,13 @@ CSS = u"""
 .nd-palco.inv .nd-zoom img{filter:invert(1)}
 .nd-ferr-palco{position:absolute;top:8px;right:8px;z-index:3;display:flex;gap:4px}
 .nd-ferr-palco .nd-bt{background:rgba(6,13,26,.74);border-color:rgba(230,237,247,.16);
- color:#cfd8e6}
-.nd-ferr-palco .nd-bt:hover{color:#fff;border-color:rgba(230,237,247,.4)}
+ color:var(--img-texto,#e6edf7)}
+.nd-ferr-palco .nd-bt:hover{color:var(--img-texto,#e6edf7);border-color:rgba(230,237,247,.4)}
 .nd-bt.nd-ic{width:30px;padding:0;display:inline-flex;align-items:center;
  justify-content:center;font-size:15px}
 .nd-zoomv{position:absolute;left:8px;top:8px;z-index:3;
- font:400 10px/1 var(--font-mono,monospace);color:#cfd8e6;
- background:rgba(0,0,0,.55);padding:4px 6px;border-radius:4px;pointer-events:none}
+ font:400 10px/1 var(--font-mono,monospace);color:var(--img-texto,#e6edf7);
+ background:rgba(0,0,0,.72);padding:4px 6px;border-radius:4px;pointer-events:none}
 .nd-bt .ui-ic{position:static;inset:auto;width:1em;height:1em;pointer-events:none}
 .nd-palco .nd-eixos{position:absolute;inset:auto 6px 6px auto;width:84px;height:84px;
  z-index:3;pointer-events:none}
@@ -124,8 +124,8 @@ CSS = u"""
 .nd-mpr .p{position:relative;min-height:0}
 .nd-mpr .nd-palco{width:100%;height:100%}
 .nd-mpr .p > span{position:absolute;left:5px;top:4px;z-index:4;
- font-family:var(--font-mono,monospace);font-size:9.5px;color:#cfd8e6;
- background:rgba(0,0,0,.6);padding:1px 5px;border-radius:4px}
+ font-family:var(--font-mono,monospace);font-size:9.5px;color:var(--img-texto,#e6edf7);
+ background:rgba(0,0,0,.72);padding:1px 5px;border-radius:4px}
 .nd-mpr .p input[type=range]{position:absolute;left:6px;right:6px;bottom:3px;
  width:calc(100% - 12px);margin:0;z-index:4}
 .nd-cx-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
