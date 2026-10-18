@@ -2954,7 +2954,7 @@ def teste_o_osso_sai_tambem_pelo_oar_e_pelo_oar_fast():
            o_isca.get("tem") is False, str(o_isca))
 
 
-PENDENTE_SUBSTITUIR_NA_FILA = True
+PENDENTE_SUBSTITUIR_NA_FILA = False
 
 
 def teste_o_pedido_leva_substituir():
