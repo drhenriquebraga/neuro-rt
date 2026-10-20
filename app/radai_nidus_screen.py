@@ -195,8 +195,7 @@ CSS = u"""
  padding:5px 11px;border-radius:var(--r-pill,999px);border:1px solid var(--line);
  background:var(--panel-2,#0f1729)}
 .nd-chip.vazio{color:var(--text-dim);border-style:dashed}
-.nd-serie-rot{font-size:12px;line-height:1.45;color:var(--text);overflow-wrap:anywhere}
-.nd-serie-rot .vazia{color:var(--text-dim)}
+.nd-lado .ui-cartao{padding:10px 12px;gap:10px;min-height:0}
 .nd-escolha{display:flex;flex-direction:column;gap:10px;min-width:0}
 .nd-escolha .nd-pasta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;
  margin:0 0 8px}
@@ -227,7 +226,7 @@ var ND = {b:'', chave:'', desc:'', lista:[], lado:@LADO@, tem_osso:false,
           recruzar:false, voltando:false, refeitas:0, recuperavel:false,
           bom:null, historico:[], fila:null, restaurou:false, ultima:null,
           substituirOsso:false, seqProj:0,
-          tabela:null, modal:null, escolhendo:false};
+          tabela:null, escolhendo:false};
 ndPadroes();
 var ND_MODALIDADES = @MODALIDADES@;
 var ND_ABA = Math.random().toString(36).slice(2, 10);
@@ -362,24 +361,32 @@ function ndListar(pasta){
   }).catch(function(e){ ndFrases(alvo, ['não consegui listar: '+e]) });
 }
 
-function ndAbrirEscolha(){
- var no=ndEl('nd_escolha'), casa=ndEl('nd_escolha_casa');
- if(!no) return;
- ND.escolhendo=true;
+function ndTabela(){
  if(!ND.tabela && window.uiTabelaAcervo && ndEl('nd_acervo')){
   ND.tabela=window.uiTabelaAcervo('nd_acervo', {
    aoAbrir:function(linha){ ndAbrirDoAcervo(linha) },
    filtro:function(l){ return !l.modalidade || ND_MODALIDADES.indexOf(l.modalidade)>=0 }});
  }
- if(ND.modal) return;
- if(!window.uiModal){ if(casa) casa.hidden=false; return }
- ND.modal=window.uiModal({titulo:'Escolher a série', no:no, largura:1180,
-  origem:ndEl('nd_escolher'),
-  aoFechar:function(){ ND.modal=null; ND.escolhendo=false; if(casa) casa.appendChild(no) }});
+}
+function ndPopup(){
+ if(!window.uiPopupSerie) return null;
+ return window.uiPopupSerie('nd_escolha', {
+  aoAbrir:function(){ ND.escolhendo=true; ndTabela() },
+  aoFechar:function(){ ND.escolhendo=false }});
+}
+function ndAbrirEscolha(){
+ var casa=ndEl('nd_escolha_casa');
+ if(!ndEl('nd_escolha')) return;
+ ND.escolhendo=true;
+ ndTabela();
+ var p=ndPopup();
+ if(p){ p.abrir(ndEl('nd_escolher')); return }
+ if(casa) casa.hidden=false;
 }
 function ndFecharEscolha(){
  ND.escolhendo=false;
- if(ND.modal){ var m=ND.modal; ND.modal=null; m.fechar(); return }
+ var p=ndPopup();
+ if(p){ p.fechar(); return }
  var casa=ndEl('nd_escolha_casa'); if(casa) casa.hidden=true;
 }
 function ndAbrirDoAcervo(linha){
@@ -395,6 +402,7 @@ function ndEscolher(i){
   origem:'pasta', rotulo:ndRotuloDaLista(s)});
 }
 function ndRotuloDaSerie(t){
+ if(window.uiCartaoRotulo && ndEl('nd_escolher')){ window.uiCartaoRotulo('nd_escolher', t||''); return }
  var e=ndEl('nd_serie_rot'); if(!e) return;
  e.textContent=t||'';
  if(e.setAttribute) e.setAttribute('translate','no');
@@ -1325,6 +1333,7 @@ def _icones(p, nomes):
 def pagina():
     return _icones(PAGINA.replace("@CSS@", CSS)
                    .replace("@ESCOLHA@", _escolha())
+                   .replace("@CARTAO@", _cartao())
                    .replace("@JS@", JS)
                    .replace("@CABECA@", _cabeca())
                    .replace("@ALERTA@", _alerta())
@@ -1466,13 +1475,8 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
 
  <aside class="nd-cx nd-lado" id="nd_lado" aria-label="s&eacute;rie e marca&ccedil;&atilde;o">
   <div class="nd-grupo">
-   <span class="t" data-radai-frase>S&eacute;rie</span>
-   <span class="nd-serie-rot" id="nd_serie_rot" role="status"><span class="vazia"
-    data-radai-frase>nenhuma s&eacute;rie aberta</span></span>
-   <div class="g"><button type="button" class="ui-bt" id="nd_escolher"
-    onclick="ndAbrirEscolha()">@ICO_PASTA@<span
-    data-radai-frase>Escolher a s&eacute;rie</span></button>
-    <button type="button" class="nd-bt" id="nd_bt_retomar" onclick="ndRetomar()" hidden
+   @CARTAO@
+   <div class="g"><button type="button" class="nd-bt" id="nd_bt_retomar" onclick="ndRetomar()" hidden
      data-radai-frase>Tentar de novo</button></div>
    <span class="sub" id="nd_passo">&mdash;</span>
    <span class="sub" id="nd_escala"></span>
@@ -1509,7 +1513,7 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
 
 @ALERTA@
 
-<div id="nd_escolha_casa" hidden>@ESCOLHA@</div>
+@ESCOLHA@
 
 </div>
 <script>@JS@</script>
@@ -1529,12 +1533,23 @@ def _escolha():
              u'</span></button></div>'
              u'<div class="nd-series" id="nd_series" role="listbox" '
              u'aria-label="s&eacute;ries da pasta"></div>')
-    return (u'<div class="nd-escolha" id="nd_escolha">%s</div>'
-            % radai_ui.guias(u"nd_origem",
-                             [(u"acervo", u"Acervo local",
-                               radai_tabela_acervo.html(u"nd_acervo")),
-                              (u"pasta", u"Aponte uma pasta", pasta)],
-                             cor_var=u"--mod-nidus", lembrar=True))
+    return radai_ui.popup_de_serie(
+        u"nd_escolha",
+        u'<div class="nd-escolha">%s</div>'
+        % radai_ui.abas_de_serie(u"nd_origem",
+                                 [(u"acervo", u"Acervo local",
+                                   radai_tabela_acervo.html(u"nd_acervo")),
+                                  (u"pasta", u"Aponte uma pasta", pasta)],
+                                 cor_var=u"--mod-nidus", lembrar=True))
+
+
+def _cartao():
+    import radai_ui
+    return radai_ui.cartao_de_serie(u"nd_escolher", u"nd_escolha",
+                                    u"Carregar série",
+                                    vazio=u"nenhuma série aberta",
+                                    chave_modulo=u"nidus",
+                                    ident_rot=u"nd_serie_rot")
 
 
 def _telas_do_mpr(serie):

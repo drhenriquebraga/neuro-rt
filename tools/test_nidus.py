@@ -732,6 +732,35 @@ def teste_a_tela_acorda_e_pede_as_series():
            u" | ".join(iscado.get("erros") or [])[:120])
 
 
+def _falhas_do_popup(p):
+    fora = []
+    if u'class="ui-guias esq" id="nd_origem"' not in p:
+        fora.append(u"as abas não estão à esquerda")
+    if u'<div class="ui-ps" id="nd_escolha" data-ui-ps' not in p:
+        fora.append(u"a escolha não é o popup da casca")
+    lado = p.split(u'id="nd_lado"')[-1].split(u"</aside>")[0]
+    if (u'id="nd_escolher" data-ui-ps-abre="nd_escolha"' not in lado
+            or u">Carregar série</span>" not in lado):
+        fora.append(u"falta o cartão «Carregar série» na tela de trabalho")
+    return fora
+
+
+def teste_o_popup_e_o_cartao_carregar_serie():
+    secao(u"o popup da casca com as abas à esquerda, e o cartão «Carregar série»")
+    import radai_nidus_screen as S
+    p = S.pagina()
+    f = _falhas_do_popup(p)
+    checar(u"abas à esquerda, popup da casca, cartão na tela de trabalho", not f,
+           u"; ".join(f))
+    isca = p.replace(u'class="ui-guias esq" id="nd_origem"',
+                     u'class="ui-guias" id="nd_origem"')
+    checar(u"  (isca) as abas centralizadas de antes são acusadas",
+           isca != p and bool(_falhas_do_popup(isca)))
+    checar(u"o cartão diz a série aberta (o rótulo dele é o `nd_serie_rot`)",
+           u'<span class="ui-cartao-rot" id="nd_serie_rot">' in p
+           and u"uiCartaoRotulo('nd_escolher'" in S.JS)
+
+
 def teste_a_tabela_do_acervo_no_lugar_do_seletor():
     secao(u"a tabela do acervo da Suite (C2) no lugar do seletor de série")
     import radai_nidus_screen as S
@@ -1668,6 +1697,7 @@ def teste_o_acervo_abre_por_post_com_a_origem():
 TELA = (teste_o_javascript_nao_le_nome_solto,
         teste_a_tela_acorda_e_pede_as_series,
         teste_a_tabela_do_acervo_no_lugar_do_seletor,
+        teste_o_popup_e_o_cartao_carregar_serie,
         teste_guardar_dispara_a_retroprojecao,
         teste_o_lapis_traca_e_afina,
         teste_so_o_lapis,
