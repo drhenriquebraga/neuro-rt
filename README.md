@@ -118,6 +118,13 @@ none may be committed to it.**
    `verify.cmd`, in this folder, does the same in two clicks once
    `_python.txt` (ignored by Git) holds the path of that `python.exe`.
 
+4. **Turn on the pre‑commit hook** (once per clone):
+   `git config core.hooksPath .githooks`. It runs the Suite's
+   patient‑data scan over what is staged and refuses the commit that
+   carries DICOM (with or without extension), a medical volume or a run
+   log — and refuses it too when the scan cannot run, without the Suite
+   beside this folder or without Python.
+
 ## Licence and name
 
 The code is licensed under the [Apache License 2.0](LICENSE). As section 6

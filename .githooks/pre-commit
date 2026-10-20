@@ -1,22 +1,7 @@
 #!/bin/sh
-# ============================================================
-#  pre-commit do componente - recusa o commit que leva dado de
-#  paciente.
-#
-#  Roda a varredura do bloco 5b do tools/check_project.py da
-#  Suite (a pasta irma que tem tools/_componentes.py) sobre o
-#  STAGE deste repositorio: o Git roda o gancho na raiz daqui, e
-#  a varredura le o stage da pasta onde roda.
-#
-#  Ligar, uma vez por clone:
-#      git config core.hooksPath .githooks
-#
-#  Na duvida, RECUSA: sem a Suite, sem Python, ou sem conseguir
-#  ler o stage, o commit nao passa.
-#
-#  sh, LF e ASCII puro: o Git for Windows roda ganchos com o sh
-#  dele, e um CR no fim da linha quebra o interpretador.
-# ============================================================
+# GUARDA: liga-se uma vez por clone (git config core.hooksPath .githooks); roda a varredura [5b] do tools/check_project.py da Suite (a pasta irma com tools/_componentes.py) sobre o stage deste repositorio.
+# GUARDA: na duvida recusa: sem a Suite, sem Python ou sem ler o stage, o commit nao passa.
+# GUARDA: sh, LF e ASCII puro: o Git for Windows roda ganchos com o sh dele, e um CR no fim da linha quebra o interpretador.
 
 raiz=$(git rev-parse --show-toplevel) || exit 1
 suite=""
