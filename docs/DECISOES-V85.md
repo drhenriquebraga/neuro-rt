@@ -60,3 +60,14 @@ rolar.
   depois da confirmação na tela), e a pendência da bateria virou `False`.
 - No tema claro, o rótulo e os botões sobre a projeção usam as fichas da
   imagem, escuras nos dois temas.
+
+## v8.6 — o retorno de campo de 19/10/2026
+
+Os pedidos na letra do autor e as decisões do coordenador estão no
+`docs/RETORNO-CAMPO-19OUT2026.md` da Suite; o registro medido, no
+`docs/ENTREGA-V86-19OUT2026.md` de lá. Nada aqui tem identificação de
+paciente.
+
+- **O popup que os outros copiaram**: as abas passam a ficar à esquerda
+  (eram centralizadas), e a tela de trabalho ganha o cartão «Carregar
+  série», que reabre o popup e diz a série aberta.

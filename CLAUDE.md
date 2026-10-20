@@ -104,6 +104,9 @@ pasta é o integrador da Suite.
 - **A série se escolhe pela tabela do acervo da Suite** (C2, filtrada para TC
   e RM) ou pela aba «Aponte uma pasta», com a busca da Suite
   (`radai_dicom.buscar_series`); a tela não varre o `ROOT` sozinha ao abrir.
+  Desde a v8.6 as duas abas moram no popup da casca
+  (`radai_ui.popup_de_serie`, as abas à esquerda), e o cartão «Carregar
+  série» da tela de trabalho o reabre e diz a série aberta.
   As duas abrem por `POST /api/nidus/abrir` com a origem: a do acervo passa
   por `radai_tabela_acervo.resolver` (só o que está no acervo), a da pasta
   pelo bilhete. O `GET /api/nidus/forma` ficou para as baterias da Suite, e

@@ -40,7 +40,9 @@ incidence, with angles, crop and window): if an error comes anyway, the
 screen goes back on its own to the last good state and says so, and nothing
 drawn is lost. The drawing never goes to disk.
 
-The case is picked from the Suite's archive table. The series must be a 3D
+The case is picked in the Suite's series pop‑up — the archive table or a
+folder you point to —, which the *Load series* card on the work screen
+reopens. The series must be a 3D
 volume with enough slices; a colour series is refused.
 
 ## What it does not do
