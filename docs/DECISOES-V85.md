@@ -71,3 +71,32 @@ paciente.
 - **O popup que os outros copiaram**: as abas passam a ficar à esquerda
   (eram centralizadas), e a tela de trabalho ganha o cartão «Carregar
   série», que reabre o popup e diz a série aberta.
+
+## v8.7 — o retorno de campo de 21 a 24/10/2026
+
+Os pedidos do autor e as 34 decisões do grilling de 24/10 (aprovadas
+inteiras: «Estou de acordo com todas as suas sugestões. Todas aprovadas.»)
+estão no `docs/RETORNO-CAMPO-21-24OUT2026.md` da Suite; a equipe e os
+contratos, no `docs/EQUIPE-V87.md` de lá; o registro medido, no
+`docs/ENTREGA-V87-25OUT2026.md`; o que ficou com o autor, no
+`docs/PENDENTES-V88.md`. Nada aqui tem identificação de paciente.
+
+- **O Nidus no padrão do angioview** (decisão 29, sem copiar código nem arte
+  dele): um estudo de design navegável, validado por um segundo agente, e
+  então o código — a convenção do arco em C numa função só (LAO põe o
+  detector à esquerda, Towne CRA 30, Caldwell CAU 15), a projeção que
+  acompanha a caixa, a prévia a 256 durante o arraste com o lápis travado
+  até a projeção cheia (troca a decisão de v8.5 «resolução sempre a
+  máxima»: a projeção que vale continua a de 1024), o mapa de incidências,
+  o 3D da caixa (vista do detector, «Ver através»), a sala e as barras e os
+  presets que já existiam, integrados. O desenho da tela da v8.5 (os três
+  MPR à direita) deu lugar ao do estudo (o MPR numa faixa embaixo do 3D).
+- **O arco em C é desenhado no código**: o c-arc.glb do Tripo não entrou
+  (a premissa aprovada: retirar a textura ou, se a malha não pudesse ser
+  usada, um arco próprio). Pelos Termos do Tripo, o que se gera no plano
+  grátis é do Tripo, e só o plano pago dá o direito de distribuir; sem
+  registro escrito do plano, o arco é o procedural. A licença fica com o
+  autor.
+- **A chave da aba passou a `radai_nidus_v2_`**, para um desenho salvo na
+  convenção velha não voltar com a matriz nova.
+- **O osso num STUDY com nome próprio** sai pelo nome padrão da descrição.

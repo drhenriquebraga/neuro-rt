@@ -19,9 +19,17 @@ seeing where the two drawings cross. Nidus RT applies that logic to an
 angio‑CT, or to a contrast‑enhanced MR, on the workstation:
 
 1. **Project** the series in the incidence you choose — LAO/RAO and CRA/CAU
-   on sliders or typed in, as a MIP over the whole volume or over a slab, with
-   inverted colours, at the highest resolution. The three MPR planes stay
-   beside the projection.
+   on bars beside the projection (Page Up/Down turn 10°), typed in, on
+   buttons that show their angles, or on a map of projections you drag —, as
+   a MIP over the whole volume or over a slab, with inverted colours. One
+   C‑arm convention holds everywhere: LAO puts the detector on the patient's
+   left, Towne is CRA 30 and Caldwell CAU 15. While an angle is dragged a
+   low‑resolution preview follows, and the pencil waits for the full
+   projection. The projection can follow a box, veiled outside it. The MPR
+   planes run in a strip below a **3D view of the box** — detector view,
+   free view and *See‑through*, drawn in WebGL —, and an illustrative
+   **room** shows a C‑arm drawn in code (parallel projection, with no
+   collision and no source–detector distance).
 2. **Draw** the area with the pencil, freehand; letting go closes it, from the
    last point to the first. The area becomes a tube along the direction of
    that incidence.
@@ -38,7 +46,10 @@ queue — it does not guess the bone from density.
 Each action is kept as a state in the browser tab (the drawings of each
 incidence, with angles, crop and window): if an error comes anyway, the
 screen goes back on its own to the last good state and says so, and nothing
-drawn is lost. The drawing never goes to disk.
+drawn is lost. The drawing never goes to disk. The meshes of the 3D view
+(vessel, bone from ContourLab's segmentation, and skin on CT) are built on
+the server for the box only, kept in memory and dropped with the series:
+they are never exported, and the 3D view may show the patient's face.
 
 The case is picked in the Suite's series pop‑up — the archive table or a
 folder you point to —, which the *Load series* card on the work screen
@@ -48,7 +59,8 @@ volume with enough slices; a colour series is refused.
 ## What it does not do
 
 - It does not detect and does not segment: it projects what the physician
-  circled. Nothing here is learned.
+  circled. Nothing here is learned. With no segmentation, the 3D view says
+  the bone was not separated, and nothing is taken out by density.
 - **It does not export and does not compute a volume.** The intersection is a
   visualisation construct, and a number in cm³ beside it would be a target
   volume with extra steps: the construct becomes a number, the number becomes
@@ -64,14 +76,17 @@ volume with enough slices; a colour series is refused.
 
 No model and no weight: this module does not use AI — it is geometry.
 Resampling and projection use [SimpleITK][sitk] (Apache‑2.0) and NumPy, and
-the PNG is written with `zlib`. The bone it removes was drawn by ContourLab's
+the PNG is written with `zlib`. The 3D view is the 3D Reconstructions WebGL
+viewer, written for the suite; the C‑arm of the room is drawn in code, and
+no third‑party model or artwork is used. The bone it removes was drawn by ContourLab's
 third‑party models, credited in ContourLab's `NOTICE`. These libraries are
 installed by the Suite's preparer and do not travel in this repository.
 
 ## Privacy
 
-Everything runs locally, and nothing is exported. The projections can show
-the patient's face: an image of a real series does not leave the workstation.
+Everything runs locally, and nothing is exported. The projections and the
+3D view of the box can show the patient's face: an image of a real series
+does not leave the workstation.
 
 ## Part of the Local Suite
 

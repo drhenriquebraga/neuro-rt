@@ -76,8 +76,11 @@ pasta é o integrador da Suite.
 - **Só o lápis** (saíram «cliques» e «circular a área»): soltar o clique
   fecha a área do último ponto ao primeiro. LAO/RAO e CRA/CAU em barra de
   arrastar, e a lista das guardadas diz RAO e CAU no ângulo negativo.
-- **A resolução é sempre a máxima** (`radai_nidus.LADO_ALTA`, 1024), e a
-  opção saiu: nidus não se vê em resolução baixa. Cada projeção a 1024
+- **A projeção que vale é a de resolução máxima** (`radai_nidus.LADO_ALTA`,
+  1024): desde a v8.7, durante qualquer arraste de ângulo (as barras, o
+  mapa, o 3D) a tela mostra uma prévia a 256, com selo e estado âmbar, e o
+  **lápis fica travado até a projeção cheia chegar** — nidus não se desenha
+  em resolução baixa. Cada projeção a 1024
   reamostra uma grade de ~0,75 GiB, então `/api/nidus/projecao` roda **uma
   por vez** (uma trava no servidor), e a pedida que envelheceu na espera não
   roda: a tela manda o número do pedido e a aba (`n`, `t`), e a mais velha
@@ -102,8 +105,8 @@ pasta é o integrador da Suite.
   depois de falhas seguidas; o acompanhamento para em 4 h, e aí diz que o
   cartão continua na fila.
 - **A série se escolhe pela tabela do acervo da Suite** (C2, filtrada para TC
-  e RM) ou pela aba «Aponte uma pasta», com a busca da Suite
-  (`radai_dicom.buscar_series`); a tela não varre o `ROOT` sozinha ao abrir.
+  e RM) ou pela aba «Aponte uma pasta», que desde a v8.7 é a varredura da
+  casca (abaixo); a tela não varre o `ROOT` sozinha ao abrir.
   Desde a v8.6 as duas abas moram no popup da casca
   (`radai_ui.popup_de_serie`, as abas à esquerda), e o cartão «Carregar
   série» da tela de trabalho o reabre e diz a série aberta.
@@ -111,9 +114,67 @@ pasta é o integrador da Suite.
   por `radai_tabela_acervo.resolver` (só o que está no acervo), a da pasta
   pelo bilhete. O `GET /api/nidus/forma` ficou para as baterias da Suite, e
   chama a mesma função.
-  Ferramentas em cima, os três MPR empilhados à direita do visor, sem rolar
-  em 1280×800. O brilho de processamento da casca acende na projeção e nos
-  MPR; a barra da fila aparece recolhida, com contador.
+  Desde a v8.7 o leiaute é o do estudo validado: a série na cabeça pelo
+  `radai_ui.cartao_de_serie`, as barras LAO/RAO e CRA/CAU coladas à
+  projeção, o 3D da caixa e a sala num segmentado da casca, e o MPR numa
+  faixa embaixo do 3D, com a legenda — sem rolar em 1280×800, 1366×768,
+  1920×1080 e 1280×720. O brilho de processamento da casca acende na
+  projeção e nos MPR; a barra da fila aparece recolhida, com contador.
+
+**O que a v8.7 mudou** (o Nidus no padrão do angioview: o estudo de design
+navegável, validado por um segundo agente, e então o código, sem copiar
+código nem arte do angioview; o registro no `docs/ENTREGA-V87-25OUT2026.md`
+da Suite, as decisões na seção «v8.7» de `docs/DECISOES-V85.md`):
+
+- **A convenção do arco em C numa função só**
+  (`radai_nidus.matriz_da_incidencia`, as linhas r, v, u, ortonormal e sem
+  espelho), usada pela projeção, pelo tubo e pelos eixos
+  (`radai_nidus.eixos_da_incidencia`), e o JS igual a ela
+  (`radai_nidus.JS_CONVENCAO`, conferido em 50 ângulos): positivo é LAO e
+  CRA; LAO põe o detector à esquerda; Towne é CRA 30 e Caldwell CAU 15;
+  Perfil D é RAO 90 e Perfil E LAO 90 (`radai_nidus.INCIDENCIAS`). A
+  convenção de antes trocava o sinal de dez das trinta marcas do fantoma.
+  **A chave da aba passou a `radai_nidus_v2_<impressão do UID>`**, para um
+  desenho salvo na convenção velha não voltar com a matriz nova.
+- **As barras e o mapa**: Page Up/Down giram 10°, o campo aceita vírgula, a
+  leitura grande diz «RAO 30° · CRA 20°», cada botão de incidência mostra o
+  ângulo, e o mapa de incidências aceita clique e arraste, com encaixe a
+  7 px (Shift tira o encaixe) e as setas.
+- **«Acompanhar a caixa»**: a pegada da caixa sai dos oito cantos levados ao
+  LPS pela matriz da série (`radai_nidus.pegada_da_caixa`); fora da pegada a
+  projeção fica velada, e a pegada aparece tracejada quando não acompanha.
+- **O 3D da caixa**, em WebGL pelo visor das Reconstruções
+  (`radai_recon3d_gl`, contrato com o RECON_3D): vista do detector, vista
+  livre com as placas, «Ver através» e o recorte no espaço da série. As
+  malhas saem do servidor só para a caixa (`radai_nidus.malha_da_caixa`,
+  por `POST /api/nidus/malhas` e `GET /api/nidus/malha` com bilhete): o vaso
+  por limiar (relativo na RM) menos o osso dilatado, em passo de no máximo
+  1 mm e sem suavizar; o osso, só o da segmentação do ContourLab; a pele só
+  na TC; teto somando 80 mil triângulos (`radai_nidus.TETOS_DA_MALHA`,
+  recusa com o motivo, `radai_nidus.MalhaRecusada`). O STL leva UNAPPROVED
+  no cabeçalho e fica só na memória do processo (até
+  `radai_nidus_screen.TETO_MALHAS_MB`), e sai com a série e com a
+  ociosidade: **nada se exporta, e a interseção nunca vai ao 3D**. Sem a
+  segmentação, nenhum osso é tirado pela densidade, e o canto do 3D diz
+  que o osso não foi separado. O 3D mostra o rosto.
+- **A sala** é desenhada no código (arco, detector, tubo, carro, coluna,
+  mesa, paciente e o feixe em prisma), com os detectores fantasmas das
+  incidências guardadas e o aviso «ilustrativa» no canto: projeção
+  paralela, sem colisão nem distância fonte–detector. **O arco do Tripo
+  (c-arc.glb) não entrou**: pelos Termos do Tripo, o que se gera no plano
+  grátis é do Tripo, e só o plano pago dá o direito de distribuir; o plano
+  em que ele foi gerado não está registrado (`docs/PENDENTES-V88.md` da
+  Suite).
+- **«Guardar incidência» apagado diz por quê** (`uiPorQue`), e o âmbar ficou
+  só para a caixa e o traço (saiu da paleta das guardadas).
+- **O osso num STUDY com nome próprio** sai pelo nome padrão da descrição da
+  ROI (o `radai_viewseg.mascaras_da_serie` do ContourLab decide por ele).
+- **O «Aponte uma pasta» é a varredura da casca** (C-VARRER): o
+  `uiVarrerLista` com o uso «series» do `radai_varrer` da Suite, as
+  modalidades da tela e o mínimo de cortes (`radai_nidus_screen.MIN_CORTES`),
+  o filtro de data, a estrela da favorita e o «Parar a leitura» da casca; os
+  itens vão pelo bilhete (o mapa `ND.porB`), e não pelo índice da lista; o
+  campo vazio treme e pede a pasta. Saiu a rota POST /api/nidus/series.
 
 ## Como trabalhar
 
@@ -129,6 +190,7 @@ pasta é o integrador da Suite.
   como estava antes da limpeza, está em `docs/aprendizado/`.
 - **Guiado por log**, honesto sobre incerteza, e afirmação sobre o que o
   programa faz se mede contra o programa.
-- **GitHub** (`radioterapia-ai/nidus-rt`, privado): nada sobe daqui. A
+- **GitHub** (`radioterapia-ai/nidus-rt`, público desde 20/10/2026, com o
+  relato privado de vulnerabilidade ligado): nada sobe daqui. A
   publicação é montada pela Suite, por manifesto, e o envio é ato do autor; a
   pasta não tem remote.
