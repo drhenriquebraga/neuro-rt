@@ -2846,7 +2846,7 @@ def _cilindro(nz=40, ny=64, nx=64):
     return img, cranio, vaso, corpo & (r < 26), (cx, cy)
 
 
-def _rs_full(caminho, rois, img):
+def _rs_full(caminho, rois, img, descricoes=None):
     import pydicom
     from pydicom.dataset import Dataset, FileDataset
     from pydicom.sequence import Sequence
@@ -2868,6 +2868,8 @@ def _rs_full(caminho, rois, img):
         it = Dataset()
         it.ROINumber = k
         it.ROIName = nome
+        if (descricoes or {}).get(nome):
+            it.ROIDescription = descricoes[nome]
         ssr.append(it)
         cs = []
         for z, polis in sorted(cortes.items()):
@@ -3001,6 +3003,25 @@ def teste_o_osso_sai_pela_segmentacao():
     finally:
         V._e_desta_serie = guarda
     checar(u"  isca: sem a guarda do UID, o FULL alheio seria usado", m4 is not None)
+
+    import radai_sets
+    proprio = os.path.join(base, "proprio")
+    os.makedirs(proprio)
+    _rs_full(os.path.join(proprio, u"RS_RadAI_20261014_%s.dcm" % uid[-8:]),
+             {u"CRANIO": cortes}, img,
+             descricoes={u"CRANIO": radai_sets.descricao_da_roi(u"Skull_ai")})
+    m6, i6 = S.osso_da_segmentacao(N.abrir(img, "CT"), proprio, uid)
+    checar(u"STUDY com nome proprio: o osso e achado pelo nome padrao da "
+           u"descricao da ROI (CRANIO -> Skull_ai)",
+           m6 is not None and i6.get("tem") is True
+           and i6.get("estruturas") == 1, str(i6))
+    sem_desc = os.path.join(base, "sem_desc")
+    os.makedirs(sem_desc)
+    _rs_full(os.path.join(sem_desc, u"RS_RadAI_20261014_%s.dcm" % uid[-8:]),
+             {u"CRANIO": cortes}, img)
+    m7, i7 = S.osso_da_segmentacao(N.abrir(img, "CT"), sem_desc, uid)
+    checar(u"  isca: so pelo nome proprio («CRANIO»), o osso nao seria achado",
+           m7 is None and not S.e_osso(u"CRANIO"), str(i7))
     tela = fonte("radai_nidus_screen.py")
     checar(u"o osso vem pela C6 (`radai_viewseg.mascaras_da_serie`), sem nome "
            u"interno do ContourLab", u"V.mascaras_da_serie(" in tela
