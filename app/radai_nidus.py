@@ -23,14 +23,43 @@ LIMITACAO_RM = (
 
 INCIDENCIAS = (
     (u"AP", 0.0, 0.0),
-    (u"Perfil D", 90.0, 0.0),
-    (u"Perfil E", -90.0, 0.0),
-    (u"Oblíqua ant. D", 45.0, 0.0),
-    (u"Oblíqua ant. E", -45.0, 0.0),
-    (u"Towne", 0.0, -30.0),
-    (u"Caldwell", 0.0, 15.0),
+    (u"Perfil D", -90.0, 0.0),
+    (u"Perfil E", 90.0, 0.0),
+    (u"Oblíqua ant. D", -45.0, 0.0),
+    (u"Oblíqua ant. E", 45.0, 0.0),
+    (u"Towne", 0.0, 30.0),
+    (u"Caldwell", 0.0, -15.0),
     (u"Submento-vértex", 0.0, 90.0),
 )
+
+
+def matriz_da_incidencia(lao_rao=0.0, cra_cau=0.0):
+    a, b = math.radians(float(lao_rao)), math.radians(float(cra_cau))
+    ca, sa, cb, sb = math.cos(a), math.sin(a), math.cos(b), math.sin(b)
+    # GUARDA: linhas r, v, u (direita da tela, direção do olhar, alto da tela) do arco em C (DICOM): LAO põe o detector à esquerda, CRA o inclina para a cabeça.
+    return ((ca, sa, 0.0),
+            (-sa * cb, ca * cb, -sb),
+            (-sa * sb, ca * sb, cb))
+
+
+def rotulo_do_angulo(lao_rao=0.0, cra_cau=0.0):
+    a, b = int(round(float(lao_rao))), int(round(float(cra_cau)))
+    partes = []
+    if a:
+        partes.append((u"LAO %d" if a > 0 else u"RAO %d") % abs(a))
+    if b:
+        partes.append((u"CRA %d" if b > 0 else u"CAU %d") % abs(b))
+    return u" / ".join(partes) or u"0 / 0"
+
+
+JS_CONVENCAO = u"""
+function radaiIncidencia(lao, cra){
+ var a=(+lao||0)*Math.PI/180, b=(+cra||0)*Math.PI/180;
+ var ca=Math.cos(a), sa=Math.sin(a), cb=Math.cos(b), sb=Math.sin(b);
+ return {r:[ca, sa, 0], v:[-sa*cb, ca*cb, -sb], u:[-sa*sb, ca*sb, cb],
+         d:[sa*cb, -ca*cb, sb]};
+}
+"""
 
 JANELAS = {
     "angio": (300.0, 700.0),
@@ -138,25 +167,26 @@ def lado_para_o_exame(img, teto=LADO_ALTA):
         return LADO_PADRAO
 
 
-def _euler(img, lao_rao, cra_cau):
-    import SimpleITK as sitk
-    t = sitk.Euler3DTransform()
-    t.SetCenter(img.TransformContinuousIndexToPhysicalPoint(
+def centro_da_grade(img):
+    return tuple(float(x) for x in img.TransformContinuousIndexToPhysicalPoint(
         [(s - 1) / 2.0 for s in img.GetSize()]))
-    t.SetRotation(math.radians(cra_cau), 0.0, math.radians(lao_rao))
+
+
+def _transformada(img, lao_rao, cra_cau):
+    import SimpleITK as sitk
+    t = sitk.AffineTransform(3)
+    t.SetMatrix([x for linha in matriz_da_incidencia(lao_rao, cra_cau)
+                 for x in linha])
+    t.SetCenter(centro_da_grade(img))
     return t
 
 
 def eixos_da_incidencia(lao_rao=0.0, cra_cau=0.0):
-    import SimpleITK as sitk
-    t = sitk.Euler3DTransform()
-    t.SetRotation(math.radians(cra_cau), 0.0, math.radians(lao_rao))
-    m = t.GetMatrix()
+    r, v, u = matriz_da_incidencia(lao_rao, cra_cau)
     fora = {}
     for nome, k in ((u"L", 0), (u"P", 1), (u"S", 2)):
-        # GUARDA: mesma rotação de `_euler`; coluna = x, profundidade = y, linha = -z (crânio em cima).
-        vx, vy, vz = m[k], m[3 + k], m[6 + k]
-        fora[nome] = (round(vx, 4), round(-vz, 4), round(vy, 4))
+        # GUARDA: mesma matriz de `projetar`; coluna = r, linha = -u (crânio em cima), profundidade = v.
+        fora[nome] = (round(r[k], 4), round(-u[k], 4), round(v[k], 4))
     return fora
 
 
@@ -200,7 +230,7 @@ def projetar(img, lao_rao=0.0, cra_cau=0.0, modo="mip", janela="angio",
 
     if escala is None:
         escala = escala_de(img)
-    t = _euler(img, lao_rao, cra_cau)
+    t = _transformada(img, lao_rao, cra_cau)
     ref, diag, passo, passo_fundo = _grade(img, lado, fundo)
     c = t.GetCenter()
     ref.SetOrigin((c[0] - diag / 2.0, c[1] - diag / 2.0, c[2] - diag / 2.0))
@@ -231,7 +261,7 @@ def tubo(img, poligono, lao_rao=0.0, cra_cau=0.0, lado=LADO_PADRAO,
     import numpy as np
     import SimpleITK as sitk
 
-    t = _euler(img, lao_rao, cra_cau)
+    t = _transformada(img, lao_rao, cra_cau)
     diag, passo, _pf, _f = _medidas_da_grade(img, lado)
     c = t.GetCenter()
 
@@ -484,11 +514,42 @@ class Serie(object):
             raise ValueError(u"a máscara do osso não tem a forma desta série")
         self._recorte = (None, None)
         if not m.any():
-            self.osso, self._sem_osso = None, None
+            self.osso, self._sem_osso, self._osso_bits = None, None, None
             return False
         self._sem_osso = sem_osso(self.img, m, self.escala["min"])
+        self._osso_bits = np.packbits(m, axis=-1)
         self.osso = dict(info or {}, voxels=int(m.sum()))
         return True
+
+    def mascara_do_osso_em(self, ini, ext):
+        import numpy as np
+        bits = getattr(self, "_osso_bits", None)
+        if bits is None:
+            return None
+        x0, y0, z0 = (int(v) for v in ini)
+        nx, ny, nz = (int(v) for v in ext)
+        b = bits[z0:z0 + nz, y0:y0 + ny]
+        m = np.unpackbits(b, axis=-1, count=self.forma_do_array[2])
+        return m[:, :, x0:x0 + nx].astype(bool)
+
+    def indices_da_caixa(self, caixa, margem_mm=0.0):
+        perm, inverter = self.eixos[0], self.eixos[1]
+        tam = list(self.img.GetSize())
+        esp = self.img.GetSpacing()
+        ini, ext = [0, 0, 0], list(tam)
+        for eixo in range(3):
+            # GUARDA: eixo da vista -> eixo do array (`perm`) -> dimensão do sitk (2 - eixo do array).
+            dim = 2 - perm[eixo]
+            n = tam[dim]
+            i0 = max(0, int(math.floor(caixa[2 * eixo] * n)))
+            i1 = min(n, int(math.ceil(caixa[2 * eixo + 1] * n)))
+            if inverter[eixo]:
+                i0, i1 = n - i1, n - i0
+            if margem_mm:
+                folga = int(math.ceil(float(margem_mm) / max(float(esp[dim]), 1e-6)))
+                i0, i1 = max(0, i0 - folga), min(n, i1 + folga)
+            ini[dim], ext[dim] = i0, max(1, i1 - i0)
+        return ini, ext
 
     def base(self, modo="mip", osso=False):
         # GUARDA: o osso só sai no MIP; no MinIP o valor que o apaga viraria buraco escuro.
@@ -505,18 +566,7 @@ class Serie(object):
         if self._recorte[0] == chave:
             return self._recorte[1]
         self._recorte = (None, None)
-        perm, inverter = self.eixos[0], self.eixos[1]
-        tam = list(self.img.GetSize())
-        ini, ext = [0, 0, 0], list(tam)
-        for eixo in range(3):
-            # GUARDA: eixo da vista -> eixo do array (`perm`) -> dimensão do sitk (2 - eixo do array).
-            dim = 2 - perm[eixo]
-            n = tam[dim]
-            i0 = max(0, int(math.floor(caixa[2 * eixo] * n)))
-            i1 = min(n, int(math.ceil(caixa[2 * eixo + 1] * n)))
-            if inverter[eixo]:
-                i0, i1 = n - i1, n - i0
-            ini[dim], ext[dim] = i0, max(1, i1 - i0)
+        ini, ext = self.indices_da_caixa(caixa)
         out = sitk.RegionOfInterest(base, ext, ini)
         self._recorte = (chave, out)
         return out
@@ -537,3 +587,132 @@ class Serie(object):
 
 def abrir(img, modalidade=None):
     return Serie(img, modalidade)
+
+
+def matriz_para_caixa(img, eixos):
+    import numpy as np
+    perm, inverter = eixos[0], eixos[1]
+    D = np.asarray(img.GetDirection(), dtype=np.float64).reshape(3, 3)
+    O = np.asarray(img.GetOrigin(), dtype=np.float64)
+    esp, tam = img.GetSpacing(), img.GetSize()
+    A = np.eye(4)
+    for eixo in range(3):
+        n = 2 - perm[eixo]
+        # GUARDA: fração do centro do voxel, (i + 0,5) / N, a mesma conta de `indices_da_caixa`.
+        lin = D[:, n] / (float(esp[n]) * float(tam[n]))
+        b = -lin.dot(O) + 0.5 / float(tam[n])
+        if inverter[eixo]:
+            lin, b = -lin, 1.0 - b
+        A[eixo, :3], A[eixo, 3] = lin, b
+    return A
+
+
+def geometria_da_serie(serie):
+    import numpy as np
+    A = matriz_para_caixa(serie.img, serie.eixos)
+    diag = _medidas_da_grade(serie.img, LADO_ALTA)[0]
+    return {"para_caixa": [round(float(x), 12) for x in A.ravel()],
+            "da_caixa": [round(float(x), 12) for x in np.linalg.inv(A).ravel()],
+            "centro": [round(float(x), 6) for x in centro_da_grade(serie.img)],
+            "diag": round(float(diag), 6)}
+
+
+def pegada_da_caixa(serie, caixa, lao_rao, cra_cau, lado):
+    import numpy as np
+    g = geometria_da_serie(serie)
+    Q = np.asarray(g["da_caixa"], dtype=np.float64).reshape(4, 4)
+    c = np.asarray(g["centro"], dtype=np.float64)
+    r, _v, u = (np.asarray(x) for x in matriz_da_incidencia(lao_rao, cra_cau))
+    passo = float(g["diag"]) / float(lado)
+    fora = []
+    for i in range(8):
+        f = (caixa[1 if i & 1 else 0], caixa[3 if i & 2 else 2],
+             caixa[5 if i & 4 else 4], 1.0)
+        p = Q.dot(f)[:3] - c
+        fora.append((float((p.dot(r) + g["diag"] / 2.0) / passo + 0.5),
+                     float(lado - 0.5 - (p.dot(u) + g["diag"] / 2.0) / passo)))
+    return fora
+
+
+TETOS_DA_MALHA = ((u"vaso", 50000), (u"osso", 20000), (u"pele", 10000))
+
+QUAIS_DA_MALHA = tuple(q for q, _t in TETOS_DA_MALHA)
+
+PASSOS_DO_VASO_MM = (0.5, 0.75, 1.0)
+
+MARGEM_DA_MALHA_MM = 4.0
+
+LIMIAR_VASO_HU = 180.0
+
+SEM_CAIXA_PARA_O_3D = (
+    u"ligue a caixa de recorte e aperte-a em volta do ninho para ver o 3D do "
+    u"que fica dentro dela")
+
+OSSO_NAO_SEPARADO = (
+    u"osso não separado: sem a segmentação, o vaso por limiar leva o osso junto")
+
+VASO_DEMAIS = (
+    u"vaso demais nesta caixa para o 3D sem perder o ramo fino: aperte a caixa "
+    u"em volta do ninho")
+
+RM_SEM_PELE = u"na RM não há pele no 3D: o sinal não é HU"
+
+
+class MalhaRecusada(ValueError):
+    pass
+
+
+def limiar_do_vaso(escala):
+    if not escala or escala.get("hu", True) or not escala.get("percentis"):
+        return LIMIAR_VASO_HU
+    return janela_de("angio", escala)[0]
+
+
+def malha_da_caixa(serie, caixa, qual):
+    import numpy as np
+    import SimpleITK as sitk
+    import radai_recon3d as R
+    tetos = dict(TETOS_DA_MALHA)
+    if qual not in tetos:
+        raise KeyError(qual)
+    if caixa is None:
+        raise MalhaRecusada(SEM_CAIXA_PARA_O_3D)
+    ini, ext = serie.indices_da_caixa(caixa, MARGEM_DA_MALHA_MM)
+    x0, y0, z0 = ini
+    nx, ny, nz = ext
+    a = sitk.GetArrayViewFromImage(serie.img)[z0:z0 + nz, y0:y0 + ny,
+                                              x0:x0 + nx]
+    osso = serie.mascara_do_osso_em(ini, ext)
+    info = {u"qual": qual, u"motivo": u"", u"passo_mm": 0.0, u"triangulos": 0}
+    opcoes = {}
+    m = None
+    if qual == u"vaso":
+        m = np.asarray(a) >= limiar_do_vaso(serie.escala)
+        if osso is None:
+            info[u"motivo"] = OSSO_NAO_SEPARADO
+        else:
+            m &= ~dilatar(osso, OSSO_DILATACAO_VOXELS)
+        # GUARDA: o ramo fino some com passo acima de 1 mm ou com suavização; acima do teto, recusa em vez de engrossar.
+        opcoes = {"passos_mm": PASSOS_DO_VASO_MM, "suavizar_mm": 0.0,
+                  "recusar_acima": True}
+    elif qual == u"osso":
+        if osso is None:
+            info[u"motivo"] = OSSO_NAO_SEPARADO
+        else:
+            m = osso
+    elif serie.escala.get("hu", True):
+        m = np.asarray(a) > R.LIMIAR_PELE_HU
+    else:
+        info[u"motivo"] = RM_SEM_PELE
+    vazio = (np.zeros((0, 3)), np.zeros((0, 3), dtype=np.int64))
+    if m is None or not m.any():
+        return vazio[0], vazio[1], info
+    origem = serie.img.TransformIndexToPhysicalPoint([int(v) for v in ini])
+    esp_zyx = tuple(float(e) for e in reversed(serie.img.GetSpacing()))
+    lps, faces, i2 = R.malha_de_rotulo(m, esp_zyx, origem,
+                                       serie.img.GetDirection(),
+                                       teto_triangulos=tetos[qual], **opcoes)
+    if i2.get(u"excedeu"):
+        raise MalhaRecusada(VASO_DEMAIS)
+    info.update(i2)
+    return lps, faces, info

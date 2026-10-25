@@ -105,7 +105,7 @@ def circulo(col, lin, raio, n=40):
 def onde(img, alvo_mm, lao, cra, lado):
     import numpy as np
     import radai_nidus as N
-    t = N._euler(img, lao, cra)
+    t = N._transformada(img, lao, cra)
     _ref, diag, passo, passo_fundo = N._grade(img, lado)
     c = t.GetCenter()
     org = (c[0] - diag / 2.0, c[1] - diag / 2.0, c[2] - diag / 2.0)
@@ -113,6 +113,374 @@ def onde(img, alvo_mm, lao, cra, lado):
     gx = (p[0] - org[0]) / passo
     gz = (p[2] - org[2]) / passo
     return gx + 0.5, lado - 0.5 - gz
+
+
+def _eixos_antigos(lao, cra):
+    import math
+    import SimpleITK as sitk
+    t = sitk.Euler3DTransform()
+    t.SetRotation(math.radians(cra), 0.0, math.radians(lao))
+    m = t.GetMatrix()
+    return dict((n, (m[k], -m[6 + k], m[3 + k])) for n, k in
+                ((u"L", 0), (u"P", 1), (u"S", 2)))
+
+
+def _transformada_antiga(img, lao, cra):
+    import math
+    import SimpleITK as sitk
+    t = sitk.Euler3DTransform()
+    t.SetCenter(img.TransformContinuousIndexToPhysicalPoint(
+        [(s - 1) / 2.0 for s in img.GetSize()]))
+    t.SetRotation(math.radians(cra), 0.0, math.radians(lao))
+    return t
+
+
+INCIDENCIAS_ANTIGAS = ((u"AP", 0.0, 0.0), (u"Perfil D", 90.0, 0.0),
+                       (u"Perfil E", -90.0, 0.0), (u"Oblíqua ant. D", 45.0, 0.0),
+                       (u"Oblíqua ant. E", -45.0, 0.0), (u"Towne", 0.0, -30.0),
+                       (u"Caldwell", 0.0, 15.0), (u"Submento-vértex", 0.0, 90.0))
+
+
+def _tres_pontos(n=81, k=18):
+    import math
+    import numpy as np
+    import SimpleITK as sitk
+    c = n // 2
+    a = np.full((n, n, n), -1000.0, np.float32)
+    dz, dy = int(round(k * math.sin(math.radians(30)))), int(round(k * math.cos(math.radians(30))))
+    pts = {u"A": (c + dz, c - dy, c), u"B": (c - dz, c + dy, c),
+           u"C": (c, c, c + k)}
+    for z, y, x in pts.values():
+        a[z - 1:z + 2, y - 1:y + 2, x - 1:x + 2] = 2000.0
+    img = sitk.GetImageFromArray(a)
+    img.SetSpacing((1.0, 1.0, 1.0))
+    img.SetOrigin((-float(c), -float(c), -float(c)))
+    return img
+
+
+def _manchas(plano, lim=1000.0):
+    import numpy as np
+    from scipy import ndimage
+    _r, n = ndimage.label(np.asarray(plano) >= lim)
+    return int(n)
+
+
+def _marcas_na_tela(N, transformada=None):
+    import math
+    import numpy as np
+    import SimpleITK as sitk
+    n, c = 81, 40
+    esc = {"min": -1000.0, "max": 2000.0, "hu": True}
+    pos = {u"E": (1.0, 0.0, 0.0), u"A": (0.0, -1.0, 0.0), u"S": (0.0, 0.0, 1.0)}
+    idx = {u"E": (c, c, c + 18), u"A": (c, c - 18, c), u"S": (c + 18, c, c)}
+    vols = {}
+    for m, (z, y, x) in idx.items():
+        a = np.full((n, n, n), -1000, np.float32)
+        a[z - 1:z + 2, y - 1:y + 2, x - 1:x + 2] = 2000
+        im = sitk.GetImageFromArray(a)
+        im.SetOrigin((-c, -c, -c))
+        vols[m] = im
+    guarda = getattr(N, "_transformada", None)
+    linhas = []
+    try:
+        if transformada is not None:
+            N._transformada = transformada
+        for nome, lao, cra in tuple(N.INCIDENCIAS) + ((u"LAO 45 + CRA 30", 45.0, 30.0),
+                                                     (u"LAO 90 + CRA 30", 90.0, 30.0)):
+            for m in (u"E", u"A", u"S"):
+                plano, _ = N.projetar(vols[m], lao, cra, "mip", "osso", lado=128,
+                                      escala=esc)
+                ys, xs = np.nonzero(np.asarray(plano) >= 1000)
+                if not len(xs):
+                    linhas.append((nome, m, None))
+                    continue
+                h = (float(xs.mean()) - 64.0, -(float(ys.mean()) - 64.0))
+                al, b = math.radians(lao), math.radians(cra)
+                r = (math.cos(al), math.sin(al), 0.0)
+                u = (-math.sin(al) * math.sin(b), math.cos(al) * math.sin(b), math.cos(b))
+                d = (sum(x * y for x, y in zip(r, pos[m])), sum(x * y for x, y in zip(u, pos[m])))
+                lh =(0 if abs(h[0]) < 2.5 else (1 if h[0] > 0 else -1),
+                      0 if abs(h[1]) < 2.5 else (1 if h[1] > 0 else -1))
+                ld = (0 if abs(d[0]) < 0.14 else (1 if d[0] > 0 else -1),
+                      0 if abs(d[1]) < 0.14 else (1 if d[1] > 0 else -1))
+                linhas.append((nome, m, lh == ld))
+    finally:
+        if transformada is not None:
+            N._transformada = guarda
+    return linhas
+
+
+def teste_a_convencao_e_a_do_arco_em_c():
+    secao(u"a convenção dos ângulos é a do arco em C (DICOM): LAO à esquerda, "
+          u"Towne CRA 30, Caldwell CAU 15")
+    import math
+    import radai_nidus as N
+    checar(u"a matriz mora numa função só (matriz_da_incidencia)",
+           callable(getattr(N, "matriz_da_incidencia", None)))
+    if not callable(getattr(N, "matriz_da_incidencia", None)):
+        return
+    for lao, cra in ((0, 0), (90, 0), (-45, 20), (30, -60), (170, 85)):
+        r, v, u = N.matriz_da_incidencia(lao, cra)
+        prod = [sum(a * b for a, b in zip(p, q)) for p in (r, v, u) for q in (r, v, u)]
+        orto = all(abs(x - (1.0 if i % 4 == 0 else 0.0)) < 1e-12
+                   for i, x in enumerate(prod))
+        vxu = (v[1] * u[2] - v[2] * u[1], v[2] * u[0] - v[0] * u[2],
+               v[0] * u[1] - v[1] * u[0])
+        checar(u"LAO %d / CRA %d: ortonormal e sem espelho (v × u = r)" % (lao, cra),
+               orto and all(abs(a - b) < 1e-12 for a, b in zip(vxu, r)))
+    e = N.eixos_da_incidencia(90.0, 0.0)
+    checar(u"LAO 90 põe o detector à esquerda: o eixo L vem para quem olha",
+           e[u"L"][2] < -0.99, str(e[u"L"]))
+    checar(u"  isca: a convenção de antes põe o L no fundo da tela",
+           _eixos_antigos(90.0, 0.0)[u"L"][2] > 0.99)
+    e = N.eixos_da_incidencia(90.0, 30.0)
+    checar(u"LAO 90 + CRA 30: o detector sobe para a cabeça (S = 0,5)",
+           abs(e[u"S"][2] + 0.5) < 1e-6, str(e[u"S"]))
+    checar(u"  isca: a de antes deixa o detector na horizontal (S = 0)",
+           abs(_eixos_antigos(90.0, 30.0)[u"S"][2]) < 1e-6)
+    inc = dict((n, (a, b)) for n, a, b in N.INCIDENCIAS)
+    checar(u"as incidências na convenção nova",
+           inc == {u"AP": (0.0, 0.0), u"Perfil D": (-90.0, 0.0),
+                   u"Perfil E": (90.0, 0.0), u"Oblíqua ant. D": (-45.0, 0.0),
+                   u"Oblíqua ant. E": (45.0, 0.0), u"Towne": (0.0, 30.0),
+                   u"Caldwell": (0.0, -15.0), u"Submento-vértex": (0.0, 90.0)},
+           str(inc))
+    img = _tres_pontos()
+    esc = {"min": -1000.0, "max": 2000.0, "hu": True}
+    tw = N.projetar(img, inc[u"Towne"][0], inc[u"Towne"][1], "mip", "osso",
+                    lado=128, escala=esc)[0]
+    cw = N.projetar(img, inc[u"Caldwell"][0], inc[u"Caldwell"][1], "mip", "osso",
+                    lado=128, escala=esc)[0]
+    checar(u"Towne: o anterossuperior e o posteroinferior caem no mesmo ponto",
+           _manchas(tw) == 2, u"%d manchas" % _manchas(tw))
+    checar(u"  e na Caldwell eles se separam", _manchas(cw) == 3,
+           u"%d manchas" % _manchas(cw))
+    guarda = N._transformada
+    try:
+        N._transformada = _transformada_antiga
+        tw0 = N.projetar(img, 0.0, -30.0, "mip", "osso", lado=128, escala=esc)[0]
+    finally:
+        N._transformada = guarda
+    checar(u"  isca: a Towne de antes (CRA -30, a outra rotação) não superpõe os dois",
+           _manchas(tw0) == 3, u"%d manchas" % _manchas(tw0))
+    linhas = _marcas_na_tela(N)
+    nao = [(a, b) for a, b, ok in linhas if ok is False]
+    checar(u"cada marca (E, A, S) cai na tela onde o arco em C a põe, nas 10 "
+           u"incidências (%d linhas)" % len(linhas), not nao and len(linhas) == 30,
+           str(nao[:4]))
+    guarda_inc = N.INCIDENCIAS
+    try:
+        N.INCIDENCIAS = INCIDENCIAS_ANTIGAS
+        isca = _marcas_na_tela(N, _transformada_antiga)
+    finally:
+        N.INCIDENCIAS = guarda_inc
+    checar(u"  isca: a convenção de antes reprova (%d de 30 linhas NÃO)"
+           % sum(1 for x in isca if x[2] is False),
+           sum(1 for x in isca if x[2] is False) >= 8)
+
+
+def teste_o_js_da_convencao_e_o_python():
+    secao(u"o JavaScript da convenção é o Python, em 50 ângulos")
+    import json
+    import random
+    import subprocess
+    import radai_nidus as N
+    js = getattr(N, "JS_CONVENCAO", u"")
+    checar(u"a convenção do JS mora no radai_nidus (JS_CONVENCAO)",
+           u"function radaiIncidencia(" in js)
+    if _sem_node() or not js:
+        return
+    rnd = random.Random(20261025)
+    angulos = [(rnd.uniform(-180, 180), rnd.uniform(-90, 90)) for _ in range(50)]
+
+    def rodar(fonte):
+        p = os.path.join(_cleanup.temporaria("radai_ac_nidus_conv_"), "c.js")
+        io.open(p, "w", encoding="utf-8").write(
+            fonte + u"\nvar A=%s; console.log(JSON.stringify(A.map(function(x){ "
+            u"var b=radaiIncidencia(x[0],x[1]); return [b.r,b.v,b.u,b.d] })));"
+            % json.dumps(angulos))
+        r = subprocess.run([_node(), p], stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE, timeout=60)
+        return json.loads(r.stdout.decode("utf-8").strip().splitlines()[-1])
+
+    def pior(saida):
+        p = 0.0
+        for (lao, cra), (r, v, u, d) in zip(angulos, saida):
+            mr, mv, mu = N.matriz_da_incidencia(lao, cra)
+            for a, b in ((r, mr), (v, mv), (u, mu), (d, [-x for x in mv])):
+                p = max(p, max(abs(x - y) for x, y in zip(a, b)))
+        return p
+    d = pior(rodar(js))
+    checar(u"r, v, u e d iguais nos 50 ângulos (erro %.1e)" % d, d < 1e-9)
+    isca = js.replace(u"ca*sb, cb]", u"ca*sb, -cb]")
+    checar(u"  isca: um sinal trocado no JS é acusado",
+           isca != js and pior(rodar(isca)) > 0.1)
+
+
+def _serie_obliqua(n=(56, 64, 72), esp=(0.8, 0.9, 1.1), giros=(18.0, 11.0)):
+    import math
+    import numpy as np
+    import SimpleITK as sitk
+    a = np.full(n, -1000.0, np.float32)
+    img = sitk.GetImageFromArray(a)
+    img.SetSpacing(tuple(float(e) for e in esp[::-1]))
+    gz, gx = (math.radians(g) for g in giros)
+    rz = np.array([[math.cos(gz), -math.sin(gz), 0], [math.sin(gz), math.cos(gz), 0],
+                   [0, 0, 1]])
+    rx = np.array([[1, 0, 0], [0, math.cos(gx), -math.sin(gx)],
+                   [0, math.sin(gx), math.cos(gx)]])
+    img.SetDirection(tuple(float(x) for x in rz.dot(rx).ravel()))
+    img.SetOrigin((-31.0, -27.0, -22.0))
+    return img
+
+
+def teste_a_pegada_da_caixa_numa_serie_obliqua():
+    secao(u"a pegada da caixa na projeção, numa série oblíqua (a caixa é do array, "
+          u"e não do LPS)")
+    import numpy as np
+    import SimpleITK as sitk
+    import radai_nidus as N
+    if not callable(getattr(N, "geometria_da_serie", None)):
+        checar(u"radai_nidus.geometria_da_serie existe", False)
+        return
+    img = _serie_obliqua()
+    a = sitk.GetArrayFromImage(img)
+    vox = (40, 21, 50)
+    a[vox[0] - 1:vox[0] + 2, vox[1] - 1:vox[1] + 2, vox[2] - 1:vox[2] + 2] = 2000.0
+    img2 = sitk.GetImageFromArray(a)
+    img2.CopyInformation(img)
+    serie = N.abrir(img2, "CT")
+    g = N.geometria_da_serie(serie)
+    P = np.array(g["para_caixa"], dtype=float).reshape(4, 4)
+    Q = np.array(g["da_caixa"], dtype=float).reshape(4, 4)
+    checar(u"a ida e a volta (LPS -> fração da caixa -> LPS) se desfazem",
+           np.allclose(P.dot(Q), np.eye(4), atol=1e-9))
+    ponto = np.array(list(img2.TransformIndexToPhysicalPoint(
+        (vox[2], vox[1], vox[0]))) + [1.0])
+    f = P.dot(ponto)[:3]
+    caixa = (f[0] - 0.05, f[0], f[1] - 0.05, f[1], f[2] - 0.05, f[2])
+    cx = N.caixa_de_texto(u",".join(u"%.6f" % v for v in caixa))
+    sub = serie.img_na_caixa(cx, "mip")
+    checar(u"a fração do voxel cai na caixa que o recorte de verdade usa",
+           float(sitk.GetArrayViewFromImage(sub).max()) >= 1999.0)
+    for lao, cra in ((0.0, 0.0), (-35.0, 20.0), (60.0, -25.0)):
+        lado = 256
+        plano, _ = N.projetar(img2, lao, cra, "mip", "osso", lado=lado,
+                              escala={"min": -1000.0, "max": 2000.0, "hu": True})
+        ys, xs = np.nonzero(np.asarray(plano) >= 1000.0)
+        alvo = (float(xs.mean()) + 0.5, float(ys.mean()) + 0.5)
+        pts = N.pegada_da_caixa(serie, caixa, lao, cra, lado)
+        canto = max(pts, key=lambda p: -((p[0] - alvo[0]) ** 2 + (p[1] - alvo[1]) ** 2))
+        dist = ((canto[0] - alvo[0]) ** 2 + (canto[1] - alvo[1]) ** 2) ** 0.5
+        checar(u"LAO %d / CRA %d: um canto da pegada cai no voxel projetado "
+               u"(%.2f px)" % (lao, cra, dist), dist < 1.2, str((canto, alvo)))
+    guarda = N.geometria_da_serie
+    try:
+        def lps_cru(s):
+            d = guarda(s)
+            P2 = np.eye(4)
+            Q2 = np.eye(4)
+            d = dict(d, para_caixa=list(P2.ravel()), da_caixa=list(Q2.ravel()))
+            return d
+        N.geometria_da_serie = lps_cru
+        pts = N.pegada_da_caixa(serie, caixa, 0.0, 0.0, 256)
+    finally:
+        N.geometria_da_serie = guarda
+    plano, _ = N.projetar(img2, 0.0, 0.0, "mip", "osso", lado=256,
+                          escala={"min": -1000.0, "max": 2000.0, "hu": True})
+    ys, xs = np.nonzero(np.asarray(plano) >= 1000.0)
+    alvo = (float(xs.mean()) + 0.5, float(ys.mean()) + 0.5)
+    dist = min(((p[0] - alvo[0]) ** 2 + (p[1] - alvo[1]) ** 2) ** 0.5 for p in pts)
+    checar(u"  isca: a caixa lida como LPS (sem a matriz da série) erra a pegada",
+           dist > 3.0, u"%.1f px" % dist)
+
+
+def _vaso_sintetico(diam_mm=1.5, esp=(0.5, 0.45, 0.45), forma=(80, 96, 96)):
+    import numpy as np
+    import SimpleITK as sitk
+    nz, ny, nx = forma
+    z, y, x = np.mgrid[0:nz, 0:ny, 0:nx].astype(np.float32)
+    zm, ym, xm = z * esp[0], y * esp[1], x * esp[2]
+    c = np.array([nz * esp[0] / 2, ny * esp[1] / 2, nx * esp[2] / 2])
+    dirv = np.array([0.8, 0.45, 0.4])
+    dirv /= np.linalg.norm(dirv)
+    p = np.stack([zm - c[0], ym - c[1], xm - c[2]], -1)
+    t = p.dot(dirv)
+    dist = np.linalg.norm(p - t[..., None] * dirv, axis=-1)
+    v = np.full(forma, 30.0, np.float32)
+    v[dist <= diam_mm / 2.0] = 420.0
+    v[:, :, :6] = -1000.0
+    img = sitk.GetImageFromArray(v)
+    img.SetSpacing(tuple(float(e) for e in esp[::-1]))
+    return img, dist <= diam_mm / 2.0
+
+
+def teste_a_malha_da_caixa():
+    secao(u"o 3D da caixa: vaso por limiar com passo de no máximo 1 mm, osso só "
+          u"da segmentação, teto de 80 mil")
+    import numpy as np
+    import radai_nidus as N
+    import radai_recon3d as R
+    if not callable(getattr(N, "malha_da_caixa", None)):
+        checar(u"radai_nidus.malha_da_caixa existe", False)
+        return
+    tetos = dict(N.TETOS_DA_MALHA)
+    checar(u"os tetos das três malhas somam o teto do visor (%d)"
+           % R.TETO_TRIANGULOS, sum(tetos.values()) <= R.TETO_TRIANGULOS
+           and set(tetos) == {u"vaso", u"osso", u"pele"}, str(tetos))
+    checar(u"a interseção nunca vira malha (só vaso, osso e pele)",
+           tuple(N.QUAIS_DA_MALHA) == (u"vaso", u"osso", u"pele"))
+    img, mvaso = _vaso_sintetico()
+    serie = N.abrir(img, "CT")
+    caixa = (0.1, 0.9, 0.1, 0.9, 0.1, 0.9)
+    lps, faces, info = N.malha_da_caixa(serie, caixa, u"vaso")
+    checar(u"o vaso de 1,5 mm sai em malha", len(faces) > 50, str(info))
+    checar(u"  com passo de no máximo 1 mm", 0 < info.get("passo_mm", 9) <= 1.0,
+           str(info))
+    if len(lps):
+        ext = float(np.linalg.norm(lps.max(axis=0) - lps.min(axis=0)))
+        checar(u"  e inteiro, e não em pedaços (%.0f mm de extensão)" % ext,
+               ext > 25.0, u"%.1f mm" % ext)
+    checar(u"  e sem o osso separado, a malha diz", info.get("motivo")
+           == N.OSSO_NAO_SEPARADO, str(info.get("motivo")))
+    lps0, f0, i0 = R.malha_de_rotulo(
+        np.asarray(mvaso), (0.5, 0.45, 0.45), teto_triangulos=50000)
+    checar(u"  isca: com a suavização e o passo do rótulo, o ramo fino some "
+           u"(%d triângulos)" % len(f0), len(f0) < len(faces) * 0.5,
+           str(i0))
+    lo, fo, io_ = N.malha_da_caixa(serie, caixa, u"osso")
+    checar(u"sem a segmentação, nenhum osso pela densidade", len(fo) == 0
+           and io_.get("motivo") == N.OSSO_NAO_SEPARADO, str(io_))
+    import SimpleITK as sitk
+    osso = np.zeros(serie.forma_do_array, bool)
+    osso[20:30, 30:60, 30:60] = True
+    serie.tirar_osso(osso, {u"fonte": u"FULL"})
+    lo, fo, io_ = N.malha_da_caixa(serie, caixa, u"osso")
+    checar(u"com a segmentação, o osso é a máscara dela", len(fo) > 10
+           and not io_.get("motivo"), str(io_))
+    lp, fp, ip = N.malha_da_caixa(serie, caixa, u"pele")
+    checar(u"na TC a pele sai por -400 HU", len(fp) > 10, str(ip))
+    checar(u"  e cada malha respeita o teto dela",
+           len(faces) <= tetos[u"vaso"] * 1.15 and len(fo) <= tetos[u"osso"] * 1.15
+           and len(fp) <= tetos[u"pele"] * 1.15)
+    rm = N.abrir(img, "MR")
+    lp, fp, ip = N.malha_da_caixa(rm, caixa, u"pele")
+    checar(u"na RM não há pele (o sinal não é HU)", len(fp) == 0, str(ip))
+    lv, fv, iv = N.malha_da_caixa(rm, caixa, u"vaso")
+    checar(u"  e o vaso sai pelo limiar relativo da série", len(fv) > 50, str(iv))
+    try:
+        N.malha_da_caixa(serie, None, u"vaso")
+        recusou = False
+    except N.MalhaRecusada as e:
+        recusou = str(e) == N.SEM_CAIXA_PARA_O_3D
+    checar(u"sem caixa, o 3D diz que precisa dela (e não monta o volume inteiro)",
+           recusou)
+    try:
+        N.malha_da_caixa(serie, caixa, u"intersecao")
+        aceitou = True
+    except (KeyError, ValueError):
+        aceitou = False
+    checar(u"e pedir a malha da interseção é recusado", not aceitou)
 
 
 def teste_a_geometria_fecha():
@@ -247,9 +615,16 @@ def teste_a_fronteira_nao_se_cruza():
            u"volume de tratamento" in _N.SEM_VOLUME
            and u"radai_nidus.SEM_VOLUME" in fonte("radai_nidus_screen.py"))
 
-    checar(u"a tela nao usa canvas", "<canvas" not in tela.lower())
-    checar(u"nem getContext", "getcontext" not in tela.lower())
-    checar(u"e desenha em SVG", "<svg" in tela.lower())
+    for proibido in ("readpixels", "capturestream", "mediarecorder"):
+        checar(u"a tela nao le nem grava o quadro do 3D (`%s`)" % proibido,
+               proibido not in tela.lower())
+    checar(u"o único canvas é o do 3D da caixa (WebGL)",
+           tela.lower().count("<canvas") == 1 and 'id="nd_gl"' in tela)
+    contextos = re.findall(r"getContext\(\s*'([^']+)'", tela)
+    checar(u"e ele só pede contexto WebGL, nunca o 2D que exporta pixel",
+           contextos and set(contextos) <= {u"webgl", u"experimental-webgl"},
+           str(contextos))
+    checar(u"e o desenho continua em SVG", "<svg" in tela.lower())
 
     bruto = fonte("radai_nidus_screen.py")
     checar(u"a trava do volume esta declarada", bool(N.SEM_VOLUME))
@@ -284,8 +659,13 @@ def teste_nao_detecta_nada():
     tela = sem_prosa(fonte("radai_nidus_screen.py")).lower()
     for proibido in ("candidat", "suspeit", "probabilid", "malign", "detect",
                      "score", "torch", "monai", "predict", "model"):
-        checar(u"a lib nao tem `%s`" % proibido, proibido not in codigo)
-        checar(u"a tela nao tem `%s`" % proibido, proibido not in tela)
+        # GUARDA: o detector do arco em C é o painel de raio X, e não detecção de achado.
+        padrao = r"detect(?!or)" if proibido == "detect" else re.escape(proibido)
+        checar(u"a lib nao tem `%s`" % proibido, not re.search(padrao, codigo))
+        checar(u"a tela nao tem `%s`" % proibido, not re.search(padrao, tela))
+    checar(u"  isca: «detectar» ainda é acusado (o detector do arco não abre a porta)",
+           re.search(r"detect(?!or)", u"vista do detector · detectar o ninho")
+           is not None)
 
     bruto = fonte("radai_nidus_screen.py")
     checar(u"a imagem viaja por bilhete",
@@ -418,7 +798,8 @@ def teste_acumular_incidencias():
 
 _GLOBAIS = frozenset(u"""document window fetch Promise JSON String Number Math
 Boolean Array Object setTimeout setInterval clearTimeout console Error Date
-RegExp encodeURIComponent decodeURIComponent parseInt parseFloat isNaN""".split())
+RegExp encodeURIComponent decodeURIComponent parseInt parseFloat isNaN
+Float32Array Uint16Array Uint32Array Int32Array DataView Infinity""".split())
 
 _PALAVRAS = frozenset(u"""var function return if else for while do in of new
 typeof instanceof this null true false undefined break continue try catch
@@ -738,7 +1119,7 @@ def _falhas_do_popup(p):
         fora.append(u"as abas não estão à esquerda")
     if u'<div class="ui-ps" id="nd_escolha" data-ui-ps' not in p:
         fora.append(u"a escolha não é o popup da casca")
-    lado = p.split(u'id="nd_lado"')[-1].split(u"</aside>")[0]
+    lado = p.split(u'id="nd_serie_cx"')[-1].split(u"</div>")[0]
     if (u'id="nd_escolher" data-ui-ps-abre="nd_escolha"' not in lado
             or u">Carregar série</span>" not in lado):
         fora.append(u"falta o cartão «Carregar série» na tela de trabalho")
@@ -766,7 +1147,7 @@ def teste_a_tabela_do_acervo_no_lugar_do_seletor():
     import radai_nidus_screen as S
     p = S.pagina()
     checar(u"o seletor de série saiu", u'id="nd_serie"' not in p
-           and u"<select" not in p.split(u'id="nd_lado"')[-1].split(u"</aside>")[0])
+           and u"<select" not in p.split(u'id="nd_serie_cx"')[-1].split(u"</div>")[0])
     checar(u"a escolha tem a tabela do acervo e a aba da pasta",
            u'id="nd_acervo" data-ui-acervo' in p
            and u'data-guia="acervo"' in p and u'data-guia="pasta"' in p
@@ -1124,7 +1505,7 @@ def teste_o_erro_volta_ao_estado_bom():
    pend:ND.guardadas.filter(function(x){ return x.pendente }).length,
    sessao_igual:ND.sessao===sessao, msg:_msg(),
    cruzar:!document.getElementById('nd_bt_cruzar').hidden};
- var salvo=JSON.parse(window.sessionStorage.getItem('radai_nidus_'+ND.chave)||'null');
+ var salvo=JSON.parse(window.sessionStorage.getItem(ndChaveSalva())||'null');
  r.c={salvas:salvo?salvo.guardadas.length:-1};
  delete _RESP['/api/nidus/tubos'];
  var antes=_FETCHES.length;
@@ -1433,20 +1814,20 @@ def teste_a_marcacao_volta_pela_chave_da_serie():
  ndAngulo(60,20); _falhou_img(); await _esperar(); _falhou_img(); await _esperar();
  r.trava={aberta:ND.aberta, guardar:document.getElementById('nd_bt_guardar').disabled,
    retomar:!document.getElementById('nd_bt_retomar').hidden, msg:_msg(),
-   salvo_lao:JSON.parse(window.sessionStorage.getItem('radai_nidus_KFIXA')||'{}').lao};
+   salvo_lao:JSON.parse(window.sessionStorage.getItem('radai_nidus_v2_KFIXA')||'{}').lao};
  ndRetomar(); await _esperar(); _carregou(); await _esperar();
  r.volta={aberta:ND.aberta, guardar:document.getElementById('nd_bt_guardar').disabled,
    retomar:!document.getElementById('nd_bt_retomar').hidden, lao:ND.lao,
    guardadas:ND.guardadas.length};
  ND.pontos=[[20,20],[80,20],[80,80]]; ndGuardar(); await _esperar();
  r.depois={guardadas:ND.guardadas.length,
-   salvas:JSON.parse(window.sessionStorage.getItem('radai_nidus_KFIXA')||'{"guardadas":[]}').guardadas.length};
+   salvas:JSON.parse(window.sessionStorage.getItem('radai_nidus_v2_KFIXA')||'{"guardadas":[]}').guardadas.length};
  pronto(r);
 """
     d = _encenar(corpo)
     o, t, v, dp = (d.get(k) or {} for k in ("outro", "trava", "volta", "depois"))
     checar(u"o estado salvo mora na chave da série, e não no bilhete",
-           d.get("chaves") == [u"radai_nidus_KFIXA"] and not d.get("erros"),
+           d.get("chaves") == [u"radai_nidus_v2_KFIXA"] and not d.get("erros"),
            u"%s %s" % (d.get("chaves"), d.get("erros")))
     checar(u"outro bilhete da mesma série (servidor reiniciado) traz a marcação de volta",
            o.get("b") == u"B9" and o.get("guardadas") == 1
@@ -1464,8 +1845,8 @@ def teste_a_marcacao_volta_pela_chave_da_serie():
     checar(u"  e guardar depois do erro recuperado funciona e fica salvo",
            dp.get("guardadas") == 2 and dp.get("salvas") == 2, str(dp))
     iscado = _encenar(corpo, ajuste=lambda js: js.replace(
-        u"function ndChaveSalva(){ return 'radai_nidus_'+ND.chave }",
-        u"function ndChaveSalva(){ return 'radai_nidus_'+ND.b }"))
+        u"function ndChaveSalva(){ return 'radai_nidus_v2_'+ND.chave }",
+        u"function ndChaveSalva(){ return 'radai_nidus_v2_'+ND.b }"))
     checar(u"  isca: a chave pelo bilhete perde a marcação no outro bilhete",
            (iscado.get("outro") or {}).get("guardadas") == 0,
            str(iscado.get("outro"))[:120])
@@ -1694,6 +2075,260 @@ def teste_o_acervo_abre_por_post_com_a_origem():
            re.search(r"[?&]n=\d+&t=[a-z0-9]+", src) is not None, src[:120])
 
 
+def _geometria_obliqua():
+    import json
+    import radai_nidus as N
+    img = _serie_obliqua()
+    serie = N.abrir(img, "CT")
+    return serie, json.dumps(N.geometria_da_serie(serie))
+
+
+def teste_a_pegada_do_js_e_a_do_python():
+    secao(u"a pegada da caixa no JS é a do Python (série oblíqua)")
+    import radai_nidus as N
+    if _sem_node():
+        return
+    serie, geo = _geometria_obliqua()
+    caixa = [0.2, 0.55, 0.3, 0.8, 0.15, 0.6]
+    casos = [(0, 0), (-35, 20), (60, -25), (170, 85)]
+    corpo = (u" await _abrir(); ND.geo=%s; ND.lado=1024;\n"
+             u" pronto({pts:%s.map(function(a){ return ndPegada(%s, a[0], a[1]) })});"
+             % (geo, str([list(c) for c in casos]), str(caixa)))
+    d = _encenar(corpo)
+    pior = 0.0
+    for (lao, cra), pts in zip(casos, d.get("pts") or []):
+        py = N.pegada_da_caixa(serie, caixa, lao, cra, 1024)
+        for a, b in zip(pts, py):
+            pior = max(pior, abs(a[0] - b[0]), abs(a[1] - b[1]))
+    checar(u"os oito cantos iguais nas quatro incidências (erro %.1e px)" % pior,
+           len(d.get("pts") or []) == 4 and pior < 1e-6 and not d.get("erros"),
+           str(d.get("erros"))[:120])
+    isca = _encenar(corpo, ajuste=lambda js: js.replace(
+        u"ND.lado-0.5-(q[0]*b.u[0]", u"ND.lado-0.5+(q[0]*b.u[0]"))
+    p2 = 0.0
+    for (lao, cra), pts in zip(casos, isca.get("pts") or []):
+        for a, b in zip(pts, N.pegada_da_caixa(serie, caixa, lao, cra, 1024)):
+            p2 = max(p2, abs(a[1] - b[1]))
+    checar(u"  isca: o alto da tela com o sinal trocado é acusado", p2 > 5.0,
+           u"%.1f" % p2)
+
+
+def teste_o_veu_e_acompanhar_a_caixa():
+    secao(u"o véu fora da caixa, a pegada tracejada e «Acompanhar a caixa»")
+    if _sem_node():
+        return
+    _serie, geo = _geometria_obliqua()
+    corpo = (u""" await _abrir(); ND.geo=%s; ND.lado=1024;
+ ND.caixa=[0.3,0.6,0.35,0.65,0.3,0.6]; ND.caixaOn=true;
+ ndPintarPegada(); ndEnquadrar();
+ var r={d:document.getElementById('nd_fora').getAttribute('d'),
+   peg:document.getElementById('nd_pegada').getAttribute('points'),
+   k:ND.zoom.k, seguir:ND.seguir};
+ ndZoomPasso(1); r.depoisZoom={seguir:ND.seguir,
+   peg:document.getElementById('nd_pegada').getAttribute('points')};
+ ndSeguirAlternar(); r.religou={seguir:ND.seguir, k:ND.zoom.k};
+ ndZoomAjustar(); r.ajustar={seguir:ND.seguir, k:ND.zoom.k};
+ ndCaixaLimpar(); r.limpo={d:document.getElementById('nd_fora').getAttribute('d')};
+ pronto(r);""" % geo)
+    d = _encenar(corpo)
+    checar(u"com caixa, o fora dela fica velado (o véu cobre a tela menos a pegada)",
+           (d.get("d") or u"").startswith(u"M0,0H1024V1024H0Z M") and not d.get("erros"),
+           str(d.get("erros") or d.get("d"))[:120])
+    checar(u"acompanhando, a projeção enquadra a pegada (zoom > 1) e não traceja",
+           (d.get("k") or 0) > 1.2 and d.get("peg") == u"" and d.get("seguir") is True,
+           str(d)[:160])
+    dz = d.get("depoisZoom") or {}
+    checar(u"o zoom manual desliga o acompanhar, e a pegada aparece tracejada",
+           dz.get("seguir") is False and (dz.get("peg") or u"").count(u",") >= 4, str(dz))
+    checar(u"«Acompanhar a caixa» religa e reenquadra",
+           (d.get("religou") or {}).get("seguir") is True)
+    checar(u"«Ajustar à tela» volta ao inteiro e para de acompanhar",
+           (d.get("ajustar") or {}).get("seguir") is False
+           and (d.get("ajustar") or {}).get("k") == 1)
+    checar(u"sem caixa, nada é velado", (d.get("limpo") or {}).get("d") == u"")
+    isca = _encenar(corpo, ajuste=lambda js: js.replace(
+        u"function ndSeguirDesligar(){\n if(!ND.seguir) return;",
+        u"function ndSeguirDesligar(){\n return;"))
+    checar(u"  isca: o zoom que não desliga o acompanhar é acusado",
+           (isca.get("depoisZoom") or {}).get("seguir") is True)
+
+
+def teste_a_previa_durante_o_arraste():
+    secao(u"a prévia em baixa resolução durante o arraste; o lápis espera a cheia")
+    import radai_nidus_screen as S
+    if _sem_node():
+        return
+    corpo = u""" await _abrir();
+ var r=document.getElementById('nd_lao_r');
+ r.value='-40'; r.disparar('input');
+ var a={src:_proj().src, previa:ND.previa, proj:ND.projetando, lao:ND.lao,
+   estado:document.getElementById('nd_estado_t').textContent};
+ _circulo(200,200,60,30); _svg().disparar('mouseup', _ev(260,200));
+ a.tracou=ND.pontos.length; a.msg=_msg();
+ r.disparar('change'); _carregou(); await _esperar();
+ var b={src:_proj().src, previa:ND.previa, proj:ND.projetando, lao:ND.lao,
+   estado:document.getElementById('nd_estado_t').textContent};
+ _circulo(200,200,60,30); _svg().disparar('mouseup', _ev(260,200));
+ b.tracou=ND.pontos.length;
+ pronto({a:a, b:b});"""
+    d = _encenar(corpo)
+    a, b = d.get("a") or {}, d.get("b") or {}
+    checar(u"arrastando, a projeção vem em %d e diz que é prévia" % S.LADO_DA_PREVIA,
+           (u"lado=%d" % S.LADO_DA_PREVIA) in (a.get("src") or u"") and a.get("previa") is True
+           and a.get("lao") == 0 and u"prévia" in (a.get("estado") or u"")
+           and not d.get("erros"), str(a)[:200])
+    checar(u"  e o lápis recusa até a cheia chegar, e diz por quê",
+           a.get("tracou") == 0 and u"aguarde a projeção" in (a.get("msg") or u""), str(a))
+    checar(u"soltando, a projeção cheia (%d) chega e o lápis volta" % S.LADO_DA_TELA,
+           (u"lado=%d" % S.LADO_DA_TELA) in (b.get("src") or u"") and b.get("previa") is False
+           and b.get("lao") == -40 and b.get("tracou", 0) >= 8
+           and u"cheia" in (b.get("estado") or u""), str(b)[:200])
+    isca = _encenar(corpo, ajuste=lambda js: js.replace(
+        u"ndUrlDaProjecao(ND.ver.lao, ND.ver.cra, ND_LADO_PREVIA)",
+        u"ndUrlDaProjecao(ND.ver.lao, ND.ver.cra, ND.lado)"))
+    checar(u"  isca: a prévia pedida na resolução cheia é acusada",
+           (u"lado=%d" % S.LADO_DA_PREVIA) not in ((isca.get("a") or {}).get("src") or u""))
+
+
+def teste_o_mapa_de_incidencias():
+    secao(u"o mapa de incidências: encaixa nas oito, Shift tira o encaixe, setas giram")
+    import radai_nidus as N
+    if _sem_node():
+        return
+    corpo = u""" await _abrir();
+ ND_PAD.W=268; ND_PAD.H=120; ndPintarPad();
+ var p=ndPadXY(90,0), r={};
+ ndPadPonteiro({clientX:p[0]+4, clientY:p[1]+3, shiftKey:false});
+ r.encaixa=[ND.ver.lao, ND.ver.cra, ND.lao];
+ ndPadPonteiro({clientX:p[0]+4, clientY:p[1]+3, shiftKey:true});
+ r.livre=[ND.ver.lao, ND.ver.cra];
+ ndSoltarAngulo(); r.soltou=[ND.lao, ND.cra];
+ r.svg=document.getElementById('nd_pad').innerHTML;
+ pronto(r);"""
+    d = _encenar(corpo)
+    perfil_e = dict((n, (a, b)) for n, a, b in N.INCIDENCIAS)[u"Perfil E"]
+    checar(u"perto do Perfil E (LAO 90) o mapa encaixa nele, em prévia",
+           d.get("encaixa") == [perfil_e[0], perfil_e[1], 0] and not d.get("erros"),
+           str(d.get("encaixa")) + str(d.get("erros"))[:80])
+    checar(u"  com Shift não encaixa", d.get("livre") not in (None, [90, 0]),
+           str(d.get("livre")))
+    checar(u"soltar gira de verdade", d.get("soltou") == d.get("livre"),
+           str(d.get("soltou")))
+    checar(u"o mapa desenha as oito incidências e a atual",
+           (d.get("svg") or u"").count(u'class="pre') == 8
+           and u'class="atual"' in (d.get("svg") or u""))
+
+
+def teste_o_arraste_do_3d_e_da_sala():
+    secao(u"o arraste: no 3D segue o objeto (direita = RAO, baixo = CRA); na sala move o arco")
+    if _sem_node():
+        return
+    corpo = u""" await _abrir();
+ var A={lao:0, cra:0};
+ pronto({tres_dir:nd3AnguloDoArrasto(A, 40, 0, false), tres_baixo:nd3AnguloDoArrasto(A, 0, 40, false),
+   sala_dir:nd3AnguloDoArrasto(A, 40, 0, true), sala_cima:nd3AnguloDoArrasto(A, 0, -40, true)});"""
+    d = _encenar(corpo)
+    checar(u"no 3D, para a direita vai para RAO (o que está de frente vai à direita)",
+           (d.get("tres_dir") or [0])[0] < 0 and not d.get("erros"), str(d)[:160])
+    checar(u"no 3D, para baixo vai para CRA (o alto da cabeça vem para a frente)",
+           (d.get("tres_baixo") or [0, 0])[1] > 0)
+    checar(u"na sala, para a direita o arco vai para LAO e para cima, para CRA",
+           (d.get("sala_dir") or [0])[0] > 0 and (d.get("sala_cima") or [0, 0])[1] > 0)
+    isca = _encenar(corpo, ajuste=lambda js: js.replace(
+        u"return [A.lao-dx*0.5, A.cra+dy*0.4];", u"return [A.lao+dx*0.5, A.cra+dy*0.4];"))
+    checar(u"  isca: o sinal antigo (direita = LAO no 3D) é acusado",
+           (isca.get("tres_dir") or [0])[0] > 0)
+
+
+def teste_a_chave_da_aba_tem_a_versao_da_convencao():
+    secao(u"o desenho salvo na convenção de antes não volta na nova (a chave muda)")
+    if _sem_node():
+        return
+    corpo = ABA_DE_TESTE + u"""
+ window.sessionStorage.setItem('radai_nidus_KVELHA', JSON.stringify({lao:90, cra:0,
+   guardadas:[{lao:90, cra:0, pontos:[[1,1],[50,1],[50,50]]}], pontos:[]}));
+ _RESP['/api/nidus/abrir']=function(u, op){ var f=_padrao(u, op); f.chave='KVELHA'; return f };
+ await _abrir();
+ pronto({guardadas:ND.guardadas.length, lao:ND.lao, chave:ndChaveSalva()});"""
+    d = _encenar(corpo)
+    checar(u"a marcação da chave velha não é aplicada (outra matriz, outro tubo)",
+           d.get("guardadas") == 0 and d.get("lao") == 0 and not d.get("erros"),
+           str(d)[:160])
+    checar(u"  e a chave nova diz a versão", d.get("chave") == u"radai_nidus_v2_KVELHA",
+           str(d.get("chave")))
+    isca = _encenar(corpo, ajuste=lambda js: js.replace(
+        u"return 'radai_nidus_v2_'+ND.chave", u"return 'radai_nidus_'+ND.chave"))
+    checar(u"  isca: com a chave de antes, o desenho velho voltaria",
+           isca.get("guardadas") == 1, str(isca.get("guardadas")))
+
+
+def teste_o_3d_e_a_sala_na_pagina():
+    secao(u"o 3D da caixa e a sala: os controles, o canto e o caminho sem WebGL")
+    import radai_nidus_screen as S
+    p = S.pagina()
+    for marca, o_que in (('id="nd_gl"', u"o quadro do 3D"),
+                         ('id="nd_detector"', u"«Vista do detector»"),
+                         ('id="nd_atraves"', u"«Ver através»"),
+                         ('id="nd_sala_padrao"', u"«Sala na vista padrão»"),
+                         ('id="nd_pad"', u"o mapa de incidências"),
+                         ('id="nd_seguir"', u"«Acompanhar a caixa»"),
+                         ('<select id="nd_vista" data-ui-seg', u"o segmentado «3D da caixa | Sala» da casca")):
+        checar(u"a tela tem %s" % o_que, marca in p)
+    checar(u"o botão de cada incidência leva o ângulo (dado, sem tradução)",
+           u'<small translate="no">RAO 90</small>' in p
+           and u'<small translate="no">CRA 30</small>' in p)
+    checar(u"«Guardar incidência» apagado diz por quê (uiPorQue)",
+           u"window.uiPorQue('Guardar incidência'" in S.JS)
+    checar(u"a sala é desenhada em código (nenhum modelo de terceiro)",
+           u".glb" not in p.lower() and u"gltf" not in p.lower())
+    if _sem_node():
+        return
+    d = _encenar(u""" await _abrir();
+ var r={canto:document.getElementById('nd_cant').innerHTML, gl:!!ND3.gl};
+ pronto(r);""")
+    checar(u"sem WebGL o canto diz, e o resto da tela abre",
+           d.get("gl") is False and u"WebGL" in (d.get("canto") or u"")
+           and not d.get("erros"), str(d)[:160])
+
+
+def teste_as_malhas_da_caixa_pela_rota():
+    secao(u"o 3D da caixa vem do servidor por bilhete, só vaso, osso e pele")
+    import asyncio
+    import struct
+    import radai_nidus as N
+    rotas = _rotas_montadas()
+    checar(u"as rotas do 3D estão montadas", "/api/nidus/malhas" in rotas
+           and "/api/nidus/malha" in rotas)
+    img, _m = _vaso_sintetico()
+    lidas, soltar = _com_dubles(img)
+    try:
+        d = asyncio.run(rotas["/api/nidus/malhas"](_Pedido(
+            {"b": u"V1", "caixa": u"0.1,0.9,0.1,0.9,0.1,0.9"})))
+        sem = asyncio.run(rotas["/api/nidus/malhas"](_Pedido({"b": u"V1", "caixa": u""})))
+    finally:
+        soltar()
+    quais = [x.get("qual") for x in d.get("malhas") or []]
+    checar(u"a resposta traz só vaso, osso e pele", quais == list(N.QUAIS_DA_MALHA)
+           and not d.get("erro"), str(d)[:160])
+    vaso = [x for x in d.get("malhas") or [] if x.get("qual") == u"vaso"]
+    m = vaso[0].get("m") if vaso else u""
+    r = rotas["/api/nidus/malha"](m=m)
+    corpo = getattr(r, "body", b"") or b""
+    ok = len(corpo) > 84 and 84 + 50 * struct.unpack("<I", corpo[80:84])[0] == len(corpo)
+    checar(u"a malha do vaso chega em STL pelo bilhete dela", ok,
+           u"%d bytes" % len(corpo))
+    checar(u"  e o cabeçalho diz que é de visualização, não aprovada",
+           b"UNAPPROVED" in corpo[:80])
+    checar(u"sem caixa, o servidor recusa com o motivo, sem montar o volume inteiro",
+           sem.get("erro") == N.SEM_CAIXA_PARA_O_3D and not sem.get("malhas"))
+    r404 = rotas["/api/nidus/malha"](m=u"nao_existe")
+    checar(u"bilhete que saiu da memória responde 404 com o motivo",
+           getattr(r404, "status_code", 0) == 404)
+    fonte_tela = sem_prosa(fonte("radai_nidus_screen.py"))
+    checar(u"nenhuma rota leva a interseção ao 3D",
+           u"intersecao(" not in fonte_tela.split(u"def _malhas_da_caixa")[-1].split(u"def _tubo_da_incidencia")[0])
+
+
 TELA = (teste_o_javascript_nao_le_nome_solto,
         teste_a_tela_acorda_e_pede_as_series,
         teste_a_tabela_do_acervo_no_lugar_do_seletor,
@@ -1718,7 +2353,12 @@ TELA = (teste_o_javascript_nao_le_nome_solto,
         teste_a_fila_parada_espera_o_iniciar,
         teste_segmentar_substitui_a_entrega,
         teste_as_linhas_que_falham_param,
-        teste_o_acervo_abre_por_post_com_a_origem)
+        teste_o_acervo_abre_por_post_com_a_origem,
+        teste_a_previa_durante_o_arraste,
+        teste_o_mapa_de_incidencias,
+        teste_o_arraste_do_3d_e_da_sala,
+        teste_a_chave_da_aba_tem_a_versao_da_convencao,
+        teste_o_3d_e_a_sala_na_pagina)
 
 
 def _rotas_montadas():
@@ -1996,7 +2636,7 @@ def _tubo_de_referencia(img, poligono, lao, cra, lado):
     import numpy as np
     import SimpleITK as sitk
     import radai_nidus as N
-    t = N._euler(img, lao, cra)
+    t = N._transformada(img, lao, cra)
     ref, diag, passo, passo_fundo = N._grade(img, lado)
     c = t.GetCenter()
     ref.SetOrigin((c[0] - diag / 2.0, c[1] - diag / 2.0, c[2] - diag / 2.0))
@@ -2591,7 +3231,9 @@ def teste_no_navegador():
     erros = []
     try:
         with sync_playwright() as p:
-            nav = p.chromium.launch(executable_path=exe, headless=True)
+            nav = p.chromium.launch(executable_path=exe, headless=True,
+                                    args=["--use-angle=swiftshader",
+                                          "--enable-unsafe-swiftshader"])
             for larg, alt in ((1600, 900), (1280, 800)):
                 pg = nav.new_page(viewport={"width": larg, "height": alt})
                 pg.on("pageerror", lambda e: erros.append(str(e)[:160]))
@@ -2629,16 +3271,20 @@ def teste_no_navegador():
                        pg.evaluate("document.documentElement.scrollHeight"
                                    " <= window.innerHeight + 1"),
                        pg.evaluate("[document.documentElement.scrollHeight, window.innerHeight]"))
-                cmd, palco, mpr, lado = (_caixa_de(pg, s) for s in (
-                    "#nd_cmd", "#nd_palco", "#nd_mpr .nd-planos", "#nd_lado"))
+                cmd, palco, tres, mapa, mpr = (_caixa_de(pg, s) for s in (
+                    "#nd_cmd", "#nd_palco", "#nd_palco3d", "#nd_pad",
+                    "#nd_mpr .nd-planos"))
                 checar(u"[%s] as ferramentas em cima do visor" % rot,
                        cmd and palco and cmd["b"] <= palco["y"] + 1, (cmd, palco))
-                checar(u"[%s] os três MPR à direita, com a altura do visor" % rot,
-                       mpr and mpr["x"] >= palco["d"] - 1
-                       and abs(mpr["h"] - palco["h"]) <= 2
-                       and abs(mpr["y"] - palco["y"]) <= 2, (palco, mpr))
                 checar(u"[%s] o visor é quadrado e grande" % rot,
                        abs(palco["w"] - palco["h"]) <= 1 and palco["h"] >= 300, palco)
+                checar(u"[%s] o 3D da caixa e o mapa à direita da projeção, lado a lado" % rot,
+                       tres and mapa and tres["x"] >= palco["d"] - 1
+                       and mapa["x"] >= tres["d"] - 1 and tres["h"] >= 100
+                       and mapa["h"] >= 70, (palco, tres, mapa))
+                checar(u"[%s] o MPR em faixa, embaixo do 3D" % rot,
+                       mpr and mpr["y"] >= tres["b"] - 1 and mpr["x"] >= palco["d"] - 1
+                       and mpr["b"] <= palco["b"] + 60, (tres, mpr))
                 pg.mouse.move(palco["x"] + palco["w"] * .6, palco["y"] + palco["h"] * .5)
                 pg.mouse.down()
                 for k in range(1, 40):
@@ -2656,6 +3302,27 @@ def teste_no_navegador():
                        pg.evaluate("document.querySelectorAll('#nd_guardadas li').length") == 1)
                 if larg == 1280:
                     pg.screenshot(path=os.path.join(base, "nidus_1280.png"))
+                    pg.evaluate(u"() => { ndCaixaModo(); ND.caixa=[0.3,0.7,0.25,0.65,0.3,0.7];"
+                                u" ndPintarCaixas(); ndTravas(); ndProjetar(); nd3Malhas();"
+                                u" ndPintarPegada(); ndEnquadrar(); }")
+                    pg.wait_for_function("ND.aberta && !ND.projetando", timeout=60000)
+                    pg.wait_for_timeout(2400)
+                    tem_gl = pg.evaluate("!!ND3.gl")
+                    tres = _caixa_de(pg, "#nd_palco3d")
+                    l0 = pg.evaluate("ND.lao")
+                    pg.mouse.move(tres["x"] + tres["w"] * .4, tres["y"] + tres["h"] * .5)
+                    pg.mouse.down()
+                    pg.mouse.move(tres["x"] + tres["w"] * .4 + 50, tres["y"] + tres["h"] * .5,
+                                  steps=5)
+                    previa = pg.evaluate("[ND.previa, ND.ver.lao, ND.lao]")
+                    pg.mouse.up()
+                    pg.wait_for_function("ND.aberta && !ND.projetando", timeout=60000)
+                    l1 = pg.evaluate("ND.lao")
+                    checar(u"[%s] no 3D da caixa (WebGL), arrastar para a direita vai para "
+                           u"RAO, seguindo o objeto, com prévia no caminho" % rot,
+                           tem_gl and l1 < l0 and previa[0] is True and previa[1] < 0
+                           and previa[2] == l0, (tem_gl, l0, l1, previa))
+                    pg.wait_for_timeout(2400)
                 pg.click("#nd_escolher")
                 pg.wait_for_timeout(400)
                 pg.click('#nd_series .nd-it[data-i="%d"]' % ruim[0])
@@ -2964,15 +3631,18 @@ def teste_o_osso_sai_tambem_pelo_oar_e_pelo_oar_fast():
     duas = pasta_com(u"duas", [(u"RS_RadAI_FAST_20261015_%s.dcm", {u"Skull_ai": cortes}),
                                (u"RS_RadAI_FULL_20261015_%s.dcm", {u"Skull_ai": cortes})])
     o_fast, o_oar, o_sem, o_duas = osso(fast), osso(oar), osso(sem), osso(duas)
-    checar(u"série só em FAST: o osso sai pelo OAR_Fast",
-           o_fast.get("tem") is True and o_fast.get("fonte") == u"OAR_Fast"
+    import radai_sets
+    na_tela = radai_sets.NOME_NA_TELA
+    checar(u"série só em FAST: o osso sai pela entrega do FAST (%s)" % na_tela["fast"],
+           o_fast.get("tem") is True and o_fast.get("fonte") == na_tela["fast"]
            and o_fast.get("estruturas") == 1, str(o_fast))
-    checar(u"série com o OAR (sem FULL): o osso sai pelo OAR",
-           o_oar.get("tem") is True and o_oar.get("fonte") == u"OAR", str(o_oar))
-    checar(u"com o FULL ao lado do OAR_Fast, vale o FULL",
-           o_duas.get("fonte") == u"FULL", str(o_duas))
+    checar(u"série com a entrega (sem FULL): o osso sai por ela (%s)" % na_tela["oar"],
+           o_oar.get("tem") is True and o_oar.get("fonte") == na_tela["oar"],
+           str(o_oar))
+    checar(u"com o FULL ao lado da entrega do FAST, vale o FULL",
+           o_duas.get("fonte") == na_tela["full"], str(o_duas))
     checar(u"entrega sem osso: a tela diz qual é a entrega, para oferecer substituí-la",
-           o_sem.get("tem") is False and o_sem.get("entrega") == u"OAR_Fast"
+           o_sem.get("tem") is False and o_sem.get("entrega") == na_tela["fast"]
            and o_sem.get("motivo") == S.SEM_OSSO_NA_ENTREGA, str(o_sem))
     guarda = S.ORDEM_DO_OSSO
     try:
@@ -3052,7 +3722,9 @@ def main():
                 checar(u"%s (excecao)" % t.__name__, False, str(e)[:60])
         return _fechar()
 
-    for t in (teste_a_geometria_fecha,
+    for t in (teste_a_convencao_e_a_do_arco_em_c,
+              teste_o_js_da_convencao_e_o_python,
+              teste_a_geometria_fecha,
               teste_a_projecao_e_o_extremo_do_raio,
               teste_as_linhas_sao_finas,
               teste_a_fronteira_nao_se_cruza,
@@ -3077,7 +3749,12 @@ def main():
               teste_o_acervo_abre_pelo_resolvedor_da_tabela,
               teste_a_chave_da_serie_nao_depende_do_bilhete,
               teste_o_osso_sai_tambem_pelo_oar_e_pelo_oar_fast,
-              teste_o_pedido_leva_substituir) + TELA + (teste_no_navegador,):
+              teste_o_pedido_leva_substituir,
+              teste_a_pegada_da_caixa_numa_serie_obliqua,
+              teste_a_malha_da_caixa,
+              teste_as_malhas_da_caixa_pela_rota,
+              teste_a_pegada_do_js_e_a_do_python,
+              teste_o_veu_e_acompanhar_a_caixa) + TELA + (teste_no_navegador,):
         try:
             t()
         except Exception as e:
