@@ -3262,6 +3262,10 @@ def _caixa_de(pg, sel):
                        " b:r.bottom, d:r.right} })()" % sel)
 
 
+# GUARDA: espera pela condição, e não pausa; sob carga e memória curta, abrir o fantoma e projetar a 1024 passou de 60 s.
+ESPERA_NO_NAVEGADOR_MS = 180000
+
+
 def teste_no_navegador():
     secao(u"no navegador: uma tela só, o lápis, e a série colorida que trava")
     try:
@@ -3306,7 +3310,7 @@ def teste_no_navegador():
                 pg.click("#nd_listar")
                 pg.wait_for_function(
                     "document.querySelectorAll('#nd_series .nd-it').length > 1",
-                    timeout=60000)
+                    timeout=ESPERA_NO_NAVEGADOR_MS)
                 ops = pg.eval_on_selector_all(
                     "#nd_series .nd-it",
                     "os => os.map(o => [o.getAttribute('data-b'), o.textContent])")
@@ -3319,7 +3323,7 @@ def teste_no_navegador():
                        and u"CTA" in pg.inner_text("#nd_serie_rot"))
                 pg.wait_for_function(
                     "document.getElementById('nd_proj').naturalWidth > 0 && !ND.projetando",
-                    timeout=60000)
+                    timeout=ESPERA_NO_NAVEGADOR_MS)
                 pg.wait_for_timeout(2600)
                 checar(u"[%s] tudo numa tela, sem rolar" % rot,
                        pg.evaluate("document.documentElement.scrollHeight"
@@ -3351,7 +3355,7 @@ def teste_no_navegador():
                        pg.evaluate("ND.pontos.length") >= 8
                        and u" Z" in pg.inner_html("#nd_marca"))
                 pg.click("#nd_bt_guardar")
-                pg.wait_for_function("ND.sessao && !ND.cruzando", timeout=60000)
+                pg.wait_for_function("ND.sessao && !ND.cruzando", timeout=ESPERA_NO_NAVEGADOR_MS)
                 checar(u"[%s] guardar cruza a incidência" % rot,
                        pg.evaluate("document.querySelectorAll('#nd_guardadas li').length") == 1)
                 if larg == 1280:
@@ -3359,7 +3363,7 @@ def teste_no_navegador():
                     pg.evaluate(u"() => { ndCaixaModo(); ND.caixa=[0.3,0.7,0.25,0.65,0.3,0.7];"
                                 u" ndPintarCaixas(); ndTravas(); ndProjetar(); nd3Malhas();"
                                 u" ndPintarPegada(); ndEnquadrar(); }")
-                    pg.wait_for_function("ND.aberta && !ND.projetando", timeout=60000)
+                    pg.wait_for_function("ND.aberta && !ND.projetando", timeout=ESPERA_NO_NAVEGADOR_MS)
                     pg.wait_for_timeout(2400)
                     tem_gl = pg.evaluate("!!ND3.gl")
                     tres = _caixa_de(pg, "#nd_palco3d")
@@ -3370,7 +3374,7 @@ def teste_no_navegador():
                                   steps=5)
                     previa = pg.evaluate("[ND.previa, ND.ver.lao, ND.lao]")
                     pg.mouse.up()
-                    pg.wait_for_function("ND.aberta && !ND.projetando", timeout=60000)
+                    pg.wait_for_function("ND.aberta && !ND.projetando", timeout=ESPERA_NO_NAVEGADOR_MS)
                     l1 = pg.evaluate("ND.lao")
                     checar(u"[%s] no 3D da caixa (WebGL), arrastar para a direita vai para "
                            u"RAO, seguindo o objeto, com prévia no caminho" % rot,
@@ -3422,7 +3426,7 @@ def teste_no_navegador():
                 pg.click("#nd_escolher")
                 pg.wait_for_timeout(400)
                 pg.click('#nd_series .nd-it[data-b="%s"]' % ruim[0])
-                pg.wait_for_function("!ND.abrindo", timeout=60000)
+                pg.wait_for_function("!ND.abrindo", timeout=ESPERA_NO_NAVEGADOR_MS)
                 pg.wait_for_timeout(400)
                 msg = pg.inner_text("#nd_msg")
                 checar(u"[%s] a série colorida diz por que não abre" % rot,
