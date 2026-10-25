@@ -1835,8 +1835,8 @@ function nd3PintarCaixa(w, h){
   placa({lao:ND.ver.lao, cra:ND.ver.cra}, ND3_COR.placa, 1, 'detector');
  }
  gl.enable(gl.DEPTH_TEST); gl.disable(gl.BLEND);
- nd3Rotular(etqs, VP, w, h);
  nd3Canto();
+ nd3Rotular(etqs, VP, w, h);
  ndEixosSvg(ndEl('nd_eixos3d'), {L:[b.r[0], -b.u[0], b.v[0]], P:[b.r[1], -b.u[1], b.v[1]], S:[b.r[2], -b.u[2], b.v[2]]});
 }
 function nd3Pose(lao, cra){
@@ -1871,8 +1871,8 @@ function nd3PintarSala(w, h){
  var b=radaiIncidencia(ND.ver.lao, ND.ver.cra), etqs=[{p:nd3Vezes(b.d,470+230), t:'detector', forte:true},
   {p:nd3Vezes(b.d,-640-150), t:'tubo'}];
  ND.guardadas.forEach(function(g, i){ var bg=radaiIncidencia(g.lao, g.cra); etqs.push({p:nd3Vezes(bg.d,470+60), t:String(i+1)}) });
- nd3Rotular(etqs, PV, w, h);
  nd3Canto();
+ nd3Rotular(etqs, PV, w, h);
  ndEixosSvg(ndEl('nd_eixos3d'), {L:[r[0], -u[0], f[0]], P:[r[1], -u[1], f[1]], S:[r[2], -u[2], f[2]]});
 }
 // GUARDA: rótulo da cena nunca cobre a leitura do canto, os eixos, a dica nem outro rótulo; o fraco que não acha lugar sai.
@@ -2006,6 +2006,11 @@ window.addEventListener('DOMContentLoaded', function(){
   if(r){
    r.addEventListener('input', function(){ ndPrever(k, +r.value||0) });
    r.addEventListener('change', function(){ ndMudarAngulo(k, +r.value||0) });
+   r.addEventListener('keydown', function(ev){
+    if(ev.key!=='PageUp' && ev.key!=='PageDown') return;
+    if(ev.preventDefault) ev.preventDefault();
+    var v=Math.max(+r.min, Math.min(+r.max, (+r.value||0)+(ev.key==='PageUp'?10:-10)));
+    r.value=String(v); ndPrever(k, v); ndMudarAngulo(k, v) });
   }
   if(e){
    var aplicar=function(){ var v=parseFloat(String(e.value).replace(',','.'));

@@ -2092,9 +2092,15 @@ def teste_a_pegada_do_js_e_a_do_python():
     caixa = [0.2, 0.55, 0.3, 0.8, 0.15, 0.6]
     casos = [(0, 0), (-35, 20), (60, -25), (170, 85)]
     corpo = (u" await _abrir(); ND.geo=%s; ND.lado=1024;\n"
-             u" pronto({pts:%s.map(function(a){ return ndPegada(%s, a[0], a[1]) })});"
-             % (geo, str([list(c) for c in casos]), str(caixa)))
+             u" var cx=%s, frac=ndM4(ND.geo.para_caixa, ndCantos(cx)[7]);\n"
+             u" pronto({pts:%s.map(function(a){ return ndPegada(cx, a[0], a[1]) }),"
+             u" frac:frac});"
+             % (geo, str(caixa), str([list(c) for c in casos])))
     d = _encenar(corpo)
+    fr = d.get("frac") or [9, 9, 9]
+    checar(u"a matriz do recorte do 3D (LPS -> fração da caixa) leva o canto da caixa "
+           u"de volta à fração dele", max(abs(fr[0] - caixa[1]), abs(fr[1] - caixa[3]),
+                                         abs(fr[2] - caixa[5])) < 1e-9, str(fr))
     pior = 0.0
     for (lao, cra), pts in zip(casos, d.get("pts") or []):
         py = N.pegada_da_caixa(serie, caixa, lao, cra, 1024)
@@ -3323,6 +3329,48 @@ def teste_no_navegador():
                            tem_gl and l1 < l0 and previa[0] is True and previa[1] < 0
                            and previa[2] == l0, (tem_gl, l0, l1, previa))
                     pg.wait_for_timeout(2400)
+                    pg.evaluate(u"() => { ND.guardadas.push({lao:0, cra:0, pendente:false,"
+                                u" pontos:[[1,1],[50,1],[50,50]]}, {lao:-90, cra:0, pendente:false,"
+                                u" pontos:[[1,1],[50,1],[50,50]]}); ndPintarGuardadas();"
+                                u" var s=document.getElementById('nd_vista'); s.value='sala';"
+                                u" s.dispatchEvent(new Event('change')); }")
+                    medidas = []
+                    for lao, cra in ((-30, 20), (45, 30), (90, 0), (0, -15)):
+                        medidas.append(pg.evaluate(u"""() => { ND.ver={lao:%d, cra:%d}; ND3.pedido=false; nd3Pintar();
+ const etq=[...document.querySelectorAll('#nd_etqs .nd-etq')].map(e=>e.getBoundingClientRect());
+ const fix=['nd_cant','nd_eixos3d'].map(i=>document.getElementById(i).getBoundingClientRect()).filter(r=>r.width>0);
+ const bate=(a,b)=>a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom;
+ let n=0; for(let i=0;i<etq.length;i++){ for(let j=i+1;j<etq.length;j++) if(bate(etq[i],etq[j])) n++;
+  for(const f of fix) if(bate(etq[i],f)) n++; }
+ return [n, etq.length, document.getElementById('nd_cant').textContent]; }""" % (lao, cra)))
+                    checar(u"[%s] na sala, com duas guardadas, nenhum rótulo cobre outro, a "
+                           u"leitura do canto nem os eixos, em quatro incidências" % rot,
+                           all(m[0] == 0 and m[1] >= 1 for m in medidas), medidas)
+                    checar(u"[%s] e o canto da sala diz que ela é ilustrativa" % rot,
+                           all(u"ilustrativa" in m[2] for m in medidas), medidas[0][2])
+                    pg.evaluate(u"""() => { window.__rot = nd3Rotular;
+ nd3Rotular = function(etqs, PV, w, h){ var alvo=ndEl('nd_etqs'), cv=ND3.canvas,
+  W=cv.clientWidth, H=cv.clientHeight, html='';
+  (etqs||[]).forEach(function(e){ var p=e.p;
+   var x=PV[0]*p[0]+PV[4]*p[1]+PV[8]*p[2]+PV[12], y=PV[1]*p[0]+PV[5]*p[1]+PV[9]*p[2]+PV[13],
+    ww=PV[3]*p[0]+PV[7]*p[1]+PV[11]*p[2]+PV[15]; if(ww<=0) return; x/=ww; y/=ww;
+   html+='<span class="nd-etq" style="left:'+((x*0.5+0.5)*W).toFixed(0)+'px;top:'
+    +((0.5-y*0.5)*H).toFixed(0)+'px">'+e.t+'</span>' });
+  alvo.innerHTML=html } }""")
+                    isca_s = []
+                    for lao, cra in ((-30, 20), (45, 30), (90, 0), (0, -15), (0, 0), (-90, 0)):
+                        isca_s.append(pg.evaluate(u"""() => { ND.ver={lao:%d, cra:%d}; ND3.pedido=false; nd3Pintar();
+ const etq=[...document.querySelectorAll('#nd_etqs .nd-etq')].map(e=>e.getBoundingClientRect());
+ const fix=['nd_cant','nd_eixos3d'].map(i=>document.getElementById(i).getBoundingClientRect()).filter(r=>r.width>0);
+ const bate=(a,b)=>a.left<b.right&&b.left<a.right&&a.top<b.bottom&&b.top<a.bottom;
+ let n=0; for(let i=0;i<etq.length;i++){ for(let j=i+1;j<etq.length;j++) if(bate(etq[i],etq[j])) n++;
+  for(const f of fix) if(bate(etq[i],f)) n++; }
+ return n; }""" % (lao, cra)))
+                    pg.evaluate(u"() => { nd3Rotular = window.__rot }")
+                    checar(u"[%s]   isca: sem o desvio, os rótulos da sala se cobrem" % rot,
+                           sum(isca_s) > 0, isca_s)
+                    pg.evaluate(u"() => { var s=document.getElementById('nd_vista'); s.value='3d';"
+                                u" s.dispatchEvent(new Event('change')); }")
                 pg.click("#nd_escolher")
                 pg.wait_for_timeout(400)
                 pg.click('#nd_series .nd-it[data-i="%d"]' % ruim[0])
