@@ -912,11 +912,23 @@ var document = {
 };
 var window = { addEventListener:function(n,f){
  if(n==='DOMContentLoaded') _CARGA=f } };
+window.uiVarrerLista = function(o){
+ var alvo = document.getElementById(o.alvo);
+ alvo.innerHTML = '';
+ return fetch('/api/varrer/iniciar', {method:'POST', body:JSON.stringify(
+   {uso:o.uso, pasta:o.pasta, dias:o.dias, opcoes:o.opcoes||{}})})
+  .then(function(r){ return r.json() }).then(function(d){
+   var linhas = d.linhas || [];
+   alvo.innerHTML = linhas.map(function(s){ return o.linha(s) }).join('')
+     || (o.vazio ? '<p class="ui-vl-vazio">' + o.vazio + '</p>' : '');
+   if(o.aoFim) o.aoFim(linhas, d);
+  });
+};
 
 function _corpo(op){ try{ return JSON.parse((op && op.body) || '{}') }catch(e){ return {} } }
 function _padrao(url, op){
- if(url.indexOf('/api/nidus/series')>=0)
-  return {series:[{bilhete:'B1', desc:'angio cranio', cortes:400,
+ if(url.indexOf('/api/varrer/iniciar')>=0)
+  return {v:'V1', fim:true, linhas:[{bilhete:'B1', desc:'angio cranio', cortes:400,
                    espessura_mm:0.5},
                   {bilhete:'B2', desc:'outra serie', cortes:300,
                    espessura_mm:1.0}]};
@@ -988,7 +1000,7 @@ async function _abrir(){
  if(!ND.b){
   _tentar('listar', function(){ ndListar('X') });
   await _esperar();
-  _tentar('escolher', function(){ ndEscolher(0) });
+  _tentar('escolher', function(){ ndEscolher('B1') });
   await _esperar();
  }
  _carregou();
@@ -1071,6 +1083,7 @@ def teste_o_javascript_nao_le_nome_solto():
 
 def teste_a_tela_acorda_e_pede_as_series():
     secao(u"a tela acorda com a escolha da série aberta, e a pasta lista quando pedem")
+    import radai_nidus_screen as S
     if _sem_node():
         return
     d = _encenar(u"""
@@ -1078,11 +1091,16 @@ def teste_a_tela_acorda_e_pede_as_series():
  await _esperar();
  var r={escolhendo:ND.escolhendo, guardadas:ND.guardadas.length,
         varreu:_FETCHES.some(function(f){
-          return f.url.indexOf('/api/nidus/series')>=0 })};
+          return f.url.indexOf('/api/varrer/')>=0 })};
  _tentar('listar', function(){ ndListar('X') });
  await _esperar();
  r.itens=document.getElementById('nd_series').innerHTML;
- _tentar('escolher', function(){ ndEscolher(1) });
+ r.pedido=_FETCHES.filter(function(f){ return f.url.indexOf('/api/varrer/iniciar')>=0 })
+  .map(function(f){ return JSON.parse(f.op.body) });
+ _tentar('vazio', function(){ ndListar('   ') });
+ await _esperar();
+ r.pedidos=_FETCHES.filter(function(f){ return f.url.indexOf('/api/varrer/iniciar')>=0 }).length;
+ _tentar('escolher', function(){ ndEscolher('B2') });
  await _esperar();
  r.b=ND.b; r.rotulo=document.getElementById('nd_serie_rot').textContent;
  r.fechou=!ND.escolhendo;
@@ -1096,8 +1114,18 @@ def teste_a_tela_acorda_e_pede_as_series():
     checar(u"a lista de incidencias nasce vazia", d.get("guardadas") == 0,
            str(d.get("guardadas")))
     checar(u"a pasta pedida vira uma lista de botões, um por série",
-           (d.get("itens") or u"").count(u'class="nd-it"') == 2,
+           (d.get("itens") or u"").count(u'class="nd-it"') == 2
+           and u'data-b="B2"' in (d.get("itens") or u""),
            (d.get("itens") or u"")[:120])
+    ped = (d.get("pedido") or [{}])[0]
+    checar(u"a lista vem da varredura da casca (C-VARRER), com as modalidades, "
+           u"o mínimo de cortes e o filtro de data da tela",
+           ped.get("uso") == u"series" and ped.get("pasta") == u"X"
+           and ped.get("dias") == u"nd_dias"
+           and ped.get("opcoes") == {u"modalidades": list(S.MODALIDADES),
+                                     u"min_cortes": S.MIN_CORTES}, str(ped))
+    checar(u"  e a pasta em branco não varre nada",
+           d.get("pedidos") == 1, str(d.get("pedidos")))
     checar(u"escolher na lista abre a série, fecha a escolha e diz qual é",
            d.get("b") == u"B2" and d.get("fechou") is True
            and u"outra serie" in (d.get("rotulo") or u""), str(d)[:160])
@@ -1509,7 +1537,7 @@ def teste_o_erro_volta_ao_estado_bom():
  r.c={salvas:salvo?salvo.guardadas.length:-1};
  delete _RESP['/api/nidus/tubos'];
  var antes=_FETCHES.length;
- ndEscolher(0); await _esperar(); _carregou(); await _esperar();
+ ndEscolher('B1'); await _esperar(); _carregou(); await _esperar();
  r.d={guardadas:ND.guardadas.length, tubos:_urls(antes).some(function(u){
    return u.indexOf('/api/nidus/tubos')>=0 }), msg:_msg()};
  pronto(r);
@@ -1577,7 +1605,7 @@ def teste_o_osso_na_tela():
  _RESP['/api/nidus/abrir']=function(u, op){ var f=_padrao(u, op);
   f.osso={tem:false, motivo:'esta série ainda não tem segmentação do ContourLab: o osso continua na projeção'};
   return f };
- ndEscolher(1); await _esperar(); _carregou();
+ ndEscolher('B2'); await _esperar(); _carregou();
  r.sem={tem:ND.tem_osso, sg:document.getElementById('nd_segmentar').hidden,
    src:_proj().src, txt:document.getElementById('nd_osso_txt').innerHTML};
  ND_FILA_A_CADA_MS=0;
@@ -1670,7 +1698,7 @@ def teste_serie_nova_nao_herda_a_sessao():
  await _esperar();
  var antiga = ND.sessao;
  var antes=_FETCHES.length;
- _tentar('trocar', function(){ ndEscolher(1) });
+ _tentar('trocar', function(){ ndEscolher('B2') });
  await _esperar();
  pronto({antiga:antiga, agora:ND.sessao||null, guardadas:ND.guardadas.length,
          pediu_linhas:_FETCHES.slice(antes).some(function(f){
@@ -1715,7 +1743,7 @@ def teste_a_tela_diz_a_escala_da_rm():
     d = _encenar(u"""
  await _abrir();
  var r={tc:document.getElementById('nd_escala').textContent};
- _RESP['/api/nidus/series']={series:[{bilhete:'B1', modalidade:'CT', desc:'angio', cortes:400,
+ _RESP['/api/varrer/iniciar']={v:'V1', fim:true, linhas:[{bilhete:'B1', modalidade:'CT', desc:'angio', cortes:400,
                     espessura_mm:0.5},
                    {bilhete:'B2', modalidade:'MR', desc:'T1 pos-Gd',
                     cortes:180, espessura_mm:1.0}]};
@@ -1723,7 +1751,7 @@ def teste_a_tela_diz_a_escala_da_rm():
  _tentar('listar', function(){ ndListar('X') });
  await _esperar();
  r.opcoes=document.getElementById('nd_series').innerHTML;
- _tentar('rm', function(){ ndEscolher(1) });
+ _tentar('rm', function(){ ndEscolher('B2') });
  await _esperar();
  r.rm=document.getElementById('nd_escala').textContent;
  pronto(r);
@@ -1758,12 +1786,12 @@ def teste_serie_nova_volta_aos_padroes():
  var p0=document.getElementById('nd_pos0'); p0.value='20'; p0.disparar('input');
  var r={mudou:{inv:ND.inverter, modo:ND.modo, laje:ND.laje, jan:ND.jan, lao:ND.lao,
    osso:ND.osso, plano:ND.planos[0]}};
- ndEscolher(1); await _esperar(); _carregou(); await _esperar();
+ ndEscolher('B2'); await _esperar(); _carregou(); await _esperar();
  r.nova={inv:ND.inverter, modo:ND.modo, laje:ND.laje, jan:ND.jan, lao:ND.lao, cra:ND.cra,
    osso:ND.osso, plano:ND.planos[0], pos0:document.getElementById('nd_pos0').value,
    palco:document.getElementById('nd_palco').className,
    lajev:document.getElementById('nd_lajev').textContent, src:_proj().src};
- ndEscolher(0); await _esperar(); _carregou(); await _esperar();
+ ndEscolher('B1'); await _esperar(); _carregou(); await _esperar();
  r.volta={inv:ND.inverter, modo:ND.modo, laje:ND.laje, jan:ND.jan, lao:ND.lao,
    osso:ND.osso};
  pronto(r);
@@ -2056,7 +2084,7 @@ def teste_o_acervo_abre_por_post_com_a_origem():
  ndAbrirDoAcervo({bilhete:'BA', date:'20261014', pid:'X1', modalidade:'CT'});
  await _esperar(); _carregou(); await _esperar();
  _tentar('listar', function(){ ndListar('X') }); await _esperar();
- ndEscolher(0); await _esperar(); _carregou(); await _esperar();
+ ndEscolher('B1'); await _esperar(); _carregou(); await _esperar();
  var ab=_FETCHES.filter(function(f){ return f.url.indexOf('/api/nidus/abrir')>=0 })
   .map(function(f){ return {url:f.url, metodo:f.op?f.op.method:'', corpo:JSON.parse(f.op.body)} });
  pronto({abrir:ab, forma:_FETCHES.some(function(f){ return f.url.indexOf('/api/nidus/forma')>=0 }),
@@ -3116,13 +3144,9 @@ def teste_a_demo_saiu():
            u"radai_demo" not in fonte_tela and u"nd_demo" not in fonte_tela
            and u"_series_da_demo" not in fonte_tela)
     rotas = _rotas_montadas()
-    guarda = radai_dicom.buscar_series
-    try:
-        radai_dicom.buscar_series = lambda *a, **k: radai_dicom.nova_busca()
-        d = asyncio.run(rotas["/api/nidus/series"](_Pedido({"pasta": u"X"})))
-    finally:
-        radai_dicom.buscar_series = guarda
-    checar(u"a lista só traz as séries da pasta", d.get("series") == [], str(d)[:120])
+    checar(u"a tela não tem lista própria de séries: a pasta é lida pela "
+           u"varredura da casca", u"/api/nidus/series" not in rotas
+           and u"/api/nidus/series" not in fonte_tela, str(sorted(rotas))[:160])
 
 
 def _serie_cta(destino, rgb=False):
@@ -3212,8 +3236,10 @@ def _servidor():
     import uvicorn
     from fastapi import FastAPI
     import radai_nidus_screen as S
+    import radai_varrer
     app = FastAPI()
     S.montar(app)
+    radai_varrer.montar(app)
     s = socket.socket()
     s.bind(("127.0.0.1", 0))
     porta = s.getsockname()[1]
@@ -3281,11 +3307,12 @@ def teste_no_navegador():
                 pg.wait_for_function(
                     "document.querySelectorAll('#nd_series .nd-it').length > 1",
                     timeout=60000)
-                ops = pg.eval_on_selector_all("#nd_series .nd-it",
-                                              "os => os.map(o => o.textContent)")
-                boa = [i for i, o in enumerate(ops) if u"CTA" in o]
-                ruim = [i for i, o in enumerate(ops) if u"captura" in o]
-                pg.click('#nd_series .nd-it[data-i="%d"]' % boa[0])
+                ops = pg.eval_on_selector_all(
+                    "#nd_series .nd-it",
+                    "os => os.map(o => [o.getAttribute('data-b'), o.textContent])")
+                boa = [b for b, o in ops if u"CTA" in o]
+                ruim = [b for b, o in ops if u"captura" in o]
+                pg.click('#nd_series .nd-it[data-b="%s"]' % boa[0])
                 pg.wait_for_timeout(400)
                 checar(u"[%s] escolher fecha a escolha e diz a série no lado" % rot,
                        not pg.is_visible(".ui-modal")
@@ -3394,7 +3421,7 @@ def teste_no_navegador():
                                 u" s.dispatchEvent(new Event('change')); }")
                 pg.click("#nd_escolher")
                 pg.wait_for_timeout(400)
-                pg.click('#nd_series .nd-it[data-i="%d"]' % ruim[0])
+                pg.click('#nd_series .nd-it[data-b="%s"]' % ruim[0])
                 pg.wait_for_function("!ND.abrindo", timeout=60000)
                 pg.wait_for_timeout(400)
                 msg = pg.inner_text("#nd_msg")
@@ -3475,32 +3502,59 @@ def teste_as_rotas_leem_a_serie_uma_vez():
 
 
 def teste_a_rm_entra_no_seletor():
-    secao(u"a lista da pasta: TC e RM, pela varredura da Suite")
-    import asyncio
-    import radai_dicom
+    secao(u"a lista da pasta: TC e RM, pela varredura da casca (C-VARRER)")
+    from datetime import datetime
+    import make_test_series
+    import radai_thumbnail
+    import radai_varrer
     import radai_nidus_screen as S
-    rotas = _rotas_montadas()
-    pedidos = []
+    listar = _funcao_js_nd(S.JS, u"ndListar")
+    checar(u"a lista pede TC e RM, com o mínimo de cortes da tela",
+           "CT" in S.MODALIDADES and "MR" in S.MODALIDADES
+           and u"var ND_MIN_CORTES = %d;" % S.MIN_CORTES in S.JS
+           and u"opcoes:{modalidades:ND_MODALIDADES, min_cortes:ND_MIN_CORTES}"
+           in listar, listar[:200])
+    checar(u"  pela varredura da casca, e não pela do «Rodar agora» nem por "
+           u"POST único", u"window.uiVarrerLista({" in listar
+           and u"fetch(" not in listar
+           and "radai_batch" not in fonte("radai_nidus_screen.py"))
+    opcoes = {"modalidades": list(S.MODALIDADES), "min_cortes": S.MIN_CORTES}
+    base = _cleanup.temporaria("radai_ac_nidus_varrer_")
+    longa = os.path.join(base, "LONGA", "CT")
+    uid = make_test_series.escreve_serie(longa, "PAC_LONGA", datetime.now(),
+                                         S.MIN_CORTES + 4)
+    make_test_series.escreve_serie(os.path.join(base, "CURTA", "CT"),
+                                   "PAC_CURTA", datetime.now(), 6)
+    d = radai_varrer.iniciar("series", base, dias=0, opcoes=opcoes,
+                             em_segundo_plano=False)
+    pids = sorted(str(x.get("pid")) for x in d.get("linhas") or ())
+    checar(u"a varredura com as opções da tela traz a série longa e deixa de "
+           u"fora a de 6 cortes", pids == [u"PAC_LONGA"] and not d.get("erro"),
+           u"%s %s" % (pids, d.get("erro")))
+    linha = (d.get("linhas") or [{}])[0]
+    _p, uid_b = radai_thumbnail.resolver(linha.get("bilhete") or u"")
+    checar(u"  e o bilhete da linha abre a série certa", uid_b == uid,
+           str(uid_b)[-8:])
+    isca = radai_varrer.iniciar("series", base, dias=0,
+                                em_segundo_plano=False)
+    checar(u"  (isca) sem as opções da tela, a de 6 cortes entraria",
+           sorted(str(x.get("pid")) for x in isca.get("linhas") or ())
+           == [u"PAC_CURTA", u"PAC_LONGA"])
 
-    def _buscar(raiz, busca=None, modalidades=None, min_cortes=1, **k):
-        pedidos.append({"raiz": raiz, "modalidades": modalidades,
-                        "min_cortes": min_cortes})
-        return radai_dicom.nova_busca()
 
-    guarda = radai_dicom.buscar_series
-    try:
-        radai_dicom.buscar_series = _buscar
-        asyncio.run(rotas["/api/nidus/series"](_Pedido({"pasta": u"X"})))
-    finally:
-        radai_dicom.buscar_series = guarda
-    mods = tuple((pedidos[:1] or [{}])[0].get("modalidades") or ())
-    checar(u"a lista pede TC e RM", "CT" in mods and "MR" in mods, str(mods))
-    checar(u"  pela busca da Suite, e não pela do «Rodar agora»",
-           bool(pedidos) and "radai_batch" not in fonte("radai_nidus_screen.py"))
-    checar(u"  com o caminho longo e o mínimo de cortes da tela",
-           bool(pedidos) and pedidos[0]["min_cortes"] == S.MIN_CORTES
-           and (os.name != "nt" or pedidos[0]["raiz"].startswith(u"\\\\?\\")),
-           str(pedidos[:1]))
+def _funcao_js_nd(js, nome):
+    i = js.find(u"function %s(" % nome)
+    if i < 0:
+        return u""
+    k, prof = js.find(u"{", i), 0
+    for j in range(k, len(js)):
+        if js[j] == u"{":
+            prof += 1
+        elif js[j] == u"}":
+            prof -= 1
+            if prof == 0:
+                return js[i:j + 1]
+    return u""
 
 
 class _TravaSolta(object):

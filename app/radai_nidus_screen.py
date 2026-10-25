@@ -306,7 +306,9 @@ CSS = u"""
 .nd-escolha{display:flex;flex-direction:column;gap:10px;min-width:0}
 .nd-escolha .nd-pasta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;
  margin:0 0 8px}
-.nd-escolha input[type=text]{flex:1 1 260px;min-width:0;height:30px;
+.nd-pasta-campo{display:flex;gap:6px;align-items:stretch;flex:1 1 260px;min-width:0}
+.nd-filtro{margin:0}
+.nd-escolha input[type=text]{flex:1 1 auto;min-width:0;height:30px;
  box-sizing:border-box;padding:0 8px;border-radius:var(--r-md,6px);
  border:1px solid var(--line-strong);background:var(--panel-2);color:var(--text);
  font:12px var(--font-mono,monospace)}
@@ -331,7 +333,7 @@ CSS = u"""
 JS_TELA = u"""
 var ND_PADROES = {lao:0, cra:0, modo:'mip', jan:'angio', laje:0, inverter:true,
                   osso:true};
-var ND = {b:'', chave:'', desc:'', lista:[], lado:@LADO@, tem_osso:false,
+var ND = {b:'', chave:'', desc:'', porB:{}, lado:@LADO@, tem_osso:false,
           ossoInfo:null, tracando:false, pontos:[], guardadas:[], sessao:null,
           planos:{0:0.5,1:0.5,2:0.5}, forma:null,
           passos:null, lado_util:0, teto:12,
@@ -346,6 +348,7 @@ var ND = {b:'', chave:'', desc:'', lista:[], lado:@LADO@, tem_osso:false,
           previaNoAr:false, previaDepois:false, hu:true};
 ndPadroes();
 var ND_MODALIDADES = @MODALIDADES@;
+var ND_MIN_CORTES = @MIN_CORTES@;
 var ND_INCIDENCIAS = @INCIDENCIAS_JS@;
 var ND_LADO_PREVIA = @LADO_PREVIA@;
 var ND_ABA = Math.random().toString(36).slice(2, 10);
@@ -477,22 +480,19 @@ function ndRotuloDaLista(s){
 }
 function ndListar(pasta){
  var alvo=ndEl('nd_series');
- ndFrases(alvo, ['carregando…']);
- fetch('/api/nidus/series',{method:'POST',
-   headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({pasta:pasta||''})})
-  .then(function(r){return r.json()}).then(function(d){
-   ND.lista=d.series||[];
-   if(!ND.lista.length){
-    ndFrases(alvo, [d.erro||'nenhuma série nesta pasta'].concat(d.avisos||[]));
-    return }
-   alvo.innerHTML=ND.lista.map(function(s,i){
-    return '<button type="button" class="nd-it" role="option" data-i="'+i+'">'
-      +ndRotuloDaLista(s)+'</button>';
-   }).join('')+(d.avisos||[]).map(function(t){
-    return '<p class="sub" data-radai-frase>'+ndEsc(t)+'</p>' }).join('');
-   if(window.radaiRetraduzir) window.radaiRetraduzir();
-  }).catch(function(e){ ndFrases(alvo, ['não consegui listar: '+e]) });
+ pasta=(pasta||'').trim();
+ if(!pasta){ if(window.uiTremer) window.uiTremer(ndEl('nd_pasta')); return }
+ ND.porB={};
+ if(!window.uiVarrerLista){ ndFrases(alvo, ['não consegui listar esta pasta']); return }
+ window.uiVarrerLista({alvo:'nd_series', estado:'nd_busca', uso:'series',
+  chave:'nidus', pasta:pasta, dias:'nd_dias',
+  opcoes:{modalidades:ND_MODALIDADES, min_cortes:ND_MIN_CORTES},
+  vazio:'Nenhuma série nesta pasta.',
+  linha:function(s){
+   ND.porB[s.bilhete]=s;
+   return '<button type="button" class="nd-it" role="option" data-b="'
+     +ndEsc(s.bilhete)+'">'+ndRotuloDaLista(s)+'</button>';
+  }});
 }
 
 function ndTabela(){
@@ -530,8 +530,8 @@ function ndAbrirDoAcervo(linha){
   origem:'acervo',
   rotulo:[data, linha.pid, linha.modalidade].filter(function(x){ return x }).join(' · ')});
 }
-function ndEscolher(i){
- var s=ND.lista[+i]; if(!s) return;
+function ndEscolher(b){
+ var s=ND.porB[b]; if(!s) return;
  ndAbrirSerie({bilhete:s.bilhete, modalidade:s.modalidade||'', desc:s.desc||'',
   origem:'pasta', rotulo:ndRotuloDaLista(s)});
 }
@@ -2036,7 +2036,7 @@ window.addEventListener('DOMContentLoaded', function(){
  var ls=ndEl('nd_series');
  if(ls) ls.addEventListener('click', function(ev){
   var b=(ev.target && ev.target.closest) ? ev.target.closest('.nd-it') : null;
-  if(b) ndEscolher(+b.getAttribute('data-i')) });
+  if(b) ndEscolher(b.getAttribute('data-b')) });
  var inc=ndEl('nd_incid');
  if(inc){
   inc.addEventListener('mouseover', function(ev){
@@ -2058,6 +2058,7 @@ window.addEventListener('DOMContentLoaded', function(){
 JS = (radai_recon3d_gl.JS + radai_nidus.JS_CONVENCAO
       + JS_TELA.replace(u"@LADO@", str(LADO_DA_TELA))
       .replace(u"@MODALIDADES@", json.dumps(list(MODALIDADES)))
+      .replace(u"@MIN_CORTES@", str(int(MIN_CORTES)))
       .replace(u"@INCIDENCIAS_JS@", json.dumps(
           [[n, int(a), int(b)] for n, a, b in radai_nidus.INCIDENCIAS],
           ensure_ascii=False))
@@ -2356,16 +2357,22 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
 def _escolha():
     import radai_tabela_acervo
     import radai_ui
-    pasta = (u'<div class="nd-pasta"><input type="text" id="nd_pasta" '
+    pasta = (u'<div class="nd-pasta"><div class="nd-pasta-campo">'
+             u'<input type="text" id="nd_pasta" '
              u'spellcheck="false" autocomplete="off" aria-label="pasta" '
-             u'placeholder="C:\\... ou \\\\servidor\\...">'
+             u'placeholder="C:\\... ou \\\\servidor\\...">@FAV@</div>'
              u'<button type="button" class="ui-bt" id="nd_procurar">'
              u'@ICO_PASTA@<span data-radai-frase>Procurar&hellip;</span>'
              u'</button><button type="button" class="ui-bt pri" id="nd_listar" '
              u'onclick="ndOutra()"><span data-radai-frase>Listar s&eacute;ries'
              u'</span></button></div>'
+             u'<div class="nd-filtro">@FILTRO@</div>'
+             u'<div class="ui-vl-est" id="nd_busca" role="status" '
+             u'aria-live="polite"></div>'
              u'<div class="nd-series" id="nd_series" role="listbox" '
              u'aria-label="s&eacute;ries da pasta"></div>')
+    pasta = (pasta.replace(u"@FAV@", radai_ui.botao_favorita(u"nd_pasta"))
+             .replace(u"@FILTRO@", radai_ui.filtro_de_data(u"nd_dias")))
     return radai_ui.popup_de_serie(
         u"nd_escolha",
         u'<div class="nd-escolha">%s</div>'
@@ -2637,34 +2644,6 @@ def montar(app):
     @app.get("/nidus/projecao", response_class=HTMLResponse)
     def _tela():
         return radai_menu.aplicar(pagina(), "nidus_projecao")
-
-    @app.post("/api/nidus/series")
-    async def _series(request: Request):
-        try:
-            c = await request.json() or {}
-            import radai_config
-            import radai_dicom
-            import radai_thumbnail
-            pasta = str(c.get("pasta") or "").strip() or radai_config.root_configurado()
-            if not pasta:
-                return {"series": [],
-                        "erro": u"A pasta dos exames ainda não foi configurada: "
-                                u"escolha uma pasta com «Procurar…»."}
-            b = await radai_web.no_threadpool(
-                radai_dicom.buscar_series, radai_dicom.caminho_longo(pasta),
-                None, MODALIDADES, MIN_CORTES)
-            out = [{"bilhete": radai_thumbnail.bilhete(s["pasta"], s["uid"]),
-                    "curto": s["uid"][-12:], "modalidade": s["modalidade"],
-                    "desc": s["descricao"], "cortes": s["cortes"],
-                    "espessura_mm": s["espessura_mm"]}
-                   for s in sorted(b["series"],
-                                   key=lambda x: (x["data"], x["descricao"]))]
-            return {"series": out,
-                    "erro": u"" if out else u"nenhuma série nesta pasta",
-                    "avisos": radai_dicom.avisos_da_busca(b)}
-        except Exception as e:
-            return {"series": [],
-                    "erro": u"%s: %s" % (type(e).__name__, str(e)[:200])}
 
     def _abrir(b, resolvido=None):
         try:
