@@ -57,6 +57,12 @@ pasta é o integrador da Suite.
 - As projeções podem mostrar o rosto: imagem de série real não sai da
   máquina.
 - A projeção usa o núcleo 3D do Recon3D (`radai_recon3d`): contrato.
+- **E o Recon3D usa o osso daqui** (onda 5 da v8.7): o Vascular das
+  Reconstruções tira o osso pelo `radai_nidus_screen.osso_da_segmentacao`
+  (contrato novo, que o `--contratos` mede) e pelo método `tirar_osso` da
+  série que o `radai_nidus.abrir` devolve (método, que o `--contratos` não
+  vê). Mudar a assinatura, o que eles devolvem ou a guarda que nunca deixa
+  vaso entrar no osso é avisar o agente do RECON_3D antes.
 - **Série que a transposição para LPS não aceita é recusada na abertura**
   (`radai_nidus.SerieRecusada`: imagem colorida, volume que não é 3D, poucos
   cortes), com o motivo, e não é relida a cada pedido: era a causa do
