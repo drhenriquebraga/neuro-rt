@@ -167,10 +167,12 @@ da Suite, as decisões na seção «v8.7» de `docs/DECISOES-V85.md`):
   mesa, paciente e o feixe em prisma), com os detectores fantasmas das
   incidências guardadas e o aviso «ilustrativa» no canto: projeção
   paralela, sem colisão nem distância fonte–detector. **O arco do Tripo
-  (c-arc.glb) não entrou**: pelos Termos do Tripo, o que se gera no plano
-  grátis é do Tripo, e só o plano pago dá o direito de distribuir; o plano
-  em que ele foi gerado não está registrado (`docs/PENDENTES-V88.md` da
-  Suite).
+  (c-arc.glb) não entrou na v8.7**: o autor tem o plano pago do Tripo
+  (26/10), que dá o direito de distribuir, e a licença deixou de ser o
+  impedimento; fica a dúvida dele sobre a semelhança com o equipamento de um
+  fabricante, e o caminho seguro (a malha sem textura, sem marca e sem nome
+  de fabricante, com as peças distintivas simplificadas) está no item 3 do
+  `docs/PENDENTES-V88.md` da Suite.
 - **«Guardar incidência» apagado diz por quê** (`uiPorQue`), e o âmbar ficou
   só para a caixa e o traço (saiu da paleta das guardadas).
 - **O osso num STUDY com nome próprio** sai pelo nome padrão da descrição da
