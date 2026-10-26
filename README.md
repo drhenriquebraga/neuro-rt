@@ -105,7 +105,8 @@ requirements and installation are in the Suite README.
 
 This repository has no build of its own. The Suite's packager
 (`build/empacotar_instalador.py --dos-repositorios`) downloads each component
-at the tag pinned in `build/componentes.lock.json`, checks its SHA‑256 and
+at the tag pinned in `build/componentes.lock.json`, checks the SHA‑256 of its
+extracted tree against the lock and
 assembles the installer — see *Build from source* in the Suite README.
 
 ## Running the batteries

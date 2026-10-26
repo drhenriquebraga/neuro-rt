@@ -38,4 +38,5 @@ vulnerability, and is welcome through
 
 ## Supported versions
 
-The latest release. Single maintainer, no backports.
+The latest Local Suite release, and the tag of this app that it pins.
+Single maintainer, no backports.

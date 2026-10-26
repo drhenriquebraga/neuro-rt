@@ -1118,7 +1118,7 @@ def teste_a_tela_acorda_e_pede_as_series():
            and u'data-b="B2"' in (d.get("itens") or u""),
            (d.get("itens") or u"")[:120])
     ped = (d.get("pedido") or [{}])[0]
-    checar(u"a lista vem da varredura da casca (C-VARRER), com as modalidades, "
+    checar(u"a lista vem da varredura da casca, com as modalidades, "
            u"o mínimo de cortes e o filtro de data da tela",
            ped.get("uso") == u"series" and ped.get("pasta") == u"X"
            and ped.get("dias") == u"nd_dias"
@@ -3506,7 +3506,7 @@ def teste_as_rotas_leem_a_serie_uma_vez():
 
 
 def teste_a_rm_entra_no_seletor():
-    secao(u"a lista da pasta: TC e RM, pela varredura da casca (C-VARRER)")
+    secao(u"a lista da pasta: TC e RM, pela varredura da casca")
     from datetime import datetime
     import make_test_series
     import radai_thumbnail
