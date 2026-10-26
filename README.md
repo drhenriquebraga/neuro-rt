@@ -140,6 +140,23 @@ none may be committed to it.**
    log — and refuses it too when the scan cannot run, without the Suite
    beside this folder or without Python.
 
+## Reporting a problem
+
+A problem that is not a vulnerability goes through
+**[radioterapia.ai](https://radioterapia.ai)**. Include the Local Suite
+version, the Windows version, the screen language and the step that
+failed — and **never patient data**: no DICOM series, no screenshot of a
+patient image, no log with a patient ID, a UID or a series path. A problem
+reproduced with the synthetic phantoms of the batteries is the quickest to
+fix.
+
+## Security
+
+Found something that exposes patient data or lets the program act where it
+should not? **Do not report it in public.** Use GitHub's private
+vulnerability reporting on this repository, described in
+[SECURITY.md](SECURITY.md).
+
 ## Licence and name
 
 The code is licensed under the [Apache License 2.0](LICENSE). As section 6
