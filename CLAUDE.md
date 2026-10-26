@@ -198,7 +198,7 @@ da Suite, as decisões na seção «v8.7» de `docs/DECISOES-V85.md`):
   como estava antes da limpeza, está em `docs/aprendizado/`.
 - **Guiado por log**, honesto sobre incerteza, e afirmação sobre o que o
   programa faz se mede contra o programa.
-- **GitHub** (`radioterapia-ai/nidus-rt`, público desde 20/10/2026, com o
+- **GitHub** (`drhenriquebraga/nidus-rt`, público desde 20/10/2026, com o
   relato privado de vulnerabilidade ligado): nada sobe daqui. A
   publicação é montada pela Suite, por manifesto, e o envio é ato do autor; a
   pasta não tem remote.

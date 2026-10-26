@@ -3,7 +3,7 @@
   "nome": "NIDUS_RT",
   "rotulo": "Nidus RT",
   "modulo_da_porta": "nidus",
-  "repositorio": "radioterapia-ai/nidus-rt",
+  "repositorio": "drhenriquebraga/nidus-rt",
   "app": [
     "radai_nidus.py",
     "radai_nidus_screen.py"

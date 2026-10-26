@@ -18,7 +18,7 @@ reproduce it with the synthetic phantoms the batteries build.
 
 The code in this repository: the biplanar projection, the 3D view of the box
 and the room. The installer, the updater and the shell shared by the six apps
-live in the [Local Suite](https://github.com/radioterapia-ai/local-suite)
+live in the [Local Suite](https://github.com/drhenriquebraga/local-suite)
 repository; a finding there can be reported here or there. The findings that
 matter most:
 
