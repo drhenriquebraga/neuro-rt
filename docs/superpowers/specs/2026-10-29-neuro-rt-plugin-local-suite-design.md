@@ -1,8 +1,8 @@
 # NEURO RT — primeiro plugin do Local Suite
 
 Data: 29/10/2026.
-Estado: desenho aceito pelo usuário em 29/10/2026. O pedido seguinte autoriza
-somente escrever o roadmap detalhado; codificação ainda não autorizada nesta etapa.
+Estado: desenho e roadmap aceitos. O usuário autorizou iniciar a codificação em
+29/10/2026; consultar `../../IMPLEMENTACAO_PLUGIN.md` para estado da execução.
 Revisão independente do desenho concluída em 29/10/2026: nenhuma pergunta
 impeditiva para planejar a implementação. Isso não representa teste de código,
 dos pesos ou validação dos resultados de segmentação.
@@ -328,7 +328,7 @@ usar inicialmente T1 para as duas novas opções anatômicas, criar o novo
 repositório privado até haver instrução para publicação e conservar versões
 anteriores dos resultados e uma revisão completa após retry parcial.
 
-O usuário aceitou o alinhamento e pediu primeiro um roadmap detalhado, sem código.
+O usuário aceitou o alinhamento, recebeu o roadmap e autorizou iniciar a codificação.
 O plano está em `../plans/2026-10-29-neuro-rt-roadmap.md`, acompanhado dos planos
-por subsistema. Sua redação não autoriza implementação nesta etapa. A exclusão
+por subsistema. A execução está registrada em `../../IMPLEMENTACAO_PLUGIN.md`. A exclusão
 do repositório NIDUS continua uma etapa posterior e separada.

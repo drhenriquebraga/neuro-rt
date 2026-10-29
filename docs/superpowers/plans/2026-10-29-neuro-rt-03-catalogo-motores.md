@@ -1,7 +1,7 @@
 # NEURO RT — Catálogo e motores Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> Execução futura: não baixar pesos nem instalar motores durante a entrega documental.
+> Execução autorizada em 29/10/2026. Consultar `../../IMPLEMENTACAO_PLUGIN.md` para estado e pendências.
 
 **Goal:** integrar os modelos escolhidos sob contratos comuns, com artefatos,
 pré-processamento, geometria, licenças e resultados verificáveis por versão.

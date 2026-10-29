@@ -15,8 +15,19 @@ from .contracts import validate_request
 
 
 class Settings:
-    def __init__(self, root):
+    def __init__(self, root, *, plugin_paths=None):
         self.root = Path(root).resolve()
+        self.plugin_paths = plugin_paths
+        if plugin_paths is not None:
+            if self.root != plugin_paths.code_dir:
+                raise ValueError('Raiz do código difere da versão ativa da instalação.')
+            self.python = str(plugin_paths.worker_python) if plugin_paths.worker_python else None
+            self.models_dir = plugin_paths.models_dir
+            self.data_dir = plugin_paths.data_dir
+            self.host_app = plugin_paths.host_root
+            self.host_python = str(self.host_app / 'python' / 'python.exe')
+            self.processing_preference = 'auto'
+            return
         config = self.root / 'neuro_rt.local.json'
         values = json.loads(config.read_text(encoding='utf-8')) if config.is_file() else {}
         def path(key, default):
@@ -34,8 +45,29 @@ class Settings:
         self.processing_preference=values.get('processing_preference','auto')
 
     @property
+    def runtime_ready(self):
+        return self.python is not None and Path(self.python).is_file()
+
+    @property
+    def installation_state(self):
+        if self.plugin_paths is None:
+            return 'ready' if self.runtime_ready else 'failed'
+        state = self.plugin_paths.state.value
+        return 'failed' if state == 'ready' and not self.runtime_ready else state
+
+    @property
+    def installation_reason(self):
+        if not self.runtime_ready:
+            return 'Preparo incompleto: runtime Python do plugin ausente.'
+        return ''
+
+    @property
     def export_available(self):
-        return (self.host_app / 'engine.py').is_file() and Path(self.host_python).is_file()
+        from integration.host_imports import host_module_path
+        try:
+            return host_module_path(self.host_app, 'engine') is not None and Path(self.host_python).is_file()
+        except (OSError, ValueError, RuntimeError):
+            return False
 
 
 class Service:
@@ -97,6 +129,9 @@ class Service:
         with self._lock:
             jobs = [dict(job) for job in self._jobs.values()]
         return {'module': 'neuro-rt', 'version': __version__, 'token': self.token,
+                'runtime_ready': self.settings.runtime_ready,
+                'installation_state': self.settings.installation_state,
+                'installation_reason': self.settings.installation_reason,
                 'export_available': self.settings.export_available,
                 'processing_preference':self.settings.processing_preference,
                 'shared_config_pending':True,
@@ -104,6 +139,8 @@ class Service:
                 'models': model_status(self.settings.models_dir), 'jobs': jobs[-20:]}
 
     def preflight(self, request):
+        if self.settings.plugin_paths is not None and not self.settings.runtime_ready:
+            raise ValueError(self.settings.installation_reason)
         model = get_model(request['model'])
         folder = self.settings.models_dir / model['id']
         validate_model_folder(folder, model)
@@ -215,7 +252,7 @@ class Service:
 
     def view_file(self,job_id,name):
         self.job(job_id)
-        if not re.fullmatch(r'(?:view\.json|renderer\.js|(?:Tumor|Brain)\.stl|(?:axial|coronal|sagittal)_\d{3}\.png)',name):
+        if not re.fullmatch(r'(?:view\.json|renderer\.js|(?:Tumor|Brain)\.stl|(?:axial|coronal|sagittal)_\d{3}\.(?:png|svg))',name):
             raise ValueError('Arquivo de visualização não permitido.')
         path=self.settings.data_dir/'jobs'/job_id/'views'/name
         if not path.is_file():raise FileNotFoundError('Visualização não encontrada.')

@@ -19,3 +19,11 @@ Scientific Reports 13 (2023), DOI: 10.1038/s41598-023-42048-7.
 
 Pesos e dependências mantêm seus contratos próprios. O preparador registra
 URL, versão e SHA256 dos arquivos; nenhuma imagem é enviada ao autor do modelo.
+
+Nidus RT — código e documentação migrados em preparação (Apache-2.0)
+As fontes app/radai_nidus.py, app/radai_nidus_screen.py, tools/test_nidus.py
+ e a documentação/arquivos originais enumerados em docs/MIGRACAO_NIDUS.md
+provêm de NIDUS_RT, revisão 4067bddc3c875af62c6917362661d3d3d1d0036b.
+Licença original integral: licenses/NIDUS_RT_APACHE_2.txt.
+Créditos e documentos originais foram preservados; a licença MIT do NeuroRT
+não substitui Apache-2.0 nesses arquivos. A cópia não ativa integração no host.

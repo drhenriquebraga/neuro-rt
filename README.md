@@ -1,5 +1,14 @@
 # NeuroRT
 
+## Evolução para plugin — 29/10/2026
+
+A implementação do plugin opcional do Local Suite começou. Consulte o
+[estado real e ponto de retomada](docs/IMPLEMENTACAO_PLUGIN.md) e o
+[roadmap aprovado](docs/superpowers/plans/2026-10-29-neuro-rt-roadmap.md).
+Os contratos novos e a preparação da migração Nidus já estão em desenvolvimento;
+instalador, integração final na home e motores novos seguem pelos próximos marcos.
+As instruções abaixo descrevem o módulo v0.2 existente, ainda compatível.
+
 Módulo independente de segmentação de SNC para incorporar depois ao Local
 Suite. Construído em **C:\AI_PROJETOS\NEURO_RT**, sem alterar as fontes do
 AUTO_CONTORNO. A página roda sozinha ou dentro de um iframe na mesma origem.

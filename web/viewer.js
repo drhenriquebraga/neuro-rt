@@ -39,7 +39,8 @@ async function showViewer(job){
  for(const plane of ['axial','coronal','sagittal']){
   const metadata=neuroViewMetadata.planes[plane],slider=document.getElementById(`${plane}-slice`);
   slider.min=0;slider.max=metadata.count-1;slider.value=metadata.center;
-  const update=()=>{const n=Number(slider.value);document.getElementById(`${plane}-position`).textContent=`${n+1} / ${metadata.count}`;document.getElementById(`${plane}-image`).src=new URL(`api/jobs/${job.id}/views/${plane}_${String(n).padStart(3,'0')}.png`,base).href};
+  const format=metadata.format==='svg'?'svg':'png';
+  const update=()=>{const n=Number(slider.value);document.getElementById(`${plane}-position`).textContent=`${n+1} / ${metadata.count}`;document.getElementById(`${plane}-image`).src=new URL(`api/jobs/${job.id}/views/${plane}_${String(n).padStart(3,'0')}.${format}`,base).href};
   slider.oninput=update;update();
   document.getElementById(`${plane}-image`).onwheel=event=>{event.preventDefault();slider.value=Math.max(0,Math.min(metadata.count-1,Number(slider.value)+(event.deltaY>0?1:-1)));update()};
  }

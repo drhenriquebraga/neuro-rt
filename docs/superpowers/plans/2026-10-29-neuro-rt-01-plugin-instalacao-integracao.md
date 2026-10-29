@@ -1,7 +1,7 @@
 # NEURO RT — Plugin, instalação e integração Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> Documento de execução futura. Pedido atual: somente documentação, sem implementar.
+> Execução autorizada em 29/10/2026. Consultar `../../IMPLEMENTACAO_PLUGIN.md` para estado e pendências.
 
 **Goal:** instalar e atualizar NEURO RT separadamente, carregando-o como parte do host.
 

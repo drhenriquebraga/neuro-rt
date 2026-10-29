@@ -14,7 +14,7 @@ from neuro_rt import __version__
 SOURCE_FILES = ['README.md','AGENTS.md','LICENSE','NOTICE','module.json','models.lock.json',
                 'requirements.txt','requirements-dev.txt','neuro_rt.example.json',
                 'INICIAR.cmd','PREPARAR.cmd']
-SOURCE_DIRS = ['neuro_rt','web','integration','licenses','scripts','docs','tests']
+SOURCE_DIRS = ['neuro_rt','web','integration','catalog','app','tools','licenses','scripts','docs','tests']
 IMAGE_SUFFIXES = ('.dcm','.nii','.nii.gz')
 
 

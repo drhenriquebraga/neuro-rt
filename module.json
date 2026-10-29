@@ -1,9 +1,19 @@
 {
+  "schema": "neuro-rt/plugin-manifest/1",
   "id": "neuro-rt",
   "name": "NeuroRT",
   "version": "0.2.0",
+  "host_contract": "local-suite/plugins/1",
+  "host_min_version": null,
   "entrypoint": "/neuro/",
   "adapter": "integration/radai_neuro.py:montar",
+  "catalog": "catalog/models.json",
+  "runtimes": {
+    "raidionics-onnx": {
+      "python": "python.exe"
+    }
+  },
+  "artifacts": [],
   "result_schema": "neuro-rt/result/1",
   "python": ">=3.10,<3.13",
   "runtime": "isolated-worker",

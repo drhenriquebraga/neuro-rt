@@ -37,8 +37,9 @@ def verify_rtstruct(path, source):
 
 def export(job_dir, host_app):
     job_dir, host_app = Path(job_dir).resolve(), Path(host_app).resolve()
-    sys.path.insert(0, str(host_app))
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from integration.host_imports import prepare_host_imports
+    prepare_host_imports(host_app)
     import numpy as np
     import SimpleITK as sitk
     import engine

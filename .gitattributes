@@ -1,0 +1,10 @@
+* text=auto
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.sh text eol=lf
+app/radai_nidus*.py -text whitespace=-trailing-space,-space-before-tab,-blank-at-eof,cr-at-eol
+tools/test_nidus.py -text whitespace=-trailing-space,-space-before-tab,-blank-at-eof,cr-at-eol
+docs/nidus/** -text whitespace=-trailing-space,-space-before-tab,-blank-at-eof,cr-at-eol
+docs/aprendizado/** -text whitespace=-trailing-space,-space-before-tab,-blank-at-eof,cr-at-eol
+licenses/NIDUS_RT_APACHE_2.txt -text whitespace=-trailing-space,-space-before-tab,-blank-at-eof,cr-at-eol

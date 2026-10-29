@@ -4,6 +4,7 @@ import itertools
 import json
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 
 def center_slices(mask):
@@ -15,10 +16,11 @@ def center_slices(mask):
 
 def build(job_dir,host_app):
     root=Path(__file__).resolve().parents[1]
-    sys.path.insert(0,str(host_app));sys.path.insert(0,str(root))
+    sys.path.insert(0,str(root))
+    from integration.host_imports import prepare_host_imports
+    prepare_host_imports(host_app)
     import numpy as np
     import SimpleITK as sitk
-    import radai_png as png
     import radai_recon3d as recon
     import radai_recon3d_screen as screen
     import radai_viewer as renderer
@@ -40,19 +42,26 @@ def build(job_dir,host_app):
     lo,hi=(np.percentile(values,[.5,99.5]) if values.size else (0.,1.))
     if hi<=lo:hi=lo+1
     centers=center_slices(bits)
+    # Contrato de mapa de rótulos já consumido pelo MPR do host. A máscara
+    # está na mesma grade LPS isotrópica da imagem de exibição.
+    geometry={'esp_zyx':grid.GetSpacing()[::-1],'origem':grid.GetOrigin(),
+              'direcao':grid.GetDirection()}
+    conjunto={'tipo':'rotulos','rois':[{'nome':'Tumor','cor':[255,173,72]}],
+              'mapa':SimpleNamespace(_vol={'Tumor':bits},
+                  tabela=[{'nome':'Tumor','chave':'Tumor','indice':1}]),**geometry}
     data={'schema':'neuro-rt/view/1','planes':{},'meshes':[],'window':[float(lo),float(hi)],
           'render_spacing_mm':spacing,'orientation':'LPS','engine':'Local Suite'}
     for axis,name in enumerate(('axial','coronal','sagittal')):
-        data['planes'][name]={'count':volume.shape[axis],'center':centers[axis]}
+        data['planes'][name]={'count':volume.shape[axis],'center':centers[axis],'format':'svg'}
         for index in range(volume.shape[axis]):
-            gray=np.take(volume,index,axis=axis);region=np.take(bits,index,axis=axis)
-            gray=np.clip((gray-lo)*255/(hi-lo),0,255).astype(np.uint8)
-            rgb=np.repeat(gray[...,None],3,axis=2)
-            png.tingir(rgb,region,(255,173,72),.30);png.pintar(rgb,png.borda(region),(255,194,102))
+            gray=np.take(volume,index,axis=axis)
             # A função do host preserva milímetros e põe o crânio em cima.
-            rgb=np.stack([recon.plano_para_a_tela(rgb[...,channel],axis,(spacing,)*3,
-                                                  ('sup','post','esq')) for channel in range(3)],axis=2)
-            (dest/f'{name}_{index:03d}.png').write_bytes(png.png_rgb(rgb))
+            gray=recon.plano_para_a_tela(gray,axis,geometry['esp_zyx'],('sup','post','esq'))
+            png=recon.para_png(gray,float(lo+hi)/2,float(hi-lo))
+            svg=screen._png_com_contornos(png,conjunto,volume.shape,
+                geometry['esp_zyx'],geometry['origem'],geometry['direcao'],
+                ('sup','post','esq'),axis,index,None)
+            (dest/f'{name}_{index:03d}.svg').write_bytes(svg)
     for name,file,color,opacity in [('Tumor',job/'masks/Tumor.nii.gz',[255,173,72],1.),
                                     ('Brain',job/'brain_predictions/labels_Brain.nii.gz',[145,179,211],.14)]:
         if not file.is_file():continue

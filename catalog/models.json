@@ -1,0 +1,489 @@
+{
+  "schema": "neuro-rt/catalog/1",
+  "models": [
+    {
+      "id": "MRI_GBM",
+      "label": "Glioblastoma · pré-operatório",
+      "groups": [
+        "glioma"
+      ],
+      "catalog_state": "distributed",
+      "revision": "1.2.0",
+      "adapter_id": "raidionics",
+      "runtime_id": "raidionics-onnx",
+      "channels": [
+        {
+          "role": "T1c"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "BSD-2-Clause",
+        "weights": "BSD-2-Clause",
+        "sources": [
+          "https://github.com/raidionics/Raidionics-models/blob/main/LICENSE"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "model_config.txt",
+          "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+        },
+        {
+          "path": "pipeline.json",
+          "sha256": "12547b706880a0a0604eba378caf2ed2756b7771b1803613f8fdbcacaff9a7a0"
+        },
+        {
+          "path": "pre_processing.ini",
+          "sha256": "2d68b78247af11b56d6e8c69d4181c52d7bc91088d74f16785550e31a8294028"
+        },
+        {
+          "path": "fold0/model.onnx",
+          "sha256": "1315e58513e80bcb5890a691fd13cc1f110b8f5c3c08c1ecdbc9bbbeb73a5565"
+        }
+      ],
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0",
+      "addition": false
+    },
+    {
+      "id": "MRI_LGGlioma",
+      "label": "Glioma de baixo grau · pré-operatório",
+      "groups": [
+        "glioma"
+      ],
+      "catalog_state": "distributed",
+      "revision": "1.2.0",
+      "adapter_id": "raidionics",
+      "runtime_id": "raidionics-onnx",
+      "channels": [
+        {
+          "role": "FLAIR"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "FLAIR",
+      "license": {
+        "code": "BSD-2-Clause",
+        "weights": "BSD-2-Clause",
+        "sources": [
+          "https://github.com/raidionics/Raidionics-models/blob/main/LICENSE"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "model_config.txt",
+          "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+        },
+        {
+          "path": "pipeline.json",
+          "sha256": "95634c9d34703b94943f07ffa69f2c95b0b05b426bdff8d187f842713a8f2358"
+        },
+        {
+          "path": "pre_processing.ini",
+          "sha256": "2d68b78247af11b56d6e8c69d4181c52d7bc91088d74f16785550e31a8294028"
+        },
+        {
+          "path": "fold0/model.onnx",
+          "sha256": "7b18f4a70f4a61ecc81c51dfa0d90d67fc1bcd02eb3c232b5e66fe0a4084cbdf"
+        }
+      ],
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0",
+      "addition": false
+    },
+    {
+      "id": "MRI_Meningioma",
+      "label": "Meningioma · pré-operatório",
+      "groups": [
+        "meningioma"
+      ],
+      "catalog_state": "distributed",
+      "revision": "1.2.0",
+      "adapter_id": "raidionics",
+      "runtime_id": "raidionics-onnx",
+      "channels": [
+        {
+          "role": "T1c"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "BSD-2-Clause",
+        "weights": "BSD-2-Clause",
+        "sources": [
+          "https://github.com/raidionics/Raidionics-models/blob/main/LICENSE"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "model_config.txt",
+          "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+        },
+        {
+          "path": "pipeline.json",
+          "sha256": "e71f252171fe7ab31077c110920a8b7a5438c3e9c96163ed157f1b8c398ea9a5"
+        },
+        {
+          "path": "pre_processing.ini",
+          "sha256": "ccb73442ba1ae3ed6c9eebd0d7cb892bb1514558aa09780147c1847228096b11"
+        },
+        {
+          "path": "fold0/model.onnx",
+          "sha256": "b74764e90722b1071dab8b085be0d916f8f318d5bed987470fe15198febb81c8"
+        }
+      ],
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0",
+      "addition": false
+    },
+    {
+      "id": "MRI_Metastasis",
+      "label": "Metástase · pré-operatório",
+      "groups": [
+        "metastasis"
+      ],
+      "catalog_state": "distributed",
+      "revision": "1.2.0",
+      "adapter_id": "raidionics",
+      "runtime_id": "raidionics-onnx",
+      "channels": [
+        {
+          "role": "T1c"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "BSD-2-Clause",
+        "weights": "BSD-2-Clause",
+        "sources": [
+          "https://github.com/raidionics/Raidionics-models/blob/main/LICENSE"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "model_config.txt",
+          "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+        },
+        {
+          "path": "pipeline.json",
+          "sha256": "4b619e376316fb453f3c3bc37ac59e6683ad8b1a4067d9cc238ad5c646eed964"
+        },
+        {
+          "path": "pre_processing.ini",
+          "sha256": "2d68b78247af11b56d6e8c69d4181c52d7bc91088d74f16785550e31a8294028"
+        },
+        {
+          "path": "fold0/model.onnx",
+          "sha256": "50b34b3ae4808fa10dd076389f78523888df6ce85b8b6c15e7824aac710c363a"
+        }
+      ],
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0",
+      "addition": false
+    },
+    {
+      "id": "MRI_GBM_Postop_FV_1p",
+      "label": "Glioblastoma · pós-operatório (1 sequência)",
+      "groups": [
+        "glioma"
+      ],
+      "catalog_state": "distributed",
+      "revision": "1.2.0",
+      "adapter_id": "raidionics",
+      "runtime_id": "raidionics-onnx",
+      "channels": [
+        {
+          "role": "T1c"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "BSD-2-Clause",
+        "weights": "BSD-2-Clause",
+        "sources": [
+          "https://github.com/raidionics/Raidionics-models/blob/main/LICENSE"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "model_config.txt",
+          "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+        },
+        {
+          "path": "pipeline.json",
+          "sha256": "81995618902f35e3ec53a0bd795c23f72027f5e4671f8d6a7b3d616232be78b8"
+        },
+        {
+          "path": "pre_processing.ini",
+          "sha256": "ebcca05fcf38d0f60400d479224569677782e052a8d03ff72f5b763f68167314"
+        },
+        {
+          "path": "fold0/model.onnx",
+          "sha256": "35ebdef70917b9e053afd13f25fc337b8dfd165f4d89fbe93be49a0facef8bb3"
+        }
+      ],
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0",
+      "addition": false
+    },
+    {
+      "id": "MRI_GBM_Postop_FV_3p",
+      "label": "Glioblastoma pos-operatorio (3 sequencias)",
+      "groups": [
+        "glioma"
+      ],
+      "catalog_state": "candidate",
+      "revision": null,
+      "adapter_id": "raidionics",
+      "runtime_id": "raidionics-onnx",
+      "channels": [
+        {
+          "role": "T1c"
+        },
+        {
+          "role": "T1"
+        },
+        {
+          "role": "FLAIR"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "BSD-2-Clause",
+        "weights": "BSD-2-Clause",
+        "sources": [
+          "https://github.com/raidionics/Raidionics-models"
+        ]
+      },
+      "artifacts": [],
+      "source_url": "https://github.com/raidionics/Raidionics-models",
+      "availability_reason": "Integracao e artefatos ainda nao verificados nesta release.",
+      "addition": true
+    },
+    {
+      "id": "glioma_attention_unet3d",
+      "label": "Glioma - Attention U-Net 3D",
+      "groups": [
+        "glioma"
+      ],
+      "catalog_state": "candidate",
+      "revision": null,
+      "adapter_id": "attention_unet",
+      "runtime_id": "torch-monai",
+      "channels": [
+        {
+          "role": "FLAIR"
+        },
+        {
+          "role": "T1"
+        },
+        {
+          "role": "T1c"
+        },
+        {
+          "role": "T2"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "whole_tumor",
+          "label": "WT"
+        },
+        {
+          "class_id": "tumor_core",
+          "label": "TC"
+        },
+        {
+          "class_id": "enhancing_tumor",
+          "label": "ET"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "MIT",
+        "weights": "MIT",
+        "sources": [
+          "https://huggingface.co/motazalqaoud/brain-tumor-segmentation-weights"
+        ]
+      },
+      "artifacts": [],
+      "source_url": "https://huggingface.co/motazalqaoud/brain-tumor-segmentation-weights",
+      "availability_reason": "Integracao e artefatos ainda nao verificados nesta release.",
+      "addition": true
+    },
+    {
+      "id": "metastasis_qtim",
+      "label": "Metastases - QTIM",
+      "groups": [
+        "metastasis"
+      ],
+      "catalog_state": "candidate",
+      "revision": null,
+      "adapter_id": "qtim_mets",
+      "runtime_id": "qtim-tensorflow",
+      "channels": [
+        {
+          "role": "T1c"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "Apache-2.0",
+        "weights": "Apache-2.0",
+        "sources": [
+          "https://github.com/QTIM-Lab/Brain-Mets-Seg"
+        ]
+      },
+      "artifacts": [],
+      "source_url": "https://github.com/QTIM-Lab/Brain-Mets-Seg",
+      "availability_reason": "Integracao e artefatos ainda nao verificados nesta release.",
+      "addition": true
+    },
+    {
+      "id": "anatomy_synthseg",
+      "label": "Anatomia - SynthSeg",
+      "groups": [
+        "anatomia"
+      ],
+      "catalog_state": "candidate",
+      "revision": null,
+      "adapter_id": "synthseg",
+      "runtime_id": "torch-synthseg",
+      "channels": [
+        {
+          "role": "T1"
+        }
+      ],
+      "classes": [],
+      "reference_role": "T1",
+      "license": {
+        "code": "Apache-2.0",
+        "weights": "Apache-2.0",
+        "sources": [
+          "https://github.com/BBillot/SynthSeg"
+        ]
+      },
+      "artifacts": [],
+      "source_url": "https://github.com/BBillot/SynthSeg",
+      "availability_reason": "Integracao e artefatos ainda nao verificados nesta release.",
+      "addition": true
+    },
+    {
+      "id": "anatomy_cerebra_ants",
+      "label": "Anatomia - CerebrA / ANTs",
+      "groups": [
+        "anatomia"
+      ],
+      "catalog_state": "candidate",
+      "revision": null,
+      "adapter_id": "cerebra_ants",
+      "runtime_id": "ants",
+      "channels": [
+        {
+          "role": "T1"
+        }
+      ],
+      "classes": [],
+      "reference_role": "T1",
+      "license": {
+        "code": "Apache-2.0",
+        "weights": "CC0-1.0",
+        "sources": [
+          "https://doi.gin.g-node.org/10.12751/g-node.be5e62/"
+        ]
+      },
+      "artifacts": [],
+      "source_url": "https://doi.gin.g-node.org/10.12751/g-node.be5e62/",
+      "availability_reason": "Integracao e artefatos ainda nao verificados nesta release.",
+      "addition": true
+    },
+    {
+      "id": "cranio_buti",
+      "label": "Anatomia de cranio em TC - Buti",
+      "groups": [
+        "anatomia"
+      ],
+      "catalog_state": "candidate",
+      "revision": "d3f8bc7248ac9138e03be7e6a839d7844599b8a1",
+      "adapter_id": "buti_host",
+      "runtime_id": "host-nnunet",
+      "channels": [
+        {
+          "role": "CT"
+        }
+      ],
+      "reference_role": "CT",
+      "classes": [
+        {
+          "class_id": "Brainstem",
+          "label": "Brainstem"
+        },
+        {
+          "class_id": "Cerebellum",
+          "label": "Cerebellum"
+        },
+        {
+          "class_id": "Chiasm",
+          "label": "Chiasm"
+        },
+        {
+          "class_id": "Ventricles_connected",
+          "label": "Ventricles_connected"
+        },
+        {
+          "class_id": "Midline",
+          "label": "Midline"
+        }
+      ],
+      "license": {
+        "code": "Apache-2.0",
+        "weights": "MIT",
+        "sources": [
+          "https://huggingface.co/GregoryButi/CT_Brain_Segmentation_Radiotherapy"
+        ]
+      },
+      "artifacts": [],
+      "source_url": "https://huggingface.co/GregoryButi/CT_Brain_Segmentation_Radiotherapy",
+      "external_executor": "cranio_ct",
+      "availability_reason": "Requer executor e verificacao dos pesos no host.",
+      "addition": false
+    }
+  ]
+}

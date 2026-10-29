@@ -1,7 +1,7 @@
 # NEURO RT — Dados, fila e RTSTRUCT Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> Documento de execução futura; nesta rodada, não escrever código funcional.
+> Execução autorizada em 29/10/2026. Consultar `../../IMPLEMENTACAO_PLUGIN.md` para estado e pendências.
 
 **Goal:** transformar escolhas de modelos/séries em resultados rastreáveis na
 geometria correta, executados pela fila comum e publicados uma vez por referência.
