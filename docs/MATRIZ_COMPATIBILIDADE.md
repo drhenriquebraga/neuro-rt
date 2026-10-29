@@ -32,46 +32,57 @@ externo com regras de arredondamento distintas não comprova, por si, perda de
 voxels pelo gravador. Os ambientes globais não são alterados pelo plugin.
 
 
-## Distribuição definitiva 1.0.0 — identidade local, sem publicação
 
-O refresh definitivo após o ajuste CLI aprovado concluiu em 50.861s. A
-verificação integral foi repetida somente pela mudança real de um arquivo de
-código após o primeiro congelamento, sem reinstalação, inferência ou nova
-medição de descoberta. O resultado tem 35.984 arquivos inventariados, 76 CODE
-(51 .py), dois runtimes, dez componentes de modelos e 3.074.717.951 bytes de
-payload descomprimido. Manifesto compacto: 9.057.626 bytes, abaixo de 16 MiB.
+## Distribuição pós-revisão final — 1.0.0 local, sem publicação
+
+FINAL_REREVIEW.md aprovou HEAD 67961ff, F1–F6 ADDRESSED, ReadyToMerge YES.
+O escopo congelado de 18 arquivos coincide com FINAL_FIX_FILES.json, identidade
+3b4f77d731fc3b370e03c93c80722164ed5d05b10aed64da792f8062b4634fc7.
+O ZIP 8605b82bcd897d263c171c99e5ab8b2194c98b31491064416e0e74132a870d27
+é **pré-correções F1–F6** e foi substituído pelo refresh abaixo. O processo
+levou 39.473s, com verificação integral única dos SHA, allowlist e catálogo do
+novo ZIP; não houve reinstalação, inferência ou nova descoberta fria.
+
+Resultado: **35.985 arquivos**, **77 CODE (52 .py)**, **2 runtimes**,
+**10 componentes de modelos**, **3.074.791.556 bytes** de payload descomprimido
+e manifesto compacto de **9.057.759 bytes**.
 
 | Artefato em dist/v1.0.0 | Bytes exatos | SHA256 |
 |---|---:|---|
-| NEURO_RT_OFFLINE_v1.0.0.zip | 1200576062 | `8605b82bcd897d263c171c99e5ab8b2194c98b31491064416e0e74132a870d27` |
-| NEURO_RT_PLUGIN_v1.0.0.zip | 2077289 | `6205c3c6391677a79d747b145a78cd011308e91421fa8ac815e89011d5bb7843` |
-| release-manifest.json | 9057626 | `2b3956e18942db166ee05984144d02815a76cdd6b4d67b06f5e85884d07e07be` |
-| NEURO_RT_SETUP_v1.0.0.zip | 1833639 | `cf774fe113ab411f2ff2ce38c90a67c9b60f07c0f2b02d538eb124e593b005b4` |
-| NEURO_RT_SETUP_LATEST.zip | 1833639 | `cf774fe113ab411f2ff2ce38c90a67c9b60f07c0f2b02d538eb124e593b005b4` |
+| NEURO_RT_OFFLINE_v1.0.0.zip | 1200594357 | `7453a93ef0c6c1e9daca574ecd07602274aea935680ecfd609b8571689694ef5` |
+| NEURO_RT_PLUGIN_v1.0.0.zip | 2095512 | `ec50df20474db2a44e8d13bc76c3bac86afb1f23b00e136828cb644834257c89` |
+| release-manifest.json | 9057759 | `fc528cd9b0ba1ea68422046a5ec08c4f856f3a7432e3a86b06b0d540271b679d` |
+| NEURO_RT_SETUP_v1.0.0.zip | 1833700 | `01b28bfd9bd9128df6d3c8656141052d3bb8d92e77f18fcb1a25be328b8935e7` |
+| NEURO_RT_SETUP_LATEST.zip | 1833700 | `01b28bfd9bd9128df6d3c8656141052d3bb8d92e77f18fcb1a25be328b8935e7` |
 
-A comparação de código extraído confirmou 76/76 fontes congeladas, com as
-normalizações JSON documentadas de module.json e catálogo distribuído. Os nove
-hashes D03 do ledger atualizado coincidem. Só neuro_rt/build_study_views.py
-mudou em relação ao snapshot pré-CLI, pela correção de import aprovada em
-D03-unicode-cli-rereview.md. Em relação ao candidato histórico: 18 CODE
-alterados, três novos e exclusivamente 11 arquivos públicos de exemplos/testes
-dos wheels Matplotlib/nibabel/pydicom removidos; os caminhos exatos constam no
-relatório I04-R02-R03 e runtime/seed_sample_exclusion.json. Todos os demais
-registros de modelos/runtimes, seus metadados e licenças foram preservados e
-seus SHA foram conferidos integralmente no ZIP definitivo.
+A comparação de código extraído confirmou 77/77 fontes congeladas, incluindo
+execution_errors.py. Foram conferidos os 18/18 hashes do escopo aprovado.
+O catálogo, removendo somente help, é semanticamente idêntico ao catálogo
+anterior. Pesos, revisões, classes, licenças, atlas e runtimes não mudaram;
+todos os registros não CODE são exatamente iguais aos do ZIP 8605. Contra o
+candidato histórico, há 25 CODE alterados, quatro novos e exclusivamente os
+11 exemplos/testes públicos de wheels removidos na sanitização autorizada;
+seus caminhos constam no relatório I04 e no recibo de exclusão.
 
-A primeira instalação e os tempos de preparo/ativação acima são do candidato
-histórico de 1.200.712.705 bytes; não são uma reinstalação deste ZIP definitivo.
-O ensaio R01 instalado com Motaz real (70,64s, quatro MRs, três registros,
-duas máscaras e RTSTRUCT UNAPPROVED com duas ROIs) usa snapshot coerente de 49
-.py sobre os mesmos componentes canônicos instalados. Destes, 47 permanecem
-idênticos; as diferenças finais são o consumidor de update da minipágina e o
-import CLI aprovado do gerador de visores. R01, revisões direcionadas e
-verificação integral do pacote são evidências complementares; não se declara
-uma nova inferência diretamente deste ZIP final. Recibos:
-runtime/final-package-evidence.json e runtime/final-refresh-timing.json.
+D03: 8/9 hashes históricos permanecem; _scientific.py mudou no F3 aprovado
+para registrar contagens/proveniência, SHA atual
+79d7b8e3dd5358a8c96b9e64a17fcf200e30b9d9ea6804a6151ed30e8a22f5eb.
+O ledger histórico não foi reescrito: docs/RELEASE_v1.0.0_CODE_LEDGER.json
+registra os 77 hashes-fonte e de pacote, 18 hashes de escopo e a substituição
+aprovada. Recibos finais: runtime/final-package-evidence.json e
+runtime/final-refresh-timing.json.
 
-Nenhuma release/asset/publisher remoto foi criado. A distribuição permanece
-local e privada, aguardando a integração/publicação autorizada da base 8.10;
-os limites de outras unidades, Windows, GPU e máquina sem Python global
-continuam como descritos acima.
+Os tempos de primeira instalação acima pertencem ao candidato histórico de
+1.200.712.705 bytes. O ensaio R01 instalado Motaz real de 70,64s usou snapshot
+coerente de 49 .py e os mesmos componentes canônicos instalados. Destes,
+40 permanecem idênticos; os nove arquivos diferentes estão listados no
+relatório I04. execution_errors.py é novo e não fazia parte dos 49. As
+mudanças posteriores de UI/avisos/segurança de processos/I/O têm provas
+específicas aprovadas: batches 50 (48 pass/2 skips), 37, 10 e 6 testes, com
+sobreposição; Tiny ONNX no backend Raidionics em Python 3.10/3.12. Essas provas,
+R01 e a verificação integral final são complementares; não se declara uma nova
+inferência de pesos treinados diretamente deste ZIP.
+
+Nenhuma release/asset/publisher remoto foi criado. A base privada SETUP clean
+5d46/Recon 41052 não foi reconstruída nesta frente. Permanecem os limites de
+outras unidades, Windows, GPU, TPS e máquina sem Python global descritos acima.

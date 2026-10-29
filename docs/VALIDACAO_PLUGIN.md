@@ -114,6 +114,46 @@ Um probe ANTs SyN 24³ em pasta com acento produziu e releu affine, warp e inver
 warp e propagou labels binários. Não comprova Unicode em todo I/O interno do
 nnU-Net/Buti ou de bibliotecas de terceiros não exercitadas nessa condição.
 
+## Encerramento da revisão geral
+
+O código `67961ff` encerrou uma única onda de correções, seguida de uma única
+revisão independente escopada: seis achados **ADDRESSED**, nenhum P1/P2 novo,
+18/18 arquivos conferidos por SHA-256. Foram corrigidos:
+
+- Falha de confirmação de término agora é fatal para as próximas etapas; conserva
+  árvore/concessão e bloqueia novos launches, repetição e retomada até confirmação.
+  Falhas científicas comuns continuam isoladas quando o encerramento foi confirmado.
+- Retry acompanha a tentativa ativa sem abrir acidentalmente uma revisão antiga;
+  histórico, cache de modelos concluídos e cancelamento continuam disponíveis.
+- Classes não vazias que zeram ao retornar à referência geram aviso estruturado
+  por modelo/classe, com contagens e projeção pública segura, inclusive no histórico.
+- MPRs têm plano principal e ampliação por controle/teclado/duplo clique, mantendo
+  corte, cores, visibilidade e opacidade ao voltar; o renderizador permanece o do host.
+- A ajuda informa método, requisitos, CPU-only, preparo e limitações específicas
+  dos modelos nos 12 idiomas; fontes, licenças e número de motores permanecem iguais.
+- Raidionics legado usa a fronteira Unicode privada até o backend, incluindo seu
+  leitor interno e paths ASCII relativos no subprocesso privado, com cwd restaurado.
+
+A evidência dirigida teve grupos sobrepostos de 50 testes (48 pass e dois skips
+de MONAI/ANTs ausentes na `.venv`), 37 pass, dez pass com Chrome/JobObject/ONNX e
+seis regressões finais depois da última mudança do serviço. Não são totais
+somáveis de casos únicos. O adaptador completo com redes ONNX minúsculas de
+Brain/tumor passou em pasta Unicode nos ambientes 3.12 e 3.10 distribuído
+(Raidionics 1.5.2, SimpleITK 2.4.1, ONNX Runtime 1.20.1). Não se repetiram as
+inferências treinadas nem a instalação de vários gigabytes por mudanças de
+interface/proveniência. Pesos, licenças, revisões e parâmetros científicos
+permaneceram iguais; o catálogo ganhou somente ajuda.
+
+**Limite operacional explícito:** se um encerramento não foi confirmado e o
+serviço recupera o registro sem o owner em memória, esse registro continua
+bloqueando novos processamentos Neuro. Não existe desbloqueio automático por
+tempo, status ou simples reinício; a liberação exige confirmação efetiva pelo
+owner. Esse caso precisa de inspeção operacional. A revisão aceitou a escolha
+segura sem apresentá-la como recuperação automática completa.
+
+O ZIP anterior de SHA `8605b82bcd897d263c171c99e5ab8b2194c98b31491064416e0e74132a870d27`
+é pré-correção. Os recibos finais precisam corresponder ao CODE pós-revisão.
+
 ## Verificação automática e rastreabilidade
 
 O conjunto rápido de CI foi executado localmente com Python 3.12.10 `-I -S`:
@@ -124,8 +164,12 @@ Uma tentativa pelo embeddable 3.10 não serviu como reprodução do runner regul
 seu `_pth` ignora o cwd nos subprocessos dos testes de importação. Não se
 contabiliza aquela tentativa como aprovação de CI 3.10.
 
-O pipeline remoto ainda precisa executar no commit enviado. O workflow de
-release é manual e cria apenas rascunho privado com fontes. A publicação de
+O pipeline remoto do commit `0dfc86c2fb18d878ea5f7003f687058d6de0e1a6` concluiu
+com sucesso no Windows regular, tanto em Python 3.10 como em 3.12:
+[execução de CI](https://github.com/drhenriquebraga/neuro-rt/actions/runs/40952839980).
+Isso verifica aquele commit, anterior à onda final de correções da revisão geral;
+o novo commit precisa de sua própria conferência. O workflow de release é manual
+e cria apenas rascunho privado com fontes. A publicação de
 OFFLINE/SETUP/latest é etapa controlada, descrita em `RELEASE_PROCESS.md`.
 
 Consulte também `MATRIZ_COMPATIBILIDADE.md`, `RELEASE_BUILD.md`, o inventário final

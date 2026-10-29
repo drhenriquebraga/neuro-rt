@@ -16,6 +16,7 @@ privado nem alterar exames de uso.
 | Nomes lógicos sintéticos associados a IDs opacos | Os visores precisam identificar seus arquivos sem publicar caminhos privados | Manter o mapeamento no store e preservar revisões |
 | Manifesto limitado a 16 MiB, com os demais limites e SHA-256 preservados | O inventário real de cerca de 36 mil arquivos ultrapassou 8 MiB; não remover bibliotecas para caber | Maior leitura de metadados, ainda limitada e validada |
 | Integração host/Recon preservada em patches privados | Os repositórios-base são públicos e o NEURO RT é privado; o bootstrap novo não foi divulgado publicamente | Aplicar ambos os patches ou preparar uma base privada compatível antes de instalar |
+| Término de árvore não confirmado mantém bloqueio, inclusive após recuperação sem owner | Preservar exclusividade sem inferir confirmação por tempo, status ou simples reinício | Exigir inspeção operacional nessa falha; não há desbloqueio automático sem confirmação efetiva |
 
 A entrega CPU não promete GPU, Windows LTSB ou precisão clínica a partir de
 fantomas. Os tempos de instalação e inferência medidos pertencem à estação de

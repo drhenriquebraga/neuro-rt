@@ -4,10 +4,10 @@ Primeiro plugin opcional da suíte, com Nidus RT, Glioma RT, Metastasis RT,
 Meningioma RT e Anatomia RT. A instalação fica em `Plugins/NEURO RT`; navegação,
 fila, carregamento de séries, configurações e visores pertencem ao Local Suite.
 
-A versão 1.0.0 está na etapa de empacotamento e revisão final. O estado verificável
-está em [IMPLEMENTACAO_PLUGIN](docs/IMPLEMENTACAO_PLUGIN.md). A publicação de uma
-release e a disponibilidade de `latest` devem ser conferidas no repositório;
-a existência do código não significa que o asset já foi publicado.
+A versão 1.0.0 foi implementada, revisada e empacotada para entrega privada
+offline. Os arquivos e as instruções estão em [ENTREGA_V1](docs/ENTREGA_V1.md),
+com [evidências e limites](docs/VALIDACAO_PLUGIN.md). A publicação de uma release
+e a disponibilidade de `latest` são etapas separadas; nenhum asset foi publicado.
 
 ## Uso e comportamento
 

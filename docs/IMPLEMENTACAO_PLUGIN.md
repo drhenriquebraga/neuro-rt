@@ -4,6 +4,26 @@ Atualizado em 29/10/2026. Execução autorizada pelo usuário após o desenho e 
 Este arquivo é o ponto de retomada versionado; o roadmap completo continua em
 `docs/superpowers/plans/2026-10-29-neuro-rt-roadmap.md`.
 
+## Encerramento da versão 1.0.0
+
+Código funcional concluído em `67961ff`, com as seis correções da revisão geral
+aprovadas em uma única re-review, sem P1/P2 pendentes. A entrega privada offline
+pós-revisão foi gerada e conferida integralmente: 35.985 arquivos, 77 entradas
+CODE e dois runtimes; código, pesos, atlas e licenças têm identidade no inventário.
+O manifesto de 18 arquivos da onda de correções registra o snapshot do commit
+`67961ff`; atualizações documentais posteriores não mudam o CODE distribuído.
+
+O ponto de entrada para uso/retomada é [ENTREGA_V1.md](ENTREGA_V1.md), com a base
+privada 8.10, os artefatos e seus checksums. [VALIDACAO_PLUGIN.md](VALIDACAO_PLUGIN.md),
+[MATRIZ_COMPATIBILIDADE.md](MATRIZ_COMPATIBILIDADE.md) e
+`RELEASE_v1.0.0_CODE_LEDGER.json` preservam evidências, limites e hashes finais.
+Os checkpoints abaixo são históricos. Não reiniciar as etapas já concluídas nem
+tratar o ZIP pré-correção `8605...` como entrega atual.
+
+Distribuição remota/latest, merge e exclusão do Nidus não foram executados.
+O alvo testado é Windows/CPU; ausência de owner após término não confirmado
+permanece um bloqueio operacional deliberado, descrito nas evidências.
+
 ## Estado atual da continuação
 
 Instalação transacional, integração nativa, fila, contratos v2, quatro motores
