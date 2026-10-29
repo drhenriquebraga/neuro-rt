@@ -1,0 +1,21 @@
+NeuroRT é uma camada de interface, execução e integração, sob licença MIT.
+Os modelos e o motor de segmentação são de terceiros: Raidionics / SINTEF.
+
+raidionicsseg 1.5.2: BSD-2-Clause, copyright 2022 SINTEF Digital, Health Research.
+Modelos Raidionics release 1.2.0: BSD-2-Clause, copyright 2023 David Bouget.
+Textos integrais: licenses/RAIDIONICS_ENGINE.txt e licenses/RAIDIONICS_MODELS.txt.
+Avisos e disclaimer devem acompanhar redistribuições de fonte e binários.
+A licença MIT deste módulo não substitui licenças das dependências ou pesos.
+
+Fontes verificadas em 11/10/2026:
+https://github.com/dbouget/raidionics_seg_lib
+https://github.com/raidionics/Raidionics-models
+https://pypi.org/project/raidionicsseg/1.5.2/
+
+Citação recomendada pelo autor:
+Bouget et al., Raidionics: an open software for pre- and postoperative central
+nervous system tumor segmentation and standardized reporting,
+Scientific Reports 13 (2023), DOI: 10.1038/s41598-023-42048-7.
+
+Pesos e dependências mantêm seus contratos próprios. O preparador registra
+URL, versão e SHA256 dos arquivos; nenhuma imagem é enviada ao autor do modelo.

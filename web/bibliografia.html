@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bibliografia · NeuroRT</title><link rel="stylesheet" href="style.css"></head>
+<body><main><a href="./">← Voltar ao NeuroRT</a><h1>Bibliografia e créditos</h1>
+<p>NeuroRT integra modelos públicos de terceiros ao Local Suite. A interface, os contratos e a conexão são desta implementação; os pesos e o motor de inferência mantêm autoria e licenças originais.</p>
+<h2>Modelos e inferência</h2>
+<p>Bouget et al. <em>Raidionics: an open software for pre- and postoperative central nervous system tumor segmentation and standardized reporting.</em> Scientific Reports 13 (2023). <a href="https://doi.org/10.1038/s41598-023-42048-7">Artigo e DOI</a>.</p>
+<p><a href="https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0">Pesos originais, release 1.2.0</a>; <a href="https://github.com/dbouget/raidionics_seg_lib">motor de inferência</a>, versão 1.5.2. Licença BSD-2-Clause. Os avisos integrais acompanham a instalação. MRI_Brain auxilia os cinco modelos tumorais.</p>
+<h2>Demonstrações públicas</h2>
+<p>Filimonova et al. <em>Multimodal Brain MRI and Clinical Data in Olfactory Groove Meningioma: A Prospective Data Report.</em> <a href="https://openneuro.org/datasets/ds007345/versions/1.0.0">OpenNeuro ds007345, versão 1.0.0</a>. DOI 10.18112/openneuro.ds007345.v1.0.0. Licença CC0. Demo T1 com contraste pré-operatória.</p>
+<p><em>A longitudinal MRI dataset of brain metastases with tumor segmentations, clinical &amp; radiomic data.</em> Dados PROTEAS: <a href="https://zenodo.org/records/17253793">Zenodo, DOI 10.5281/zenodo.17253793</a>, CC BY 4.0. Demo T1 com contraste da versão BraTS, já registrada e sem crânio pelo banco. <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC12630624/">Publicação</a>.</p>
+<p>Exemplos públicos pré-operatório, pós-operatório e FLAIR: <a href="https://github.com/raidionics/Raidionics/wiki/Tutorials">arquivos de demonstração publicados pelo fornecedor</a>. Guardados somente em cache local; licença de redistribuição das imagens ainda precisa ser confirmada. Diagnósticos desses exemplos não foram verificados independentemente.</p>
+<h2>Visualização e revisão</h2>
+<p>Os cortes, malhas e renderização reutilizam os motores do Local Suite. A máscara exportada conserva a grade original da RM; as imagens de tela usam uma grade própria de prévia. Demos mostram o funcionamento do pipeline e não estabelecem acurácia clínica. Toda saída permanece UNAPPROVED e exige revisão.</p>
+</main></body></html>

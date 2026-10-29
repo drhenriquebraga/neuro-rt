@@ -1,0 +1,15 @@
+{
+  "id": "neuro-rt",
+  "name": "NeuroRT",
+  "version": "0.2.0",
+  "entrypoint": "/neuro/",
+  "adapter": "integration/radai_neuro.py:montar",
+  "result_schema": "neuro-rt/result/1",
+  "python": ">=3.10,<3.13",
+  "runtime": "isolated-worker",
+  "default_enabled": false,
+  "finding_requires_explicit_request": true,
+  "approval_status": "UNAPPROVED",
+  "license": "MIT",
+  "model_license": "BSD-2-Clause"
+}

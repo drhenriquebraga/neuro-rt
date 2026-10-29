@@ -1,0 +1,8 @@
+{
+  "worker_python": "python/python.exe",
+  "models_dir": "models",
+  "data_dir": "runtime",
+  "host_app": "C:/RADIOTERAPIA_AI/LOCAL_SUITE/_montagem/LOCAL_SUITE",
+  "host_python": "C:/RADIOTERAPIA_AI/LOCAL_SUITE/_montagem/LOCAL_SUITE/python/python.exe",
+  "processing_preference": "auto"
+}

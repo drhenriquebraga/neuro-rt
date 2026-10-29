@@ -1,0 +1,13 @@
+.venv/
+python/
+.research/
+.superpowers/
+__pycache__/
+*.pyc
+models/*/
+runtime/
+dist/
+neuro_rt.local.json
+*.dcm
+*.nii
+*.nii.gz
