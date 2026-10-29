@@ -1,7 +1,45 @@
 # Preparação da migração Nidus RT
 
-Data: 29/10/2026. Estado: **parcial, preparação de I05**. A migração funcional,
-a transferência ativa de propriedade e U05 **não estão concluídos**.
+Data: 29/10/2026. Estado: **migração funcional implementada e verificada**;
+integração de release e aceite R05 permanecem com o coordenador. A origem
+NIDUS_RT continua intacta. Os registros de cópia abaixo descrevem a preparação
+I05; os arquivos operacionais app/tools foram depois adaptados por U05.
+
+## Atualização U05 — propriedade e provas
+
+O core geométrico foi extraído para `RECON_3D/app/radai_projection.py`, sem
+alteração da árvore sintática Python da baseline. `app/radai_nidus.py` agora
+é um alias do mesmo objeto de módulo, incluindo funções privadas e a classe
+Serie; não há segunda implementação científica. A leitura de osso existente
+foi extraída para `radai_projection_bone.py`, compartilhada pelas duas telas.
+As atribuições Apache-2.0 foram mantidas no Recon3D e no NOTICE do host.
+
+Nidus sai da trava, da descoberta e das cópias da base. O diretório antigo
+não é apagado nem alterado. `_componentes.ligar_caminho(..., extras=(app,))`
+liga a fonte do plugin apenas na montagem e resolve seus arquivos para a
+bateria. O coletor e o preparador usam somente as pastas da base, inclusive
+se o plugin foi ligado no mesmo processo. Caminhos antigos NIDUS_RT vindos
+de `.pth` são descartados dessa ligação.
+
+`integration/nidus_bridge.py:montar(app, host_services)` monta a tela uma vez.
+O adaptador principal o chama somente na integração com o host. O recibo em
+`app.state.neuro_nidus` e a guarda da própria tela impedem nova montagem e
+novos closures. `/neuro/nidus` delega a `/nidus/projecao`; as APIs antigas
+`/api/nidus/...` e a chave de estado da série continuam iguais.
+
+Provas de 29/10: Nidus **519/519**, Recon3D **443/443**, Recon3D v8.4
+**181/181**, resolvedor/trava **84/84** e seis testes de migração. O navegador
+usou fantomas TC e RGB em 1600×900 e 1280×800. A bateria original do Nidus
+teve 489/493: três expectativas da navegação anterior e um clique durante a
+varredura incremental. As expectativas foram atualizadas para NEURO RT e o
+roteiro agora aguarda bilhetes válidos antes de escolher, sem alterar o fluxo
+do produto. A prova isolada de Recon3D abre páginas e o Vascular sem importar
+Nidus, sua tela, NumPy ou SimpleITK. O relatório detalhado está em
+`.superpowers/sdd/neuro-plugin/U05-report.md`.
+
+As tabelas abaixo continuam sendo o registro dos bytes copiados inicialmente,
+não os hashes dos arquivos operacionais adaptados. Os originais e seu histórico
+continuam recuperáveis no repositório NIDUS_RT preservado e nos refs importados.
 
 ## Origem e rastreabilidade
 

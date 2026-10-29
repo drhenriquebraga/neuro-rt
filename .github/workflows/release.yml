@@ -1,0 +1,54 @@
+name: Prepare private release draft
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version matching module.json; creates a draft only
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
+  draft:
+    needs: verify
+    runs-on: windows-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Check version and build source archive
+        shell: pwsh
+        env:
+          RELEASE_VERSION: '${{ inputs.version }}'
+        run: |
+          if ($env:RELEASE_VERSION -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid release version.' }
+          $module = Get-Content module.json -Raw | ConvertFrom-Json
+          if ($module.version -ne $env:RELEASE_VERSION) { throw 'Version differs from module.json.' }
+          python scripts/package_module.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Create private draft with source only
+        shell: pwsh
+        env:
+          GH_TOKEN: '${{ github.token }}'
+          RELEASE_VERSION: '${{ inputs.version }}'
+        run: |
+          $private = gh api ('repos/' + $env:GITHUB_REPOSITORY) --jq '.private'
+          if ($LASTEXITCODE -ne 0 -or $private.Trim() -ne 'true') { throw 'This workflow requires a private repository.' }
+          $tag = 'v' + $env:RELEASE_VERSION
+          $source = 'dist/NEURO_RT_SOURCE_v' + $env:RELEASE_VERSION + '.zip'
+          $notes = 'docs/RELEASE_NOTES_v' + $env:RELEASE_VERSION + '.md'
+          if (-not (Test-Path -LiteralPath $notes)) { throw 'Release notes missing.' }
+          & ./scripts/assert_release_tag_absent.ps1 -Repository $env:GITHUB_REPOSITORY -Tag $tag
+          gh release create $tag $source ($source + '.sha256') --draft --target $env:GITHUB_SHA --repo $env:GITHUB_REPOSITORY --title ('NEURO RT ' + $env:RELEASE_VERSION) --notes-file $notes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

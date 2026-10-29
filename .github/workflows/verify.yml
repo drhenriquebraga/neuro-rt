@@ -1,0 +1,38 @@
+name: Verify source and installer contracts
+
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.12']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '${{ matrix.python }}'
+      - name: Compile source without scientific imports
+        run: python -m compileall -q neuro_rt integration scripts
+      - name: Exercise synthetic contracts and transactional packages
+        shell: pwsh
+        run: |
+          $suites = @('test_study_contracts', 'test_plugin_manifest', 'test_plugin_paths', 'test_plugin_install', 'test_plugin_update', 'test_release_manifest')
+          foreach ($suite in $suites) {
+            python -m unittest discover -s tests -p ($suite + '.py') -v
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+

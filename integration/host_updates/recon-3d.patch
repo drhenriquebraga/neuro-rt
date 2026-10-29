@@ -1,0 +1,1217 @@
+diff --git a/NOTICE b/NOTICE
+new file mode 100644
+index 0000000000000000000000000000000000000000..c9d4972fcd3266d0826507fd69a2e3e4453f4c04
+--- /dev/null
++++ b/NOTICE
+@@ -0,0 +1,7 @@
++Shared projection modules
++
++radai_projection.py and radai_projection_bone.py derive from NIDUS_RT,
++commit 4067bddc3c875af62c6917362661d3d3d1d0036b (29 October 2026).
++Original Apache-2.0 license: licenses/NIDUS_RT_APACHE_2.txt.
++The extraction changes ownership/imports only; the projection geometry,
++incidence convention and segmentation-based bone rules are preserved.
+diff --git a/app/radai_projection.py b/app/radai_projection.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..526fa89450343a827a9142ad3fa23c89053f4bb4
+--- /dev/null
++++ b/app/radai_projection.py
+@@ -0,0 +1,720 @@
++# -*- coding: utf-8 -*-
++# SPDX-License-Identifier: Apache-2.0
++# Extracted from NIDUS_RT (4067bddc), adapted for shared Recon3D/Neuro imports.
++import math
++
++SEM_VOLUME = (
++    u"A interseção é uma construção geométrica a partir do desenho do "
++    u"usuário — não é um volume de tratamento, e este módulo não calcula "
++    u"nem exibe o volume dela em cm³."
++)
++
++LIMITACAO_CLINICA = (
++    u"Reconstrução por projeção a partir de angiotomografia. Não substitui "
++    u"angiografia digital e não mostra dinâmica de fluxo — na angioTC a veia "
++    u"de drenagem e a artéria nutridora têm o mesmo brilho, e é por isso que "
++    u"a definição de nidus por uma difere da definição pela outra."
++)
++
++LIMITACAO_RM = (
++    u"Na RM com gadolínio vale o mesmo: a imagem é estática e artéria e veia "
++    u"realçam as duas. E o sinal da RM não é HU — as janelas são relativas "
++    u"ao sinal da própria série, e o brilho de uma série não se compara com "
++    u"o de outra."
++)
++
++INCIDENCIAS = (
++    (u"AP", 0.0, 0.0),
++    (u"Perfil D", -90.0, 0.0),
++    (u"Perfil E", 90.0, 0.0),
++    (u"Oblíqua ant. D", -45.0, 0.0),
++    (u"Oblíqua ant. E", 45.0, 0.0),
++    (u"Towne", 0.0, 30.0),
++    (u"Caldwell", 0.0, -15.0),
++    (u"Submento-vértex", 0.0, 90.0),
++)
++
++
++def matriz_da_incidencia(lao_rao=0.0, cra_cau=0.0):
++    a, b = math.radians(float(lao_rao)), math.radians(float(cra_cau))
++    ca, sa, cb, sb = math.cos(a), math.sin(a), math.cos(b), math.sin(b)
++    # GUARDA: linhas r, v, u (direita da tela, direção do olhar, alto da tela) do arco em C (DICOM): LAO põe o detector à esquerda, CRA o inclina para a cabeça.
++    return ((ca, sa, 0.0),
++            (-sa * cb, ca * cb, -sb),
++            (-sa * sb, ca * sb, cb))
++
++
++def rotulo_do_angulo(lao_rao=0.0, cra_cau=0.0):
++    a, b = int(round(float(lao_rao))), int(round(float(cra_cau)))
++    partes = []
++    if a:
++        partes.append((u"LAO %d" if a > 0 else u"RAO %d") % abs(a))
++    if b:
++        partes.append((u"CRA %d" if b > 0 else u"CAU %d") % abs(b))
++    return u" / ".join(partes) or u"0 / 0"
++
++
++JS_CONVENCAO = u"""
++function radaiIncidencia(lao, cra){
++ var a=(+lao||0)*Math.PI/180, b=(+cra||0)*Math.PI/180;
++ var ca=Math.cos(a), sa=Math.sin(a), cb=Math.cos(b), sb=Math.sin(b);
++ return {r:[ca, sa, 0], v:[-sa*cb, ca*cb, -sb], u:[-sa*sb, ca*sb, cb],
++         d:[sa*cb, -ca*cb, sb]};
++}
++"""
++
++JANELAS = {
++    "angio": (300.0, 700.0),
++    "vaso_fino": (200.0, 400.0),
++    "osso": (400.0, 1800.0),
++    "parenquima": (40.0, 80.0),
++}
++
++JANELAS_RELATIVAS = {
++    "angio": (90.0, 99.9),
++    "vaso_fino": (99.0, 99.95),
++    "parenquima": (1.0, 99.0),
++    "ampla": (0.0, 99.99),
++}
++_PERCENTIS = tuple(sorted(set(p for par in JANELAS_RELATIVAS.values()
++                              for p in par)))
++
++
++def estatistica(img):
++    import numpy as np
++    import SimpleITK as sitk
++    a = sitk.GetArrayViewFromImage(img)[::2, ::3, ::3]
++    v = np.percentile(np.asarray(a, dtype=np.float32), _PERCENTIS)
++    return dict(zip(_PERCENTIS, (float(x) for x in v)))
++
++
++def tem_hu(modalidade=None, minimo=None):
++    if modalidade:
++        return str(modalidade).strip().upper() == "CT"
++    return minimo is None or float(minimo) < -500.0
++
++
++def escala_de(img, modalidade=None):
++    import SimpleITK as sitk
++    f = sitk.MinimumMaximumImageFilter()
++    f.Execute(img)
++    lo, hi = float(f.GetMinimum()), float(f.GetMaximum())
++    e = {"hu": tem_hu(modalidade, lo), "min": lo, "max": hi}
++    if not e["hu"]:
++        e["percentis"] = estatistica(img)
++    return e
++
++
++def janela_de(nome, escala=None):
++    if not escala or escala.get("hu", True) or not escala.get("percentis"):
++        return JANELAS.get(nome, JANELAS["angio"])
++    p = escala["percentis"]
++    par = JANELAS_RELATIVAS.get(
++        "ampla" if nome == "osso" else nome, JANELAS_RELATIVAS["angio"])
++    lo, hi = float(p[par[0]]), float(p[par[1]])
++    if hi <= lo:
++        hi = lo + 1.0
++    return ((lo + hi) / 2.0, hi - lo)
++
++LADO_PADRAO = 512
++
++LADO_ALTA = 1024
++
++FUNDO_MAXIMO = 384
++
++
++class SerieRecusada(ValueError):
++    pass
++
++
++RECUSA_COR = (
++    u"A série é uma imagem colorida (%d componentes por pixel) — captura de "
++    u"tela ou reconstrução exportada —, e não os cortes da angioTC ou da RM: "
++    u"escolha a série de cortes.")
++
++RECUSA_DIMENSAO = (
++    u"O volume desta série não é 3D (dimensão %d): ela não é uma pilha de "
++    u"cortes, e não dá projeção. Escolha a série de cortes.")
++
++RECUSA_POUCOS_CORTES = (
++    u"A série tem %d corte(s): não há volume para projetar.")
++
++
++def conferir_serie(img):
++    import SimpleITK as sitk
++    comp = int(img.GetNumberOfComponentsPerPixel())
++    if comp != 1:
++        raise SerieRecusada(RECUSA_COR % comp)
++    if u"vector" in str(img.GetPixelIDTypeAsString()).lower():
++        img = sitk.VectorIndexSelectionCast(img, 0)
++    dim = int(img.GetDimension())
++    if dim != 3:
++        raise SerieRecusada(RECUSA_DIMENSAO % dim)
++    if min(int(s) for s in img.GetSize()) < 2:
++        raise SerieRecusada(RECUSA_POUCOS_CORTES % min(img.GetSize()))
++    return img
++
++def lado_para_o_exame(img, teto=LADO_ALTA):
++    import math as _m
++    try:
++        ext = [s * e for s, e in zip(img.GetSize(), img.GetSpacing())]
++        diag = _m.sqrt(sum(x * x for x in ext))
++        fino = min(float(e) for e in img.GetSpacing())
++        ideal = int(round(diag / max(fino, 1e-6)))
++        for cand in (256, 512, 768, LADO_ALTA):
++            if cand >= ideal:
++                return cand
++        return teto
++    except Exception:
++        return LADO_PADRAO
++
++
++def centro_da_grade(img):
++    return tuple(float(x) for x in img.TransformContinuousIndexToPhysicalPoint(
++        [(s - 1) / 2.0 for s in img.GetSize()]))
++
++
++def _transformada(img, lao_rao, cra_cau):
++    import SimpleITK as sitk
++    t = sitk.AffineTransform(3)
++    t.SetMatrix([x for linha in matriz_da_incidencia(lao_rao, cra_cau)
++                 for x in linha])
++    t.SetCenter(centro_da_grade(img))
++    return t
++
++
++def eixos_da_incidencia(lao_rao=0.0, cra_cau=0.0):
++    r, v, u = matriz_da_incidencia(lao_rao, cra_cau)
++    fora = {}
++    for nome, k in ((u"L", 0), (u"P", 1), (u"S", 2)):
++        # GUARDA: mesma matriz de `projetar`; coluna = r, linha = -u (crânio em cima), profundidade = v.
++        fora[nome] = (round(r[k], 4), round(-u[k], 4), round(v[k], 4))
++    return fora
++
++
++def caixa_de_texto(texto):
++    try:
++        v = [min(1.0, max(0.0, float(x))) for x in str(texto or u"").split(u",")]
++    except (TypeError, ValueError):
++        return None
++    if len(v) != 6:
++        return None
++    pares = [tuple(sorted(v[i:i + 2])) for i in (0, 2, 4)]
++    if any(b - a <= 0.0 for a, b in pares):
++        return None
++    if all(a <= 0.0 and b >= 1.0 for a, b in pares):
++        return None
++    return tuple(round(x, 4) for par in pares for x in par)
++
++
++def _medidas_da_grade(img, lado, fundo=None):
++    extensao = [s * e for s, e in zip(img.GetSize(), img.GetSpacing())]
++    diag = math.sqrt(sum(x * x for x in extensao))
++    passo = diag / float(lado)
++    fundo = int(fundo or min(lado, FUNDO_MAXIMO))
++    passo_fundo = diag / float(fundo)
++    return diag, passo, passo_fundo, fundo
++
++
++def _grade(img, lado, fundo=None):
++    import SimpleITK as sitk
++    diag, passo, passo_fundo, fundo = _medidas_da_grade(img, lado, fundo)
++    ref = sitk.Image([lado, fundo, lado], sitk.sitkFloat32)
++    ref.SetSpacing((passo, passo_fundo, passo))
++    return ref, diag, passo, passo_fundo
++
++
++def projetar(img, lao_rao=0.0, cra_cau=0.0, modo="mip", janela="angio",
++             lado=LADO_PADRAO, laje_mm=None, fundo=None, escala=None,
++             amostra=None):
++    import numpy as np
++    import SimpleITK as sitk
++
++    if escala is None:
++        escala = escala_de(img)
++    t = _transformada(img, lao_rao, cra_cau)
++    ref, diag, passo, passo_fundo = _grade(img, lado, fundo)
++    c = t.GetCenter()
++    ref.SetOrigin((c[0] - diag / 2.0, c[1] - diag / 2.0, c[2] - diag / 2.0))
++    fora = float(escala["min"] if modo == "mip" else escala["max"])
++    r = sitk.Resample(img if amostra is None else amostra, ref, t.GetInverse(),
++                      sitk.sitkLinear, fora)
++    a = sitk.GetArrayViewFromImage(r)
++
++    if laje_mm:
++        espessura = max(1, int(round(float(laje_mm) / passo_fundo)))
++        meio = a.shape[1] // 2
++        i0 = max(0, meio - espessura // 2)
++        a = a[:, i0:i0 + espessura, :]
++    plano = a.max(axis=1) if modo == "mip" else a.min(axis=1)
++    plano = np.ascontiguousarray(plano[::-1])
++
++    centro, largura = janela_de(janela, escala)
++    return plano, {"lao_rao": lao_rao, "cra_cau": cra_cau, "modo": modo,
++                   "janela": janela, "centro": centro, "largura": largura,
++                   "passo_mm": passo, "lado": lado,
++                   "passo_fundo_mm": passo_fundo,
++                   "fundo": int(ref.GetSize()[1]),
++                   "hu": bool(escala.get("hu", True))}
++
++
++def tubo(img, poligono, lao_rao=0.0, cra_cau=0.0, lado=LADO_PADRAO,
++         fundo=None):
++    import numpy as np
++    import SimpleITK as sitk
++
++    t = _transformada(img, lao_rao, cra_cau)
++    diag, passo, _pf, _f = _medidas_da_grade(img, lado)
++    c = t.GetCenter()
++
++    plano = _mascara_poligono(poligono, lado)[::-1]
++    extrudado = np.ascontiguousarray(np.broadcast_to(
++        plano.astype(np.uint8)[:, None, :], (lado, 2, lado)))
++    m = sitk.GetImageFromArray(extrudado)
++    m.SetSpacing((passo, diag, passo))
++    m.SetOrigin((c[0] - diag / 2.0, c[1] - diag / 2.0, c[2] - diag / 2.0))
++
++    voltou = sitk.Resample(m, img, t, sitk.sitkNearestNeighbor, 0)
++    return sitk.GetArrayFromImage(voltou).view(np.bool_)
++
++
++def _mascara_poligono(poligono, lado, largura=None):
++    import numpy as np
++    alt, larg = int(lado), int(lado if largura is None else largura)
++    m = np.zeros((alt, larg), dtype=bool)
++    pts = [(float(x), float(y)) for x, y in (poligono or ())]
++    if len(pts) < 3:
++        return m
++    xs_p = [p[0] for p in pts]
++    ys_p = [p[1] for p in pts]
++    c0 = max(0, int(math.floor(min(xs_p) - 0.5)))
++    c1 = min(larg, int(math.ceil(max(xs_p) - 0.5)) + 1)
++    l0 = max(0, int(math.floor(min(ys_p) - 0.5)))
++    l1 = min(alt, int(math.ceil(max(ys_p) - 0.5)) + 1)
++    if c1 <= c0 or l1 <= l0:
++        return m
++    p = np.asarray(pts, dtype=np.float64)
++    ax, ay = p[:, 0], p[:, 1]
++    bx, by = np.roll(ax, -1), np.roll(ay, -1)
++    ok = ay != by
++    ax, ay, bx, by = ax[ok], ay[ok], bx[ok], by[ok]
++    xs = np.arange(c0, c1, dtype=np.float64) + 0.5
++    yc = np.arange(l0, l1, dtype=np.float64)[:, None] + 0.5
++    cruza = (ay[None, :] > yc) != (by[None, :] > yc)
++    linha, aresta = np.nonzero(cruza)
++    if not linha.size:
++        return m
++    yy = yc[linha, 0]
++    # GUARDA: mesma conta de antes; o pixel conta a aresta que cruza à direita do centro dele.
++    xint = ((bx[aresta] - ax[aresta]) * (yy - ay[aresta])
++            / (by[aresta] - ay[aresta]) + ax[aresta])
++    k = np.searchsorted(xs, xint, side="left")
++    h = np.zeros((l1 - l0, c1 - c0 + 1), dtype=np.int32)
++    np.add.at(h, (linha, k), 1)
++    direita = h[:, ::-1].cumsum(axis=1)[:, ::-1][:, 1:]
++    m[l0:l1, c0:c1] = (direita % 2) == 1
++    return m
++
++
++OSSO_DILATACAO_VOXELS = 1
++
++
++def dilatar(m, voltas=1):
++    import numpy as np
++    m = np.asarray(m, dtype=bool)
++    for _ in range(int(voltas)):
++        d = m.copy()
++        d[1:] |= m[:-1]
++        d[:-1] |= m[1:]
++        d[:, 1:] |= m[:, :-1]
++        d[:, :-1] |= m[:, 1:]
++        d[:, :, 1:] |= m[:, :, :-1]
++        d[:, :, :-1] |= m[:, :, 1:]
++        m = d
++    return m
++
++
++def mascara_dos_cortes(cortes, forma, destino=None):
++    import numpy as np
++    forma = tuple(int(s) for s in forma)
++    m = np.zeros(forma, dtype=bool) if destino is None else destino
++    for z, polis in (cortes or {}).items():
++        z = int(z)
++        if not 0 <= z < forma[0]:
++            continue
++        plano = np.zeros(forma[1:], dtype=bool)
++        for p in polis or ():
++            # GUARDA: paridade entre os contornos do corte; o furo (por XOR ou por fenda) fica furo.
++            plano ^= _mascara_poligono([(float(x), float(y)) for x, y in p],
++                                       forma[1], forma[2])
++        m[z] |= plano
++    return m
++
++
++def sem_osso(img, osso, valor):
++    import numpy as np
++    import SimpleITK as sitk
++    a = sitk.GetArrayFromImage(img)
++    m = dilatar(osso, OSSO_DILATACAO_VOXELS)
++    if m.shape != a.shape:
++        raise ValueError(u"a máscara do osso não tem a forma desta série")
++    a[m] = np.asarray(valor).astype(a.dtype)
++    out = sitk.GetImageFromArray(a)
++    out.CopyInformation(img)
++    return out
++
++
++def eixos_lps(img):
++    import itertools as _it
++    d = [float(x) for x in img.GetDirection()]
++    col = [(d[0 + n], d[3 + n], d[6 + n]) for n in range(3)]
++    melhor, alvo = None, -1.0
++    for p in _it.permutations(range(3)):
++        s = sum(abs(col[p[f]][f]) for f in range(3))
++        if s > alvo:
++            melhor, alvo = p, s
++    esp = img.GetSpacing()
++    perm, inverter, mm = [], [], []
++    for a in range(3):
++        f = 2 - a
++        n = melhor[f]
++        perm.append(2 - n)
++        inverter.append(col[n][f] < 0)
++        mm.append(float(esp[n]))
++    return tuple(perm), tuple(inverter), tuple(mm)
++
++
++def para_lps(a, eixos):
++    import numpy as np
++    perm, inverter = eixos[0], eixos[1]
++    if np.ndim(a) != len(perm):
++        raise SerieRecusada(RECUSA_DIMENSAO % np.ndim(a))
++    v = np.transpose(a, perm)
++    fatia = tuple(slice(None, None, -1) if inv else slice(None)
++                  for inv in inverter)
++    return v[fatia]
++
++
++def corte(v, eixo, indice):
++    if isinstance(v, Compacto):
++        f = v.fatia(eixo, indice)
++        return f if eixo == 0 else f[::-1]
++    if eixo == 0:
++        return v[indice, :, :]
++    if eixo == 1:
++        return v[::-1, indice, :]
++    return v[::-1, :, indice]
++
++
++def mm_do_corte(mm_zyx, eixo):
++    z, y, x = (float(e) for e in mm_zyx)
++    return {0: (y, x), 1: (z, x), 2: (z, y)}[int(eixo)]
++
++
++from radai_recon3d import (TETO_DA_TELA, grade_da_tela,
++                           para_a_tela)
++
++
++def escalar(segmentos, fator_lin, fator_col):
++    return [((round(c0 * fator_col, 2), round(l0 * fator_lin, 2)),
++             (round(c1 * fator_col, 2), round(l1 * fator_lin, 2)))
++            for (c0, l0), (c1, l1) in segmentos]
++
++
++class Compacto(object):
++
++    __slots__ = ("bits", "shape")
++
++    def __init__(self, bits, shape):
++        self.bits = bits
++        self.shape = tuple(int(s) for s in shape)
++
++    def fatia(self, eixo, indice):
++        import numpy as np
++        nx = self.shape[2]
++        if eixo == 0:
++            return np.unpackbits(self.bits[indice], axis=-1,
++                                 count=nx).astype(bool)
++        if eixo == 1:
++            return np.unpackbits(self.bits[:, indice, :], axis=-1,
++                                 count=nx).astype(bool)
++        byte, bit = divmod(int(indice), 8)
++        return ((self.bits[:, :, byte] >> (7 - bit)) & 1).astype(bool)
++
++    def any(self):
++        return bool(self.bits.any())
++
++
++def compactar(m):
++    import numpy as np
++    a = np.ascontiguousarray(np.asarray(m, dtype=bool))
++    return Compacto(np.packbits(a, axis=-1), a.shape)
++
++
++def intersecao(*tubos):
++    import numpy as np
++    if len(tubos) == 1 and isinstance(tubos[0], (list, tuple)):
++        tubos = tuple(tubos[0])
++    tubos = [t for t in tubos if t is not None]
++    if not tubos:
++        return None
++    if all(isinstance(t, Compacto) for t in tubos):
++        b = tubos[0].bits.copy()
++        for t in tubos[1:]:
++            np.bitwise_and(b, t.bits, out=b)
++        return Compacto(b, tubos[0].shape)
++    r = np.asarray(tubos[0], dtype=bool)
++    for t in tubos[1:]:
++        r = np.logical_and(r, np.asarray(t, dtype=bool))
++    return r
++
++
++def contorno_do_tubo(mascara, eixo, indice):
++    import numpy as np
++    plano = np.asarray(corte(mascara, eixo, indice), dtype=bool)
++    if not plano.any():
++        return []
++    segs = []
++    alt, larg = plano.shape
++    for l in range(alt):
++        linha = plano[l]
++        muda = np.flatnonzero(np.diff(linha.astype(np.int8)))
++        for c in muda:
++            segs.append(((int(c) + 1, l), (int(c) + 1, l + 1)))
++    for c in range(larg):
++        col = plano[:, c]
++        muda = np.flatnonzero(np.diff(col.astype(np.int8)))
++        for l in muda:
++            segs.append(((c, int(l) + 1), (c + 1, int(l) + 1)))
++    return segs
++
++
++class Serie(object):
++
++    def __init__(self, img, modalidade=None):
++        import SimpleITK as sitk
++        img = conferir_serie(img)
++        self.img = img
++        self.modalidade = str(modalidade or u"")
++        self.eixos = eixos_lps(img)
++        self.v = para_lps(sitk.GetArrayViewFromImage(img), self.eixos)
++        self.mm = self.eixos[2]
++        self.escala = escala_de(img, modalidade)
++        self.lado_util = lado_para_o_exame(img)
++        self._recorte = (None, None)
++        self.osso = None
++        self._sem_osso = None
++
++    @property
++    def forma_do_array(self):
++        return tuple(int(s) for s in reversed(self.img.GetSize()))
++
++    def tirar_osso(self, mascara, info=None):
++        import numpy as np
++        m = np.asarray(mascara, dtype=bool)
++        if m.shape != self.forma_do_array:
++            raise ValueError(u"a máscara do osso não tem a forma desta série")
++        self._recorte = (None, None)
++        if not m.any():
++            self.osso, self._sem_osso, self._osso_bits = None, None, None
++            return False
++        self._sem_osso = sem_osso(self.img, m, self.escala["min"])
++        self._osso_bits = np.packbits(m, axis=-1)
++        self.osso = dict(info or {}, voxels=int(m.sum()))
++        return True
++
++    def mascara_do_osso_em(self, ini, ext):
++        import numpy as np
++        bits = getattr(self, "_osso_bits", None)
++        if bits is None:
++            return None
++        x0, y0, z0 = (int(v) for v in ini)
++        nx, ny, nz = (int(v) for v in ext)
++        b = bits[z0:z0 + nz, y0:y0 + ny]
++        m = np.unpackbits(b, axis=-1, count=self.forma_do_array[2])
++        return m[:, :, x0:x0 + nx].astype(bool)
++
++    def indices_da_caixa(self, caixa, margem_mm=0.0):
++        perm, inverter = self.eixos[0], self.eixos[1]
++        tam = list(self.img.GetSize())
++        esp = self.img.GetSpacing()
++        ini, ext = [0, 0, 0], list(tam)
++        for eixo in range(3):
++            # GUARDA: eixo da vista -> eixo do array (`perm`) -> dimensão do sitk (2 - eixo do array).
++            dim = 2 - perm[eixo]
++            n = tam[dim]
++            i0 = max(0, int(math.floor(caixa[2 * eixo] * n)))
++            i1 = min(n, int(math.ceil(caixa[2 * eixo + 1] * n)))
++            if inverter[eixo]:
++                i0, i1 = n - i1, n - i0
++            if margem_mm:
++                folga = int(math.ceil(float(margem_mm) / max(float(esp[dim]), 1e-6)))
++                i0, i1 = max(0, i0 - folga), min(n, i1 + folga)
++            ini[dim], ext[dim] = i0, max(1, i1 - i0)
++        return ini, ext
++
++    def base(self, modo="mip", osso=False):
++        # GUARDA: o osso só sai no MIP; no MinIP o valor que o apaga viraria buraco escuro.
++        if osso and modo == "mip" and self._sem_osso is not None:
++            return self._sem_osso
++        return self.img
++
++    def img_na_caixa(self, caixa, modo="mip", osso=False):
++        import SimpleITK as sitk
++        base = self.base(modo, osso)
++        if caixa is None:
++            return base
++        chave = (tuple(caixa), base is not self.img)
++        if self._recorte[0] == chave:
++            return self._recorte[1]
++        self._recorte = (None, None)
++        ini, ext = self.indices_da_caixa(caixa)
++        out = sitk.RegionOfInterest(base, ext, ini)
++        self._recorte = (chave, out)
++        return out
++
++    @property
++    def forma(self):
++        return tuple(int(s) for s in self.v.shape)
++
++    def passos(self, lados):
++        return {str(l): round(float(_medidas_da_grade(self.img, l)[1]), 3)
++                for l in lados}
++
++    def tubo(self, poligono, lao_rao, cra_cau, lado):
++        return compactar(para_lps(
++            tubo(self.img, poligono, lao_rao, cra_cau, lado=lado),
++            self.eixos))
++
++
++def abrir(img, modalidade=None):
++    return Serie(img, modalidade)
++
++
++def matriz_para_caixa(img, eixos):
++    import numpy as np
++    perm, inverter = eixos[0], eixos[1]
++    D = np.asarray(img.GetDirection(), dtype=np.float64).reshape(3, 3)
++    O = np.asarray(img.GetOrigin(), dtype=np.float64)
++    esp, tam = img.GetSpacing(), img.GetSize()
++    A = np.eye(4)
++    for eixo in range(3):
++        n = 2 - perm[eixo]
++        # GUARDA: fração do centro do voxel, (i + 0,5) / N, a mesma conta de `indices_da_caixa`.
++        lin = D[:, n] / (float(esp[n]) * float(tam[n]))
++        b = -lin.dot(O) + 0.5 / float(tam[n])
++        if inverter[eixo]:
++            lin, b = -lin, 1.0 - b
++        A[eixo, :3], A[eixo, 3] = lin, b
++    return A
++
++
++def geometria_da_serie(serie):
++    import numpy as np
++    A = matriz_para_caixa(serie.img, serie.eixos)
++    diag = _medidas_da_grade(serie.img, LADO_ALTA)[0]
++    return {"para_caixa": [round(float(x), 12) for x in A.ravel()],
++            "da_caixa": [round(float(x), 12) for x in np.linalg.inv(A).ravel()],
++            "centro": [round(float(x), 6) for x in centro_da_grade(serie.img)],
++            "diag": round(float(diag), 6)}
++
++
++def pegada_da_caixa(serie, caixa, lao_rao, cra_cau, lado):
++    import numpy as np
++    g = geometria_da_serie(serie)
++    Q = np.asarray(g["da_caixa"], dtype=np.float64).reshape(4, 4)
++    c = np.asarray(g["centro"], dtype=np.float64)
++    r, _v, u = (np.asarray(x) for x in matriz_da_incidencia(lao_rao, cra_cau))
++    passo = float(g["diag"]) / float(lado)
++    fora = []
++    for i in range(8):
++        f = (caixa[1 if i & 1 else 0], caixa[3 if i & 2 else 2],
++             caixa[5 if i & 4 else 4], 1.0)
++        p = Q.dot(f)[:3] - c
++        fora.append((float((p.dot(r) + g["diag"] / 2.0) / passo + 0.5),
++                     float(lado - 0.5 - (p.dot(u) + g["diag"] / 2.0) / passo)))
++    return fora
++
++
++TETOS_DA_MALHA = ((u"vaso", 50000), (u"osso", 20000), (u"pele", 10000))
++
++QUAIS_DA_MALHA = tuple(q for q, _t in TETOS_DA_MALHA)
++
++PASSOS_DO_VASO_MM = (0.5, 0.75, 1.0)
++
++MARGEM_DA_MALHA_MM = 4.0
++
++LIMIAR_VASO_HU = 180.0
++
++SEM_CAIXA_PARA_O_3D = (
++    u"ligue a caixa de recorte e aperte-a em volta do ninho para ver o 3D do "
++    u"que fica dentro dela")
++
++OSSO_NAO_SEPARADO = (
++    u"osso não separado: sem a segmentação, o vaso por limiar leva o osso junto")
++
++VASO_DEMAIS = (
++    u"vaso demais nesta caixa para o 3D sem perder o ramo fino: aperte a caixa "
++    u"em volta do ninho")
++
++RM_SEM_PELE = u"na RM não há pele no 3D: o sinal não é HU"
++
++
++class MalhaRecusada(ValueError):
++    pass
++
++
++def limiar_do_vaso(escala):
++    if not escala or escala.get("hu", True) or not escala.get("percentis"):
++        return LIMIAR_VASO_HU
++    return janela_de("angio", escala)[0]
++
++
++def malha_da_caixa(serie, caixa, qual):
++    import numpy as np
++    import SimpleITK as sitk
++    import radai_recon3d as R
++    tetos = dict(TETOS_DA_MALHA)
++    if qual not in tetos:
++        raise KeyError(qual)
++    if caixa is None:
++        raise MalhaRecusada(SEM_CAIXA_PARA_O_3D)
++    ini, ext = serie.indices_da_caixa(caixa, MARGEM_DA_MALHA_MM)
++    x0, y0, z0 = ini
++    nx, ny, nz = ext
++    a = sitk.GetArrayViewFromImage(serie.img)[z0:z0 + nz, y0:y0 + ny,
++                                              x0:x0 + nx]
++    osso = serie.mascara_do_osso_em(ini, ext)
++    info = {u"qual": qual, u"motivo": u"", u"passo_mm": 0.0, u"triangulos": 0}
++    opcoes = {}
++    m = None
++    if qual == u"vaso":
++        m = np.asarray(a) >= limiar_do_vaso(serie.escala)
++        if osso is None:
++            info[u"motivo"] = OSSO_NAO_SEPARADO
++        else:
++            m &= ~dilatar(osso, OSSO_DILATACAO_VOXELS)
++        # GUARDA: o ramo fino some com passo acima de 1 mm ou com suavização; acima do teto, recusa em vez de engrossar.
++        opcoes = {"passos_mm": PASSOS_DO_VASO_MM, "suavizar_mm": 0.0,
++                  "recusar_acima": True}
++    elif qual == u"osso":
++        if osso is None:
++            info[u"motivo"] = OSSO_NAO_SEPARADO
++        else:
++            m = osso
++    elif serie.escala.get("hu", True):
++        m = np.asarray(a) > R.LIMIAR_PELE_HU
++    else:
++        info[u"motivo"] = RM_SEM_PELE
++    vazio = (np.zeros((0, 3)), np.zeros((0, 3), dtype=np.int64))
++    if m is None or not m.any():
++        return vazio[0], vazio[1], info
++    origem = serie.img.TransformIndexToPhysicalPoint([int(v) for v in ini])
++    esp_zyx = tuple(float(e) for e in reversed(serie.img.GetSpacing()))
++    lps, faces, i2 = R.malha_de_rotulo(m, esp_zyx, origem,
++                                       serie.img.GetDirection(),
++                                       teto_triangulos=tetos[qual], **opcoes)
++    if i2.get(u"excedeu"):
++        raise MalhaRecusada(VASO_DEMAIS)
++    info.update(i2)
++    return lps, faces, info
+diff --git a/app/radai_projection_bone.py b/app/radai_projection_bone.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..683b325c72fb49964d21d37932acbaed67974474
+--- /dev/null
++++ b/app/radai_projection_bone.py
+@@ -0,0 +1,95 @@
++# -*- coding: utf-8 -*-
++# SPDX-License-Identifier: Apache-2.0
++# Extracted from NIDUS_RT (4067bddc), adapted for shared Recon3D/Neuro imports.
++import os
++
++SEM_SEGMENTACAO = (
++    u"esta série ainda não tem segmentação do ContourLab: o osso continua "
++    u"na projeção")
++
++SEM_UID = (
++    u"sem o UID da série não dá para achar a segmentação dela: o osso "
++    u"continua na projeção")
++
++SEM_OSSO_NA_ENTREGA = (
++    u"a entrega desta série não tem osso que sirva para a projeção: o osso "
++    u"continua na projeção")
++
++ORDEM_DO_OSSO = (((u"full", u"oar"), True), ((u"fast",), False))
++
++_PALAVRAS_DE_VASO = (u"arter", u"vein", u"vena", u"vessel", u"carotid",
++                     u"aorta", u"jugular", u"sinus")
++
++
++def e_osso(nome):
++    import engine
++    n = str(nome or u"").lower()
++    # GUARDA: vaso nunca sai da projeção, ainda que o nome traga palavra de osso (A_Vertebral).
++    if n.startswith((u"a_", u"v_")) or any(p in n for p in _PALAVRAS_DE_VASO):
++        return False
++    return engine.familia_de(n) == "osso"
++
++
++def _pastas_da_serie(pasta, uid):
++    fora, vistos = [], set()
++
++    def por(p):
++        if not p:
++            return
++        k = os.path.normcase(os.path.abspath(p))
++        if k in vistos or not os.path.isdir(p):
++            return
++        vistos.add(k)
++        fora.append(p)
++    por(pasta)
++    if uid:
++        try:
++            import radai_archive
++            for reg in radai_archive.ler_acervo():
++                if str(reg.get("uid") or u"") == str(uid):
++                    por(radai_archive.resolver_pasta(reg.get("pasta") or u""))
++        except Exception:
++            pass
++    return fora
++
++
++def _entrega_da_serie(pastas, uid):
++    try:
++        import radai_sets
++        import radai_viewseg as V
++    except Exception:
++        return u""
++    for p in pastas:
++        try:
++            nomes = os.listdir(p)
++        except Exception:
++            continue
++        for n in sorted(radai_sets.arquivos_da_serie(nomes, uid)):
++            r = V.rotulo_do_arquivo(n)
++            if r.get("entregue"):
++                return str(r.get("curto") or u"")
++    return u""
++
++
++def osso_da_segmentacao(serie, pasta, uid):
++    import radai_viewseg as V
++    uid = str(uid or u"")
++    if not uid:
++        return None, {"tem": False, "motivo": SEM_UID}
++    forma = tuple(serie.forma_do_array)
++    pastas = _pastas_da_serie(pasta, uid)
++    for p in pastas:
++        # GUARDA: FULL e OAR têm o osso exato; o OAR_Fast (contorno reduzido) só entra sem eles e sem o mapa.
++        for conjuntos, com_mapa in ORDEM_DO_OSSO:
++            m, info = V.mascaras_da_serie(p, uid, serie.img, aceita=e_osso,
++                                          conjuntos=conjuntos,
++                                          com_mapa=com_mapa)
++            if m is None or tuple(m.shape) != forma:
++                continue
++            return m, {"tem": True, "fonte": info.get("fonte") or u"",
++                       "estruturas": int(info.get("estruturas") or 0)}
++    entrega = _entrega_da_serie(pastas, uid)
++    if entrega:
++        return None, {"tem": False, "motivo": SEM_OSSO_NA_ENTREGA,
++                      "entrega": entrega}
++    return None, {"tem": False, "motivo": SEM_SEGMENTACAO}
+diff --git a/app/radai_recon3d_screen.py b/app/radai_recon3d_screen.py
+index eac012fcde32b50a68bc3e8a4dab629036c04cdc..6f446f4b6f1cf11a2dc2edfeb5fd004784fc4361 100644
+--- a/app/radai_recon3d_screen.py
++++ b/app/radai_recon3d_screen.py
+@@ -2173,15 +2173,15 @@ _VISTAS = ((u"ant", u"anterior", u"A"), (u"post", u"posterior", u"P"),
+ 
+ 
+ def _html_incidencias_3d():
+-    import radai_nidus
++    import radai_projection
+     import radai_ui
+     bts = u"".join(
+         u'<button type="button" class="r3-inc" data-lao="%d" data-cra="%d" '
+         u'aria-pressed="false" onclick="r3IncAplicar(%d,%d,true)">'
+         u'<span>%s</span><small translate="no">%s</small>'
+         u'</button>' % (int(lao), int(cra), int(lao), int(cra), nome,
+-                        radai_nidus.rotulo_do_angulo(lao, cra))
+-        for nome, lao, cra in radai_nidus.INCIDENCIAS)
++                        radai_projection.rotulo_do_angulo(lao, cra))
++        for nome, lao, cra in radai_projection.INCIDENCIAS)
+     return (u'<div class="r3-inc3d" id="r3_inc3d">'
+             u'<button type="button" class="ui-bt r3-atraves" id="r3_atraves" '
+             u'aria-pressed="false" onclick="r3Atraves()" '
+@@ -2327,8 +2327,8 @@ def pagina(ferramenta="geral"):
+                            + _html_miniaturas(), ident=u"r3_p2")
+     corpo = (_html_cabeca(fer, AJUDA_DA_TELA[fer]) + _html_passo_serie()
+              + palco + radai_ui.alerta(ALERTA_DA_TELA))
+-    import radai_nidus
+-    js = (radai_viewer.JS_3D + radai_nidus.JS_CONVENCAO + JS_MALHA + JS_GRAVAR
++    import radai_projection
++    js = (radai_viewer.JS_3D + radai_projection.JS_CONVENCAO + JS_MALHA + JS_GRAVAR
+           + JS_SERIE
+           + (JS_DESENHO if fer == "toracica" else u""))
+     return (u'<!doctype html><html><head><meta charset="utf-8">'
+diff --git a/app/radai_recon3d_vascular.py b/app/radai_recon3d_vascular.py
+index 16e523e00aed68ba40de1452347a6e0855b5ebec..c88558529a64a4d4925ebab29988960cea9a2b14 100644
+--- a/app/radai_recon3d_vascular.py
++++ b/app/radai_recon3d_vascular.py
+@@ -76,7 +76,7 @@ def serie(b):
+             return _ABERTA["serie"]
+         _ABERTA.update({"chave": None, "serie": None})
+         import engine
+-        import radai_nidus as N
++        import radai_projection as N
+         img = engine.load_sitk(pasta, uid or None)
+         mod = u""
+         try:
+@@ -95,7 +95,7 @@ def serie(b):
+ def ler_osso(s, pasta, uid, bilhete=u""):
+     s.osso_fonte = u""
+     try:
+-        import radai_nidus_screen as NS
++        import radai_projection_bone as NS
+         m, info = NS.osso_da_segmentacao(s, pasta, uid)
+         if m is not None and s.tirar_osso(m, info):
+             s.osso_fonte = str((info or {}).get("fonte") or u"")
+@@ -150,7 +150,7 @@ def volume_da_projecao(s, com_osso=False, modo="mip"):
+ 
+ def projecao_png(b, lao=0.0, cra=0.0, modo="mip", janela="angio", lado=512,
+                  laje=0.0, inverter=False, com_osso=False):
+-    import radai_nidus as N
++    import radai_projection as N
+     import radai_recon3d as R
+     s = serie(b)
+     if s is None:
+@@ -170,7 +170,7 @@ def projecao_png(b, lao=0.0, cra=0.0, modo="mip", janela="angio", lado=512,
+ 
+ 
+ def _ajuda():
+-    import radai_nidus as N
++    import radai_projection as N
+     return (u"A angiografia sintética projeta a própria imagem e não precisa "
+             u"de segmentação; quando a série tem a do ContourLab, o osso sai "
+             u"por ela.",
+@@ -341,7 +341,7 @@ window.addEventListener('DOMContentLoaded', function(){
+ 
+ 
+ def _html_projecao():
+-    import radai_nidus as N
++    import radai_projection as N
+     inc = u"".join(
+         u'<button type="button" class="jan" data-vx="inc" data-v="%g,%g">'
+         u'<span %s>%s</span></button>'
+@@ -427,7 +427,7 @@ def pagina():
+ 
+ 
+ def resposta_de_falha(e):
+-    import radai_nidus as N
++    import radai_projection as N
+     if isinstance(e, N.SerieRecusada):
+         return 422, {"erro": str(e)}
+     return 500, {"erro": PROJECAO_FALHOU, "tipo": type(e).__name__}
+diff --git a/componente.json b/componente.json
+index ff366efdc1bf7a5247eca1fc7f63eb2f74f1a2d5..175b3b1170f96a8290337ed07049087b2c150e29 100644
+--- a/componente.json
++++ b/componente.json
+@@ -9,7 +9,9 @@
+     "radai_recon3d_desenho.py",
+     "radai_recon3d_gl.py",
+     "radai_recon3d_screen.py",
+-    "radai_recon3d_vascular.py"
++    "radai_recon3d_vascular.py",
++    "radai_projection.py",
++    "radai_projection_bone.py"
+   ],
+   "baterias": [
+     "test_recon3d.py",
+diff --git a/licenses/NIDUS_RT_APACHE_2.txt b/licenses/NIDUS_RT_APACHE_2.txt
+new file mode 100644
+index 0000000000000000000000000000000000000000..d645695673349e3947e8e5ae42332d0ac3164cd7
+--- /dev/null
++++ b/licenses/NIDUS_RT_APACHE_2.txt
+@@ -0,0 +1,202 @@
++
++                                 Apache License
++                           Version 2.0, January 2004
++                        http://www.apache.org/licenses/
++
++   TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
++
++   1. Definitions.
++
++      "License" shall mean the terms and conditions for use, reproduction,
++      and distribution as defined by Sections 1 through 9 of this document.
++
++      "Licensor" shall mean the copyright owner or entity authorized by
++      the copyright owner that is granting the License.
++
++      "Legal Entity" shall mean the union of the acting entity and all
++      other entities that control, are controlled by, or are under common
++      control with that entity. For the purposes of this definition,
++      "control" means (i) the power, direct or indirect, to cause the
++      direction or management of such entity, whether by contract or
++      otherwise, or (ii) ownership of fifty percent (50%) or more of the
++      outstanding shares, or (iii) beneficial ownership of such entity.
++
++      "You" (or "Your") shall mean an individual or Legal Entity
++      exercising permissions granted by this License.
++
++      "Source" form shall mean the preferred form for making modifications,
++      including but not limited to software source code, documentation
++      source, and configuration files.
++
++      "Object" form shall mean any form resulting from mechanical
++      transformation or translation of a Source form, including but
++      not limited to compiled object code, generated documentation,
++      and conversions to other media types.
++
++      "Work" shall mean the work of authorship, whether in Source or
++      Object form, made available under the License, as indicated by a
++      copyright notice that is included in or attached to the work
++      (an example is provided in the Appendix below).
++
++      "Derivative Works" shall mean any work, whether in Source or Object
++      form, that is based on (or derived from) the Work and for which the
++      editorial revisions, annotations, elaborations, or other modifications
++      represent, as a whole, an original work of authorship. For the purposes
++      of this License, Derivative Works shall not include works that remain
++      separable from, or merely link (or bind by name) to the interfaces of,
++      the Work and Derivative Works thereof.
++
++      "Contribution" shall mean any work of authorship, including
++      the original version of the Work and any modifications or additions
++      to that Work or Derivative Works thereof, that is intentionally
++      submitted to Licensor for inclusion in the Work by the copyright owner
++      or by an individual or Legal Entity authorized to submit on behalf of
++      the copyright owner. For the purposes of this definition, "submitted"
++      means any form of electronic, verbal, or written communication sent
++      to the Licensor or its representatives, including but not limited to
++      communication on electronic mailing lists, source code control systems,
++      and issue tracking systems that are managed by, or on behalf of, the
++      Licensor for the purpose of discussing and improving the Work, but
++      excluding communication that is conspicuously marked or otherwise
++      designated in writing by the copyright owner as "Not a Contribution."
++
++      "Contributor" shall mean Licensor and any individual or Legal Entity
++      on behalf of whom a Contribution has been received by Licensor and
++      subsequently incorporated within the Work.
++
++   2. Grant of Copyright License. Subject to the terms and conditions of
++      this License, each Contributor hereby grants to You a perpetual,
++      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
++      copyright license to reproduce, prepare Derivative Works of,
++      publicly display, publicly perform, sublicense, and distribute the
++      Work and such Derivative Works in Source or Object form.
++
++   3. Grant of Patent License. Subject to the terms and conditions of
++      this License, each Contributor hereby grants to You a perpetual,
++      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
++      (except as stated in this section) patent license to make, have made,
++      use, offer to sell, sell, import, and otherwise transfer the Work,
++      where such license applies only to those patent claims licensable
++      by such Contributor that are necessarily infringed by their
++      Contribution(s) alone or by combination of their Contribution(s)
++      with the Work to which such Contribution(s) was submitted. If You
++      institute patent litigation against any entity (including a
++      cross-claim or counterclaim in a lawsuit) alleging that the Work
++      or a Contribution incorporated within the Work constitutes direct
++      or contributory patent infringement, then any patent licenses
++      granted to You under this License for that Work shall terminate
++      as of the date such litigation is filed.
++
++   4. Redistribution. You may reproduce and distribute copies of the
++      Work or Derivative Works thereof in any medium, with or without
++      modifications, and in Source or Object form, provided that You
++      meet the following conditions:
++
++      (a) You must give any other recipients of the Work or
++          Derivative Works a copy of this License; and
++
++      (b) You must cause any modified files to carry prominent notices
++          stating that You changed the files; and
++
++      (c) You must retain, in the Source form of any Derivative Works
++          that You distribute, all copyright, patent, trademark, and
++          attribution notices from the Source form of the Work,
++          excluding those notices that do not pertain to any part of
++          the Derivative Works; and
++
++      (d) If the Work includes a "NOTICE" text file as part of its
++          distribution, then any Derivative Works that You distribute must
++          include a readable copy of the attribution notices contained
++          within such NOTICE file, excluding those notices that do not
++          pertain to any part of the Derivative Works, in at least one
++          of the following places: within a NOTICE text file distributed
++          as part of the Derivative Works; within the Source form or
++          documentation, if provided along with the Derivative Works; or,
++          within a display generated by the Derivative Works, if and
++          wherever such third-party notices normally appear. The contents
++          of the NOTICE file are for informational purposes only and
++          do not modify the License. You may add Your own attribution
++          notices within Derivative Works that You distribute, alongside
++          or as an addendum to the NOTICE text from the Work, provided
++          that such additional attribution notices cannot be construed
++          as modifying the License.
++
++      You may add Your own copyright statement to Your modifications and
++      may provide additional or different license terms and conditions
++      for use, reproduction, or distribution of Your modifications, or
++      for any such Derivative Works as a whole, provided Your use,
++      reproduction, and distribution of the Work otherwise complies with
++      the conditions stated in this License.
++
++   5. Submission of Contributions. Unless You explicitly state otherwise,
++      any Contribution intentionally submitted for inclusion in the Work
++      by You to the Licensor shall be under the terms and conditions of
++      this License, without any additional terms or conditions.
++      Notwithstanding the above, nothing herein shall supersede or modify
++      the terms of any separate license agreement you may have executed
++      with Licensor regarding such Contributions.
++
++   6. Trademarks. This License does not grant permission to use the trade
++      names, trademarks, service marks, or product names of the Licensor,
++      except as required for reasonable and customary use in describing the
++      origin of the Work and reproducing the content of the NOTICE file.
++
++   7. Disclaimer of Warranty. Unless required by applicable law or
++      agreed to in writing, Licensor provides the Work (and each
++      Contributor provides its Contributions) on an "AS IS" BASIS,
++      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
++      implied, including, without limitation, any warranties or conditions
++      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
++      PARTICULAR PURPOSE. You are solely responsible for determining the
++      appropriateness of using or redistributing the Work and assume any
++      risks associated with Your exercise of permissions under this License.
++
++   8. Limitation of Liability. In no event and under no legal theory,
++      whether in tort (including negligence), contract, or otherwise,
++      unless required by applicable law (such as deliberate and grossly
++      negligent acts) or agreed to in writing, shall any Contributor be
++      liable to You for damages, including any direct, indirect, special,
++      incidental, or consequential damages of any character arising as a
++      result of this License or out of the use or inability to use the
++      Work (including but not limited to damages for loss of goodwill,
++      work stoppage, computer failure or malfunction, or any and all
++      other commercial damages or losses), even if such Contributor
++      has been advised of the possibility of such damages.
++
++   9. Accepting Warranty or Additional Liability. While redistributing
++      the Work or Derivative Works thereof, You may choose to offer,
++      and charge a fee for, acceptance of support, warranty, indemnity,
++      or other liability obligations and/or rights consistent with this
++      License. However, in accepting such obligations, You may act only
++      on Your own behalf and on Your sole responsibility, not on behalf
++      of any other Contributor, and only if You agree to indemnify,
++      defend, and hold each Contributor harmless for any liability
++      incurred by, or claims asserted against, such Contributor by reason
++      of your accepting any such warranty or additional liability.
++
++   END OF TERMS AND CONDITIONS
++
++   APPENDIX: How to apply the Apache License to your work.
++
++      To apply the Apache License to your work, attach the following
++      boilerplate notice, with the fields enclosed by brackets "[]"
++      replaced with your own identifying information. (Don't include
++      the brackets!)  The text should be enclosed in the appropriate
++      comment syntax for the file format. We also recommend that a
++      file or class name and description of purpose be included on the
++      same "printed page" as the copyright notice for easier
++      identification within third-party archives.
++
++   Copyright [yyyy] [name of copyright owner]
++
++   Licensed under the Apache License, Version 2.0 (the "License");
++   you may not use this file except in compliance with the License.
++   You may obtain a copy of the License at
++
++       http://www.apache.org/licenses/LICENSE-2.0
++
++   Unless required by applicable law or agreed to in writing, software
++   distributed under the License is distributed on an "AS IS" BASIS,
++   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++   See the License for the specific language governing permissions and
++   limitations under the License.
+diff --git a/tools/test_recon3d.py b/tools/test_recon3d.py
+index a614b24832b6d3d012a5e20cb09a0fa7e2553324..4834c0b3be4fa012615cf863b0ec5f92745be862 100644
+--- a/tools/test_recon3d.py
++++ b/tools/test_recon3d.py
+@@ -2083,16 +2083,13 @@ def teste_o_visor_e_um_so_com_o_nidus():
+     checar("a tela das Reconstrucoes usa o modulo, sem copia do leitor de STL",
+            S.JS_MALHA.startswith(G.JS)
+            and S.JS_MALHA.count("function r3gLerStl(") == 1)
+-    try:
+-        import radai_nidus_screen as NS
+-        checar("o Nidus importa o mesmo modulo", G.JS in NS.pagina())
+-    except Exception as e:
+-        checar("o Nidus importa o mesmo modulo", False, str(e)[:80])
++    checar("o visor base pode ser usado sem importar a tela Nidus",
++           "radai_nidus_screen" not in __import__("sys").modules)
+ 
+ 
+ def teste_o_visor_3d_herda_do_nidus():
+     secao("o visor 3D herda do Nidus: Ver atraves, as barras e as incidencias")
+-    import radai_nidus as N
++    import radai_projection as N
+     import radai_recon3d_screen as S
+     p = S.pagina("geral")
+     checar("o botao «Ver atraves» esta no visor", 'id="r3_atraves"' in p
+@@ -2309,7 +2306,7 @@ def teste_os_planos_saem_na_proporcao_fisica():
+         return
+     import numpy as np
+     import engine
+-    import radai_nidus as N
++    import radai_projection as N
+     import radai_recon3d as R
+     import radai_thumbnail
+     import radai_recon3d_screen as S
+@@ -2486,8 +2483,8 @@ def teste_o_vascular_tira_o_osso_pela_segmentacao():
+     secao("o Vascular tira o osso pela segmentacao do ContourLab, e o limiar so como recuo")
+     import numpy as np
+     import SimpleITK as sitk
+-    import radai_nidus as N
+-    import radai_nidus_screen as NS
++    import radai_projection as N
++    import radai_projection_bone as NS
+     import radai_rotulos
+     import radai_thumbnail
+     import radai_recon3d_vascular as V
+@@ -2581,7 +2578,7 @@ def _osso_no_tecido():
+ def teste_o_vascular_so_tira_o_osso_no_mip():
+     secao("o Vascular tira o osso so no MIP: no MinIP ele viraria buraco escuro")
+     import numpy as np
+-    import radai_nidus as N
++    import radai_projection as N
+     import radai_recon3d_vascular as V
+     img, osso = _osso_no_tecido()
+ 
+@@ -2675,7 +2672,7 @@ def teste_o_vascular_responde_o_motivo():
+     import numpy as np
+     sys.path.insert(0, AQUI)
+     import make_test_series
+-    import radai_nidus as N
++    import radai_projection as N
+     import radai_rotulos
+     import radai_thumbnail
+     import radai_recon3d_vascular as V

@@ -9,6 +9,7 @@ from pathlib import Path
 from .catalog import get_model, validate_model_folder, requires_brain, BRAIN, RELEASE, MODEL_LOCK
 from .contracts import validate_request
 from .imaging import geometry, load_input, validate_mask
+from .model_paths import preflight_model_folders
 
 
 def write_runtime_config(job_dir, model_folder, device, output_name='predictions', brain_mask=None):
@@ -31,14 +32,14 @@ def write_runtime_config(job_dir, model_folder, device, output_name='predictions
     return path
 
 
-def run_job(request, job_dir, models_dir):
+def run_job(request, job_dir, models_dir, *, allow_legacy_models=True):
     import SimpleITK as sitk
     import onnxruntime as ort
     from raidionicsseg.fit import run_model
 
     request = validate_request(request)
     model = get_model(request['model'])
-    folder = Path(models_dir).resolve() / model['id']
+    folder, brain_folder = preflight_model_folders(models_dir, model, allow_legacy=allow_legacy_models)
     classes = validate_model_folder(folder, model)
     if request['device'] == 'auto':
         request['device'] = 'cpu'
@@ -70,9 +71,7 @@ def run_job(request, job_dir, models_dir):
         for i, file in enumerate(source['dicom_files']):
             shutil.copyfile(file, stage / f'{i:06d}.dcm')
     brain_mask = None
-    if requires_brain(folder):
-        brain_folder = Path(models_dir).resolve() / BRAIN['id']
-        validate_model_folder(brain_folder, BRAIN)
+    if brain_folder is not None:
         (job_dir / 'brain_predictions').mkdir()
         print('Gerando máscara cerebral auxiliar oficial.', flush=True)
         brain_cfg = write_runtime_config(job_dir, brain_folder, request['device'], 'brain_predictions')
@@ -119,9 +118,11 @@ def main():
     parser.add_argument('--request', required=True, type=Path)
     parser.add_argument('--job-dir', required=True, type=Path)
     parser.add_argument('--models-dir', required=True, type=Path)
+    parser.add_argument('--installed-models', action='store_true',
+                        help='Exigir models/id/revision; proibir layout flat de desenvolvimento.')
     args = parser.parse_args()
     request = json.loads(args.request.read_text(encoding='utf-8'))
-    run_job(request, args.job_dir, args.models_dir)
+    run_job(request, args.job_dir, args.models_dir, allow_legacy_models=not args.installed_models)
 
 
 if __name__ == '__main__':

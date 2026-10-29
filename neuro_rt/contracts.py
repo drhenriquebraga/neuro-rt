@@ -3,6 +3,7 @@ from collections.abc import Mapping
 from dataclasses import replace
 import json
 import math
+import re
 from pathlib import Path
 
 from .catalog import get_model
@@ -39,6 +40,32 @@ class ContractError(ValueError):
 
 def _fail(code, field, message):
     raise ContractError(code, field, message)
+
+
+_WINDOWS_DEVICE_IDS = frozenset({'CON', 'PRN', 'AUX', 'NUL'} | {
+    f'{kind}{number}' for kind in ('COM', 'LPT') for number in range(1, 10)})
+
+
+def validate_identifier(value, field='identifier'):
+    """One portable ID contract for accepted intents and persisted revisions."""
+    if (not isinstance(value, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,127}', value)
+            or value.endswith(('.', ' ')) or value.split('.')[0].upper() in _WINDOWS_DEVICE_IDS):
+        _fail('invalid_identifier', field, 'Identificador inválido.')
+    return value
+
+
+WORKER_STAGES = frozenset(('preparing', 'running', 'restoring'))
+
+
+def validate_worker_progress(value):
+    """Private IPC has no free-form strings, paths, IDs or diagnostic payloads."""
+    if (not isinstance(value, dict) or set(value) != {'seq', 'stage', 'fraction'}
+            or type(value['seq']) is not int or value['seq'] < 1
+            or not isinstance(value['stage'], str) or value['stage'] not in WORKER_STAGES
+            or type(value['fraction']) not in (int, float)
+            or not math.isfinite(value['fraction']) or not 0 <= value['fraction'] <= 1):
+        _fail('invalid_progress', 'progress', 'Progresso do motor inválido.')
+    return {'seq': value['seq'], 'stage': value['stage'], 'fraction': float(value['fraction'])}
 
 
 def _json_value(value, field):
@@ -174,7 +201,7 @@ def validate_study_request(payload, catalog, series_index) -> StudyRequest:
                       'export_rtstruct'), 'request')
     if payload.get('schema') != 'neuro-rt/request/2':
         _fail('unsupported_schema', 'schema', 'Versão do contrato de pedido não suportada.')
-    request_id = _text(payload.get('request_id'), 'request_id')
+    request_id = validate_identifier(payload.get('request_id'), 'request_id')
     if not isinstance(catalog, Mapping) or not isinstance(series_index, Mapping):
         _fail('invalid_type', 'catalog/series_index', 'Catálogo e inventário devem ser mapeamentos.')
     device = payload.get('device', 'auto')
@@ -193,7 +220,7 @@ def validate_study_request(payload, catalog, series_index) -> StudyRequest:
                        'legacy_input_path'), 'studies')
         if item.get('legacy_input_path') is not None:
             _fail('legacy_only', 'legacy_input_path', 'Caminhos são restritos ao adaptador v1.')
-        study_id = _text(item.get('study_id'), 'study_id')
+        study_id = validate_identifier(item.get('study_id'), 'study_id')
         if study_id in study_ids:
             _fail('duplicate_study', 'study_id', 'O pedido repete um identificador de estudo.')
         study_ids.add(study_id)

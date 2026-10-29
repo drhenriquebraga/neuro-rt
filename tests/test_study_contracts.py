@@ -58,6 +58,16 @@ def result():
 
 
 class StudyContractTests(unittest.TestCase):
+    def test_nonportable_windows_identifiers_are_rejected(self):
+        reserved = ['CON', 'PRN', 'AUX', 'NUL'] + [f'{kind}{n}' for kind in ('COM', 'LPT') for n in range(1, 10)]
+        values = ['study.', 'study..', 'study '] + reserved + [name.lower() + '.txt' for name in reserved]
+        for field in ('request_id', 'study_id'):
+            for value in values:
+                with self.subTest(field=field, value=value):
+                    payload = request()
+                    (payload if field == 'request_id' else payload['studies'][0])[field] = value
+                    self.check_error('invalid_identifier', payload)
+
     def check_error(self, code, payload, index=None, catalog=None):
         with self.assertRaises(ValueError) as caught:
             contracts.validate_study_request(payload, catalog or CATALOG,

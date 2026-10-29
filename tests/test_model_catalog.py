@@ -9,10 +9,14 @@ from test_pipeline import TEMP_ROOT
 
 
 class ModelCatalogTests(unittest.TestCase):
-    def test_catalog_preserves_existing_models_and_five_candidates(self):
+    def test_catalog_preserves_existing_models_and_four_verified_additions(self):
         from neuro_rt.model_registry import load_catalog, get_model_spec
         models = load_catalog()
-        self.assertEqual(sum(m['catalog_state'] == 'candidate' and m['addition'] for m in models), 5)
+        self.assertEqual(sum(m['addition'] for m in models), 5)
+        self.assertEqual(sum(m['catalog_state'] == 'verified' and m['addition'] for m in models), 4)
+        self.assertEqual(get_model_spec('metastasis_qtim')['catalog_state'], 'candidate')
+        self.assertEqual([c['class_id'] for c in get_model_spec('glioma_attention_unet3d')['classes']],
+                         ['tumor_core', 'whole_tumor', 'enhancing_tumor'])
         self.assertEqual(get_model_spec('MRI_GBM')['classes'], [{'class_id': 'tumor', 'label': 'Tumor'}])
         self.assertEqual(get_model_spec('glioma_attention_unet3d')['channels'],
                          [{'role': r} for r in ('FLAIR', 'T1', 'T1c', 'T2')])

@@ -118,10 +118,10 @@ class PluginManifestTests(unittest.TestCase):
                 self.assertFalse(result.compatible)
                 self.assertTrue(result.reason)
 
-    def test_repository_manifest_does_not_assert_an_unpublished_host_version(self):
+    def test_repository_manifest_declares_the_required_host_contract(self):
         manifest = plugin_manifest.read_manifest(Path(__file__).resolve().parents[1] / 'module.json')
         self.assertEqual(manifest.host_contract, 'local-suite/plugins/1')
-        self.assertIsNone(manifest.host_min_version)
+        self.assertEqual(manifest.host_min_version, '8.10')
 
     def test_rejects_junction_reference_outside_manifest_directory_on_windows(self):
         if sys.platform != 'win32':

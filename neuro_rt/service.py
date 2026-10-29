@@ -69,9 +69,32 @@ class Settings:
         except (OSError, ValueError, RuntimeError):
             return False
 
+    def runtime_python(self, runtime_id):
+        if runtime_id == 'host-nnunet':
+            return self.host_python if Path(self.host_python).is_file() else None
+        if self.plugin_paths is None:
+            if runtime_id == 'raidionics-onnx':
+                return self.python
+            if runtime_id == 'neuro-scientific-cpu':
+                candidate = self.root / 'runtime/model_assets_v1_env/Scripts/python.exe'
+                return str(candidate) if candidate.is_file() else None
+            return None
+        inventory = self.root / 'release-manifest.json'
+        if not inventory.is_file(): return None
+        from .plugin_manifest import _relative_path
+        value = json.loads(inventory.read_text(encoding='utf-8'))
+        matches = [r for r in value.get('runtimes', []) if r.get('id') == runtime_id]
+        if len(matches) != 1: return None
+        runtime = matches[0]
+        digest = runtime.get('lock_digest')
+        if not isinstance(digest, str) or not re.fullmatch('[0-9a-f]{64}', digest): return None
+        base = _relative_path(self.plugin_paths.runtimes_dir, runtime_id + '/' + digest)
+        candidate = _relative_path(base, runtime['python'])
+        return str(candidate) if candidate.is_file() else None
+
 
 class Service:
-    def __init__(self, settings):
+    def __init__(self, settings, host_services=None):
         self.settings = settings
         self.token = secrets.token_urlsafe(32)
         self._lock = threading.RLock()
@@ -81,6 +104,11 @@ class Service:
         self._closed = False
         self._demos = {}
         self._load_demos()
+        self.host_services = host_services
+        self.studies = None
+        if host_services is not None:
+            from .study_service import StudyService
+            self.studies = StudyService(settings, host_services)
 
     def _load_demos(self):
         cache = self.settings.data_dir / 'demos.json'
@@ -134,18 +162,24 @@ class Service:
                 'installation_reason': self.settings.installation_reason,
                 'export_available': self.settings.export_available,
                 'processing_preference':self.settings.processing_preference,
-                'shared_config_pending':True,
+                'shared_config_pending': self.host_services is None,
+                'integrated': self.host_services is not None,
+                'study_jobs': self.studies.list_jobs() if self.studies else [],
                 'demos': [self._jobs[job_id]['demo'] for job_id in self._demos.values()],
-                'models': model_status(self.settings.models_dir), 'jobs': jobs[-20:]}
+                'models': self._models_status(), 'jobs': jobs[-20:]}
+
+    def _models_status(self):
+        from .model_paths import shared_model_status
+        return shared_model_status(self.settings.models_dir,
+                                   allow_legacy=self.settings.plugin_paths is None)
 
     def preflight(self, request):
         if self.settings.plugin_paths is not None and not self.settings.runtime_ready:
             raise ValueError(self.settings.installation_reason)
         model = get_model(request['model'])
-        folder = self.settings.models_dir / model['id']
-        validate_model_folder(folder, model)
-        if requires_brain(folder):
-            validate_model_folder(self.settings.models_dir / BRAIN['id'], BRAIN)
+        from .model_paths import preflight_model_folders
+        preflight_model_folders(self.settings.models_dir, model,
+                               allow_legacy=self.settings.plugin_paths is None)
         if not Path(request['input_path']).exists():
             raise ValueError('Caminho da RM não encontrado.')
         if request['export_rtstruct']:
@@ -155,6 +189,8 @@ class Service:
                 raise ValueError('Configure o Python e o gravador do Local Suite para exportar RTSTRUCT.')
 
     def submit(self, request):
+        if self.host_services is not None:
+            raise ValueError('A interface integrada exige séries selecionadas por ticket.')
         request = validate_request(request)
         self.preflight(request)
         with self._lock:
@@ -176,12 +212,14 @@ class Service:
     def worker_command(self, request, job_dir):
         return [self.settings.python, '-u', '-m', 'neuro_rt.worker',
                 '--request', str(job_dir / 'request.json'), '--job-dir', str(job_dir),
-                '--models-dir', str(self.settings.models_dir)]
+                '--models-dir', str(self.settings.models_dir)] + (
+                ['--installed-models'] if self.settings.plugin_paths is not None else [])
 
     def _execute(self, command, job_dir, logfile, cwd):
         env = dict(os.environ)
         env.update({'OMP_NUM_THREADS': '2', 'OPENBLAS_NUM_THREADS': '2', 'MKL_NUM_THREADS': '2',
-                    'PYTHONUTF8': '1', 'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS': '2',
+                    'PYTHONUTF8': '1', 'PYTHONDONTWRITEBYTECODE': '1',
+                    'ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS': '2',
                     'RADAI_TMP': str(job_dir / 'temp'), 'TEMP': str(job_dir / 'temp'),
                     'TMP': str(job_dir / 'temp')})
         (job_dir / 'temp').mkdir(exist_ok=True)
@@ -259,6 +297,8 @@ class Service:
         return path
 
     def close(self):
+        if self.studies is not None:
+            self.studies.close()
         with self._lock:
             self._closed = True
             process, thread = self._process, self._thread

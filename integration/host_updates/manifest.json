@@ -1,0 +1,293 @@
+{
+  "schema_version": 1,
+  "delivery": "Neuro RT private host integration",
+  "status": "verified_private_integration_snapshots",
+  "generated_utc": "2026-10-29T20:45:13.2987243Z",
+  "visibility": "private_neuro_repository_only",
+  "published": false,
+  "requirements": {
+    "host_min": "8.10",
+    "host_version_status": "development_unpublished",
+    "both_patches_required": true,
+    "public_recon_pin": "v8.9",
+    "public_recon_pin_compatible": false,
+    "packager_recon_helpers_required": [
+      "app/radai_projection.py",
+      "app/radai_projection_bone.py"
+    ]
+  },
+  "verification": {
+    "approved_patch_files": 29,
+    "local_suite_files": 21,
+    "recon_3d_files": 8,
+    "all_apply_checks_and_reconstructed_modes_blobs_passed": true,
+    "original_indices_heads_and_working_sources_preserved": true,
+    "ignored_agents_md_excluded_from_patch": true,
+    "personal_documents_and_transcripts_excluded": true,
+    "packager_compatibility_guard": "red/green verified: no helpers rejected; bone helper missing rejected; adapted tree accepted",
+    "component_checks": 87,
+    "all_whitespace_error_all_checks_passed": true,
+    "original_already_staged_indices_preserved": true,
+    "cosmetic_revision": "Recon bone EOF blank line removed; host four empty comment trailing spaces removed; AST/logic preserved."
+  },
+  "patches": [
+    {
+      "name": "local-suite",
+      "status": "verified_private_patch",
+      "path": "local-suite.patch",
+      "base_commit": "ed6f3f0169de0f1c589565362e60751ebcf97751",
+      "sha256": "2f8e636f59271004aea1f5ebeef4a5d95ba8127f1325e7a8ca654b88a61f6b23",
+      "size_bytes": 200032,
+      "format": "git diff --cached --binary --full-index",
+      "files": [
+        {
+          "path": "NOTICE",
+          "working_sha256": "868972502b0de36055afa884b42f950996d96eefc841a8a5a9d2c4999f742f25",
+          "git_blob_sha1": "d0666ee7a00051e8852893ff3e94b8e0cb6e2605",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_atualizar.py",
+          "working_sha256": "8ed041139af37979184eee2c331bc9f198a59783c1304ec11faa13ffde9583b1",
+          "git_blob_sha1": "2a2048115c869972ec9be4d4df6214eec8edbcfc",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_breadcrumb.py",
+          "working_sha256": "efa322f97a9e86a215b2c2e6fee1a931884782108a40c590d8ee01ad4e90bdfa",
+          "git_blob_sha1": "d7a2f58113d2c7acd298fcf624ea5997e2d484fb",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_menu.py",
+          "working_sha256": "073c86c3a600c48496f0235fe140157d996e2c1f5cee8b4dac2c955fde195fe2",
+          "git_blob_sha1": "f0f4c17d27f5b6e49e8c191f2652b9016c717729",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_modules.py",
+          "working_sha256": "95e0f380722a8e6e60a63aedfe9be04c096a9937ece0f9342177ef4f6f40dda8",
+          "git_blob_sha1": "259876cbfd21a3abff6d3b7b1673111bd12f6fd9",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_panel.py",
+          "working_sha256": "d5ea81d03a96d463690f069e81ef3322c94c98ba4ecd52c92f53510cb961b2dc",
+          "git_blob_sha1": "86239873d4a979225c8cb2552338cd20fe7a2f0a",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_porta.py",
+          "working_sha256": "7abd78db7c74d01fe6e4ba2a74f96a93cb68c151e50d144d416cbd4b636a3847",
+          "git_blob_sha1": "c625631eb79ddc06c550b2de7938669f1c8314ba",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_queue.py",
+          "working_sha256": "3805cbc406337507f8691d98ea5927abf13a5a701d52921d8490eb79f103f5b3",
+          "git_blob_sha1": "fc52b3ad91488e05d8c14c38c13e99163701f5c9",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_queue_state.py",
+          "working_sha256": "95897c79cce1fcde13e022ce7ff79244a23c06b8b16452e8a17f1801841703e5",
+          "git_blob_sha1": "f2cb98e5147713563e69dc504a66402ad43984f5",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_router.py",
+          "working_sha256": "0253aef4cccc5a218dff758464c13d5103204ef5cae434cc45d5e1ccc7d7c734",
+          "git_blob_sha1": "be0f69fc8840cc1e8cbf128b8fce81549eb65e3e",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_todo.py",
+          "working_sha256": "3e7b5d0eec5045b5a3516fa8c03f159c434919564c4f7194ce75202565ee01d2",
+          "git_blob_sha1": "776c43a9b8c10f99cbc2736dba163d4fcab15f40",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_neuro_install.py",
+          "working_sha256": "55ed2fac1208818ae8214218262ea153d9a01b282ef9c0dc99bcbf9b848c3264",
+          "git_blob_sha1": "36b1fead158e45bb90f2970e9f0d443eb62600bf",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_plugins.py",
+          "working_sha256": "878618e0c406a15799cb299d7429c96526892270f97d5b7e537b18a7dc44eaad",
+          "git_blob_sha1": "a1b82c21a6880613a9fca0eab58b9a03f29bde64",
+          "git_mode": "100644"
+        },
+        {
+          "path": "build/componentes.lock.json",
+          "working_sha256": "456648df53482e93db95127ba14b37239671743a273a2156c8c21dd537da8aa8",
+          "git_blob_sha1": "3b856f1d8be8564f6073ceb161993b8fbaf587c2",
+          "git_mode": "100644"
+        },
+        {
+          "path": "build/configurar_ambiente.py",
+          "working_sha256": "921c8d6c5f2100ff984e76e59858c481872ef43c6eb12b100f807f8875e6d936",
+          "git_blob_sha1": "dedb7651181a58ce03fa88dc8981210afbf3b86d",
+          "git_mode": "100644"
+        },
+        {
+          "path": "build/empacotar_instalador.py",
+          "working_sha256": "3d324eaee9d5445a1f92886f6ade0d19c6f68b5f631647696bebc6a51da0052a",
+          "git_blob_sha1": "662868ca39bd9457636fdba631c96a2908d1ed6a",
+          "git_mode": "100644"
+        },
+        {
+          "path": "entrega.txt",
+          "working_sha256": "deaf6c2ebbb44978310c807c6873f73b509134c715f7581ca59d044565895952",
+          "git_blob_sha1": "cbe504c2a0a650c2dafc402d0b42361cc4455257",
+          "git_mode": "100644"
+        },
+        {
+          "path": "installer/INSTALL.ps1",
+          "working_sha256": "bb413b9454496ce65ddfcffe93e91bc30afb5f663664f28fee02b9b209f85d3b",
+          "git_blob_sha1": "fc12a4f38d4a9cee8d03c946992b1d3e31e922b0",
+          "git_mode": "100644"
+        },
+        {
+          "path": "packager/UPDATE.ps1",
+          "working_sha256": "58667ab0244ec13763e8e4b8a8af3a74b6c00eb6e7b7cb755f2bbdd3d2dee6ae",
+          "git_blob_sha1": "3350ff84c1fb44263cd305185f61585c16ef8a6a",
+          "git_mode": "100644"
+        },
+        {
+          "path": "tools/_componentes.py",
+          "working_sha256": "291d9b6d2746969ae5a52f425782c87ac783cbc19dae147691ef720565abf8fd",
+          "git_blob_sha1": "4b77493f9fa9b2f8b89ea526a529a1636a9508e0",
+          "git_mode": "100644"
+        },
+        {
+          "path": "tools/test_componentes.py",
+          "working_sha256": "4343aa590e1c1c8c84af7cc3ebcf4095f7f2fec3b6a8e4fcb24c3e86d4ed16ee",
+          "git_blob_sha1": "878fd3f4bf446993a0ebd12f57c1f78582cbed88",
+          "git_mode": "100644"
+        }
+      ],
+      "verification": {
+        "source_diff_head_whitespace_check": "passed",
+        "apply_check_index_whitespace_error_all": "passed",
+        "apply_index_whitespace_error_all": "passed",
+        "all_staged_modes_and_blobs_match": true,
+        "verified_file_count": 21,
+        "patch_paths_equal_approved_allowlist": true,
+        "agents_md_excluded": true,
+        "original_head_before": "ed6f3f0169de0f1c589565362e60751ebcf97751",
+        "original_head_after": "ed6f3f0169de0f1c589565362e60751ebcf97751",
+        "original_staged_index_sha256_before": "216ae2badcd8c3cfb9bb34f9a87e7ba2117676b44af206c85b501116c95f679a",
+        "original_staged_index_sha256_after": "216ae2badcd8c3cfb9bb34f9a87e7ba2117676b44af206c85b501116c95f679a",
+        "source_working_files_unchanged_during_snapshot": true,
+        "temporary_tree": "C:\\Users\\henri\\.codex\\visualizations\\2026\\10\\29\\01a184fd-edf9-7383-a3ed-84901d72d33b\\r05-private-patch-checks-dbac5e6788ed42e2b7707db80158e58e\\local-suite-cosmetic-39df5bbcce734601b86bd61ed14924f0",
+        "cosmetic_revision_only": true
+      },
+      "compatibility": {
+        "host_min": "8.10",
+        "host_version_status": "development_unpublished",
+        "public_recon_pin": "v8.9",
+        "public_recon_pin_compatible": false,
+        "recon_helpers_required": [
+          "app/radai_projection.py",
+          "app/radai_projection_bone.py"
+        ],
+        "reason": "Base 8.10 requires the privately adapted Recon3D tree; public v8.9 lacks the shared projection modules."
+      }
+    },
+    {
+      "name": "recon-3d",
+      "status": "verified_private_patch",
+      "path": "recon-3d.patch",
+      "base_commit": "4841690db00104eecfe548d2afa9781891551a39",
+      "sha256": "73d34c8315fef2496cd228c2b5b7c2319a4934b436a88acb5a8e09b66a57ed5d",
+      "size_bytes": 48512,
+      "format": "git diff --cached --binary --full-index",
+      "files": [
+        {
+          "path": "NOTICE",
+          "working_sha256": "191d5db8421ec6da2219f2ef6c5cf09ff31a564eb9c1b13876b470713006382b",
+          "git_blob_sha1": "c9d4972fcd3266d0826507fd69a2e3e4453f4c04",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_recon3d_screen.py",
+          "working_sha256": "cf93c50acb2f82880ee9d8d579893a49391adf5a78d8b1d614cc8ea7ac3d2841",
+          "git_blob_sha1": "6f446f4b6f1cf11a2dc2edfeb5fd004784fc4361",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_recon3d_vascular.py",
+          "working_sha256": "bf7b41c6c00b740212c67e0a9926d29b9a8ed02faa4c37cc37536d1657f01623",
+          "git_blob_sha1": "c88558529a64a4d4925ebab29988960cea9a2b14",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_projection.py",
+          "working_sha256": "bad5aa99c2fc04fde018d7c5441d6e9b131c0225e9fc6ba90f1da2191a03b19a",
+          "git_blob_sha1": "526fa89450343a827a9142ad3fa23c89053f4bb4",
+          "git_mode": "100644"
+        },
+        {
+          "path": "app/radai_projection_bone.py",
+          "working_sha256": "285587ba50b33f81c4af6be10dc65b1c8011456b3053e5e929536a0bee51bf12",
+          "git_blob_sha1": "683b325c72fb49964d21d37932acbaed67974474",
+          "git_mode": "100644"
+        },
+        {
+          "path": "componente.json",
+          "working_sha256": "4d1dfefd06de7c75f72366b99aede00c623a37132f06284c183a1a81089224e0",
+          "git_blob_sha1": "175b3b1170f96a8290337ed07049087b2c150e29",
+          "git_mode": "100644"
+        },
+        {
+          "path": "tools/test_recon3d.py",
+          "working_sha256": "33224208c1d61d62c00dd4da7a2708f36f64c65aae8eff7aad93662a95a18114",
+          "git_blob_sha1": "4834c0b3be4fa012615cf863b0ec5f92745be862",
+          "git_mode": "100644"
+        },
+        {
+          "path": "licenses/NIDUS_RT_APACHE_2.txt",
+          "working_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "git_blob_sha1": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+          "git_mode": "100644"
+        }
+      ],
+      "verification": {
+        "source_diff_head_whitespace_check": "passed",
+        "apply_check_index_whitespace_error_all": "passed",
+        "apply_index_whitespace_error_all": "passed",
+        "all_staged_modes_and_blobs_match": true,
+        "verified_file_count": 8,
+        "patch_paths_equal_approved_allowlist": true,
+        "agents_md_excluded": true,
+        "original_head_before": "4841690db00104eecfe548d2afa9781891551a39",
+        "original_head_after": "4841690db00104eecfe548d2afa9781891551a39",
+        "original_staged_index_sha256_before": "720a2759d394b6c1a739a4a331af3c5e48555866d2c069ca10cf871b7f486b21",
+        "original_staged_index_sha256_after": "720a2759d394b6c1a739a4a331af3c5e48555866d2c069ca10cf871b7f486b21",
+        "source_working_files_unchanged_during_snapshot": true,
+        "temporary_tree": "C:\\Users\\henri\\.codex\\visualizations\\2026\\10\\29\\01a184fd-edf9-7383-a3ed-84901d72d33b\\r05-private-patch-checks-dbac5e6788ed42e2b7707db80158e58e\\recon-3d-cosmetic-ec326af17bb24d929fc75adefdd798c1",
+        "cosmetic_revision_only": true
+      },
+      "compatibility": {
+        "host_min": "8.10",
+        "host_version_status": "development_unpublished",
+        "public_recon_pin": "v8.9",
+        "public_recon_pin_compatible": false,
+        "recon_helpers_required": [
+          "app/radai_projection.py",
+          "app/radai_projection_bone.py"
+        ],
+        "reason": "Base 8.10 requires the privately adapted Recon3D tree; public v8.9 lacks the shared projection modules."
+      }
+    }
+  ],
+  "context_snippet": {
+    "path": "AGENTS_NEURO_CONTEXT.md",
+    "kind": "authorized_context_section_only",
+    "sha256": "a0ae770e5ac716c07d21e9fbf1acbb13dde3893693909914c2745e63b0cd24bb",
+    "size_bytes": 1480,
+    "extracted_from": "Between ## Integração NEURO RT and ## A suíte em sete pastas",
+    "full_ignored_agents_file_included": false
+  }
+}

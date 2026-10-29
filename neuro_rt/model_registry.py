@@ -6,6 +6,8 @@ import re
 from pathlib import Path, PureWindowsPath
 from urllib.parse import urlparse
 
+from .model_paths import resolve_model_folder
+
 CATALOG = Path(__file__).resolve().parents[1] / 'catalog' / 'models.json'
 LICENSES = frozenset(('MIT', 'BSD-2-Clause', 'BSD-3-Clause', 'Apache-2.0',
                       'CC0-1.0', 'CC-BY-4.0'))
@@ -81,19 +83,34 @@ def get_model_spec(model_id, path=CATALOG):
 
 
 def verify_artifacts(model_spec, paths):
+    """Verify a model and its pinned runtime dependencies before eligibility."""
+    return _verify_artifacts(model_spec, paths, frozenset())
+
+
+def _verify_artifacts(model_spec, paths, ancestors):
     model_id = model_spec.get('id')
     report = {'model_id': model_id, 'revision': model_spec.get('revision'),
               'status': 'corrupt', 'verified_files': [], 'missing_files': [], 'errors': []}
     try:
         if not _identifier(model_id):
             raise ValueError('ID de modelo inválido.')
+        identity = (model_id, model_spec.get('revision'))
+        if identity in ancestors:
+            raise ValueError('Dependência circular de modelos.')
         if model_spec.get('catalog_state') == 'candidate':
             report['status'] = 'candidate'
             return report
         if model_spec.get('catalog_state') not in ('distributed', 'verified'):
             raise ValueError('Estado do modelo inválido.')
         base = Path(getattr(paths, 'models_dir', paths)).resolve()
-        folder = _relative_path(base, model_spec.get('artifact_subdir', model_id))
+        # A raw path is the legacy development API; installation objects are strict.
+        folder = resolve_model_folder(base, model_id, model_spec.get('revision'),
+                                      allow_legacy=not hasattr(paths, 'models_dir'))
+        subdir = model_spec.get('artifact_subdir')
+        if subdir is not None:
+            declared = _relative_path(base, subdir)
+            if declared != folder:
+                raise ValueError('artifact_subdir difere da revisão exata selecionada.')
         artifacts = model_spec.get('artifacts')
         if not isinstance(artifacts, list) or not artifacts:
             raise ValueError('Modelo sem artefatos fixados.')
@@ -107,7 +124,12 @@ def verify_artifacts(model_spec, paths):
                 continue
             with file.open('rb') as stream:
                 head = stream.read(256).lstrip().lower()
-                if head.startswith((b'<!doctype html', b'<html')):
+                expected_html = (artifact.get('format') == 'html' and
+                                 artifact.get('purpose') == 'licensing_evidence' and
+                                 file.suffix.lower() in ('.html', '.htm') and
+                                 file.name.lower().startswith(('license', 'licence', 'notice')) and
+                                 type(artifact.get('size')) is int and artifact['size'] > 0)
+                if head.startswith((b'<!doctype html', b'<html')) and not expected_html:
                     raise ValueError('Download contém HTML em vez do artefato.')
                 stream.seek(0)
                 computed = hashlib.sha256()
@@ -117,7 +139,38 @@ def verify_artifacts(model_spec, paths):
                     artifact.get('size') is not None and file.stat().st_size != artifact['size']):
                 raise ValueError('Artefato não corresponde à identidade fixada.')
             report['verified_files'].append(artifact['path'])
+        provenance = model_spec.get('provenance')
+        if provenance is not None:
+            receipt = _relative_path(folder, provenance['path'])
+            if not receipt.is_file():
+                report['missing_files'].append(provenance['path'])
+            else:
+                recorded = json.loads(receipt.read_text(encoding='utf-8'))
+                if (recorded.get('model_id') != model_id or
+                        recorded.get('release') != provenance['release'] or
+                        any(recorded.get('files', {}).get(entry['path']) != entry['sha256']
+                            for entry in artifacts)):
+                    raise ValueError('Procedência do modelo não corresponde aos artefatos fixados.')
+                report['verified_files'].append(provenance['path'])
+        dependencies = model_spec.get('dependencies', [])
+        if not isinstance(dependencies, list):
+            raise ValueError('Dependências obrigatórias devem ser uma lista.')
+        dependency_ids = set()
+        for dependency in dependencies:
+            if not isinstance(dependency, dict) or not _identifier(dependency.get('id')):
+                raise ValueError('Dependência de modelo inválida.')
+            dependency_id = (dependency['id'], dependency.get('revision'))
+            if dependency_id in dependency_ids:
+                raise ValueError('Dependência de modelo repetida.')
+            dependency_ids.add(dependency_id)
+            child = _verify_artifacts(dependency, paths, ancestors | {identity})
+            prefix = f"{dependency['id']}/{dependency.get('revision')}/"
+            report['verified_files'].extend(prefix + name for name in child['verified_files'])
+            report['missing_files'].extend(prefix + name for name in child['missing_files'])
+            if child['status'] not in ('ready', 'missing'):
+                raise ValueError('Dependência obrigatória inválida: ' + dependency['id'] +
+                                 '; ' + '; '.join(child['errors']))
         report['status'] = 'missing' if report['missing_files'] else 'ready'
-    except (ValueError, OSError, TypeError, AttributeError) as exc:
+    except (ValueError, OSError, TypeError, AttributeError, KeyError) as exc:
         report['errors'].append(str(exc))
     return report

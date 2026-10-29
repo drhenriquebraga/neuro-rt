@@ -1,0 +1,86 @@
+{
+  "name": "recon-3d",
+  "status": "verified_private_patch",
+  "path": "recon-3d.patch",
+  "base_commit": "4841690db00104eecfe548d2afa9781891551a39",
+  "sha256": "73d34c8315fef2496cd228c2b5b7c2319a4934b436a88acb5a8e09b66a57ed5d",
+  "size_bytes": 48512,
+  "format": "git diff --cached --binary --full-index",
+  "files": [
+    {
+      "path": "NOTICE",
+      "working_sha256": "191d5db8421ec6da2219f2ef6c5cf09ff31a564eb9c1b13876b470713006382b",
+      "git_blob_sha1": "c9d4972fcd3266d0826507fd69a2e3e4453f4c04",
+      "git_mode": "100644"
+    },
+    {
+      "path": "app/radai_recon3d_screen.py",
+      "working_sha256": "cf93c50acb2f82880ee9d8d579893a49391adf5a78d8b1d614cc8ea7ac3d2841",
+      "git_blob_sha1": "6f446f4b6f1cf11a2dc2edfeb5fd004784fc4361",
+      "git_mode": "100644"
+    },
+    {
+      "path": "app/radai_recon3d_vascular.py",
+      "working_sha256": "bf7b41c6c00b740212c67e0a9926d29b9a8ed02faa4c37cc37536d1657f01623",
+      "git_blob_sha1": "c88558529a64a4d4925ebab29988960cea9a2b14",
+      "git_mode": "100644"
+    },
+    {
+      "path": "app/radai_projection.py",
+      "working_sha256": "bad5aa99c2fc04fde018d7c5441d6e9b131c0225e9fc6ba90f1da2191a03b19a",
+      "git_blob_sha1": "526fa89450343a827a9142ad3fa23c89053f4bb4",
+      "git_mode": "100644"
+    },
+    {
+      "path": "app/radai_projection_bone.py",
+      "working_sha256": "285587ba50b33f81c4af6be10dc65b1c8011456b3053e5e929536a0bee51bf12",
+      "git_blob_sha1": "683b325c72fb49964d21d37932acbaed67974474",
+      "git_mode": "100644"
+    },
+    {
+      "path": "componente.json",
+      "working_sha256": "4d1dfefd06de7c75f72366b99aede00c623a37132f06284c183a1a81089224e0",
+      "git_blob_sha1": "175b3b1170f96a8290337ed07049087b2c150e29",
+      "git_mode": "100644"
+    },
+    {
+      "path": "tools/test_recon3d.py",
+      "working_sha256": "33224208c1d61d62c00dd4da7a2708f36f64c65aae8eff7aad93662a95a18114",
+      "git_blob_sha1": "4834c0b3be4fa012615cf863b0ec5f92745be862",
+      "git_mode": "100644"
+    },
+    {
+      "path": "licenses/NIDUS_RT_APACHE_2.txt",
+      "working_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "git_blob_sha1": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+      "git_mode": "100644"
+    }
+  ],
+  "verification": {
+    "source_diff_head_whitespace_check": "passed",
+    "apply_check_index_whitespace_error_all": "passed",
+    "apply_index_whitespace_error_all": "passed",
+    "all_staged_modes_and_blobs_match": true,
+    "verified_file_count": 8,
+    "patch_paths_equal_approved_allowlist": true,
+    "agents_md_excluded": true,
+    "original_head_before": "4841690db00104eecfe548d2afa9781891551a39",
+    "original_head_after": "4841690db00104eecfe548d2afa9781891551a39",
+    "original_staged_index_sha256_before": "720a2759d394b6c1a739a4a331af3c5e48555866d2c069ca10cf871b7f486b21",
+    "original_staged_index_sha256_after": "720a2759d394b6c1a739a4a331af3c5e48555866d2c069ca10cf871b7f486b21",
+    "source_working_files_unchanged_during_snapshot": true,
+    "temporary_tree": "C:\\Users\\henri\\.codex\\visualizations\\2026\\10\\29\\01a184fd-edf9-7383-a3ed-84901d72d33b\\r05-private-patch-checks-dbac5e6788ed42e2b7707db80158e58e\\recon-3d-cosmetic-ec326af17bb24d929fc75adefdd798c1",
+    "cosmetic_revision_only": true
+  },
+  "compatibility": {
+    "host_min": "8.10",
+    "host_version_status": "development_unpublished",
+    "public_recon_pin": "v8.9",
+    "public_recon_pin_compatible": false,
+    "recon_helpers_required": [
+      "app/radai_projection.py",
+      "app/radai_projection_bone.py"
+    ],
+    "reason": "Base 8.10 requires the privately adapted Recon3D tree; public v8.9 lacks the shared projection modules."
+  }
+}

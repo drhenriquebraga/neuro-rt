@@ -24,8 +24,17 @@ sys.path.insert(0, APP)
 
 import tempfile as _tempfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+HOST_TOOLS = os.path.join(os.environ.get("NEURO_HOST_ROOT", os.path.join(AQUI, "..", "..", "AUTO_CONTORNO")), "tools")
+if os.path.isfile(os.path.join(HOST_TOOLS, "_componentes.py")):
+    sys.path.insert(0, os.path.abspath(HOST_TOOLS))
 import _cleanup
 import _componentes
+SUITE = os.environ.get("NEURO_HOST_ROOT") or _componentes.raiz_da_suite()
+PLUGIN = os.path.dirname(AQUI)
+_componentes.ligar_caminho(SUITE, extras=(os.path.join(PLUGIN, "app"),))
+for pasta in _componentes.pastas("tools", SUITE):
+    if pasta not in sys.path:
+        sys.path.append(pasta)
 _cleanup.adotar_prefixo('radai_ac_nidus')
 os.environ["RADAI_CALIB_DIR"] = _tempfile.mkdtemp(prefix="radai_ac_nidus_")
 
@@ -47,7 +56,7 @@ def secao(t):
 
 
 def fonte(nome):
-    return io.open(_componentes.fonte("app/" + nome), encoding="utf-8",
+    return io.open(_componentes.fonte("app/" + ("radai_projection.py" if nome == "radai_nidus.py" else nome), SUITE), encoding="utf-8",
                    errors="replace").read()
 
 
@@ -681,8 +690,8 @@ def teste_a_suite_conhece_o_modulo():
     import radai_modules
     import radai_breadcrumb
 
-    checar(u"esta no trilho", "nidus" in radai_menu.MODULOS)
-    checar(u"esta na ordem da home", "nidus" in radai_menu.MODULOS_HOME)
+    checar(u"NEURO RT esta no trilho", "neuro" in radai_menu.MODULOS)
+    checar(u"NEURO RT esta na ordem da home", "neuro" in radai_menu.MODULOS_HOME)
     checar(u"esta na arvore da trilha", "nidus" in radai_breadcrumb.ARVORE)
     checar(u"e a ferramenta tambem",
            "nidus_projecao" in radai_breadcrumb.ARVORE)
@@ -706,8 +715,8 @@ def teste_a_suite_conhece_o_modulo():
                else u"`%s` no tema claro" % ficha, ficha + ":" in claro)
 
     import radai_porta
-    linha = radai_porta.cartao("nidus", 3)
-    checar(u"o cartão da porta leva para /nidus", 'href="/nidus"' in linha, linha[:80])
+    linha = radai_porta.cartao("neuro", 3)
+    checar(u"o cartão da porta leva para /neuro", 'href="/neuro"' in linha, linha[:80])
     checar(u"modulo desconhecido nao vira cartao",
            radai_porta.cartao("nao_existe", 0) == u"")
 
@@ -3050,7 +3059,7 @@ def teste_o_osso_sai_pela_segmentacao():
     m7, i7 = S.osso_da_segmentacao(N.abrir(img, "CT"), sem_desc, uid)
     checar(u"  isca: so pelo nome proprio («CRANIO»), o osso nao seria achado",
            m7 is None and not S.e_osso(u"CRANIO"), str(i7))
-    tela = fonte("radai_nidus_screen.py")
+    tela = fonte("radai_projection_bone.py")
     checar(u"o osso vem pela C6 (`radai_viewseg.mascaras_da_serie`), sem nome "
            u"interno do ContourLab", u"V.mascaras_da_serie(" in tela
            and not re.search(r"\bV\._", tela) and u"engine._" not in tela)
@@ -3309,7 +3318,7 @@ def teste_no_navegador():
                 pg.fill("#nd_pasta", share)
                 pg.click("#nd_listar")
                 pg.wait_for_function(
-                    "document.querySelectorAll('#nd_series .nd-it').length > 1",
+                    "document.querySelectorAll('#nd_series .nd-it[data-b]:not([disabled])').length > 1 && Array.from(document.querySelectorAll('#nd_series .nd-it')).every(e => e.dataset.b)",
                     timeout=ESPERA_NO_NAVEGADOR_MS)
                 ops = pg.eval_on_selector_all(
                     "#nd_series .nd-it",
@@ -3771,12 +3780,13 @@ def teste_o_osso_sai_tambem_pelo_oar_e_pelo_oar_fast():
     checar(u"entrega sem osso: a tela diz qual é a entrega, para oferecer substituí-la",
            o_sem.get("tem") is False and o_sem.get("entrega") == na_tela["fast"]
            and o_sem.get("motivo") == S.SEM_OSSO_NA_ENTREGA, str(o_sem))
-    guarda = S.ORDEM_DO_OSSO
+    import radai_projection_bone as B
+    guarda = B.ORDEM_DO_OSSO
     try:
-        S.ORDEM_DO_OSSO = (((u"full",), True),)
+        B.ORDEM_DO_OSSO = (((u"full",), True),)
         o_isca = osso(fast)
     finally:
-        S.ORDEM_DO_OSSO = guarda
+        B.ORDEM_DO_OSSO = guarda
     checar(u"  isca: só com o FULL, a série em FAST fica sem tirar o osso",
            o_isca.get("tem") is False, str(o_isca))
 

@@ -4,7 +4,26 @@ Atualizado em 29/10/2026. Execução autorizada pelo usuário após o desenho e 
 Este arquivo é o ponto de retomada versionado; o roadmap completo continua em
 `docs/superpowers/plans/2026-10-29-neuro-rt-roadmap.md`.
 
-## Estado real
+## Estado atual da continuação
+
+Instalação transacional, integração nativa, fila, contratos v2, quatro motores
+novos, Buti reaproveitado, exportação, visores e migração funcional Nidus estão
+implementados. Os gates de geometria/motores, execução/exportação, interface e
+migração passaram por revisão independente. O corte completo com Motaz real,
+quatro séries, três registros e RTSTRUCT/visores concluiu em pasta Unicode usando
+componentes instalados e snapshot coerente do código corrigido.
+
+O atualizador e o pacote recebem o último gate de revisão. A publicação remota
+não é implícita: a base mínima 8.10 e seus helpers Recon3D são uma integração
+privada, preservada em patches. Não usar o pin público Recon3D v8.9 como se ele
+contivesse esses helpers. A origem Nidus permanece intacta.
+
+Fontes duráveis para retomada: [evidências](VALIDACAO_PLUGIN.md),
+[matriz](MATRIZ_COMPATIBILIDADE.md), [integração](INTEGRACAO.md),
+[release](RELEASE_PROCESS.md), [decisões](DECISOES_IMPLEMENTACAO.md) e
+`integration/host_updates/README.md`. Elas substituem o estado antigo abaixo.
+
+## Checkpoint inicial — registro histórico anterior à continuação
 
 | Unidade | Estado | Entrega |
 |---|---|---|
@@ -101,3 +120,58 @@ modelos. Nenhum peso novo ou exame privado foi usado para esta etapa.
 Relatórios de trabalho e pacotes de revisão estão em `.superpowers/sdd/neuro-plugin`
 (ignorados no Git). Os resultados relevantes e decisões devem continuar registrados
 neste documento para sobreviver a outro checkout ou agente.
+
+## Continuação da implementação — corte integrado em desenvolvimento
+
+O roteiro acima registra o checkpoint inicial. As etapas seguintes avançaram;
+esta seção o atualiza sem anunciar a release final.
+
+- **Instalação:** transação offline com trava, staging, hashes externos,
+  versões separadas e ativação posterior. I02 passou por revisão e correção de
+  caminhos versionados e dependência do diretório corrente: 20 testes do
+  instalador, cinco de paths, cinco de catálogo e oito do pipeline passaram.
+- **Host:** home NEURO RT na posição aprovada, cinco cards, origem única,
+  HostServices reais para tickets, preferência global e acervo. A base está em
+  desenvolvimento 8.10; sete provas HTTP da entrada e os testes do adapter passaram.
+- **Fila e estudos:** mesmo árbitro da suíte, um motor pesado por vez. Doze
+  testes da ponte e 180 verificações existentes da fila passaram. O serviço v2
+  persiste pedidos/resultados, não reinicia inferência ao reabrir, permite
+  repetição por fingerprints e mantém uma revisão completa. Seis testes do
+  serviço e sete da orquestração passaram. JobObjects Windows encerram também
+  descendentes: duas provas reais de subprocessos passaram.
+- **Modelos novos:** quatro adaptadores com pesos reais e contratos fixados.
+  Raidionics pós-operatório de três sequências: uma classe, 49,89 s; Attention
+  U-Net: três regiões sobrepostas, 70,56 s; SynthSeg/DIPY: 32 classes, 403,18 s;
+  CerebrA/ANTs: 102 classes, 64,81 s. Tempos de fantomas nesta estação em CPU,
+  não previsões de desempenho. Dezenove testes do runtime científico passaram.
+  QTIM permanece candidato adiado. Buti reaproveita o host e não conta como
+  adição: 12 testes e inferência CPU sintética em 68,823 s passaram, com oito
+  labels preservados no contrato.
+- **Geometria e preflight:** a revisão identificou transformações NaN e
+  diferenças entre inventários do instalador/preflight/runtime. As correções
+  rejeitam transformações/inversas inválidas, conferem Brain e procedência e
+  distribuem o manifesto científico em `catalog/`. A rodada de correção somou
+  34 testes; re-review está pendente neste checkpoint.
+- **Nidus:** core compartilhado extraído para Recon3D, tela pertencente ao
+  plugin, uma montagem e aliases compatíveis. Nidus 519/519, Recon3D 443/443,
+  regressão v8.4 181/181, componentes 84/84 e migração 6/6 passaram. A comparação
+  AST preservou core e funções de osso. O repositório antigo permanece intacto.
+- **Interface:** página nativa com componentes do host, chaves inicialmente
+  desligadas, ajuda acessível mesmo indisponível, bindings, aviso de incerteza,
+  histórico e repetição explícita. MPRs e STL independentes reutilizam os motores
+  da suíte. Três provas próprias passaram, incluindo Chrome, geometria oblíqua,
+  troca rápida de resultados, visibilidade e opacidade.
+- **Resultados:** store com revisões e artefatos opacos; oito testes de
+  recuperação passaram. Exportação única e publicação exclusiva têm seis provas
+  D06. No teste HTTP integrado foi detectado falso negativo do leitor rt-utils
+  ao rasterizar limites de meio voxel. O leitor nativo `radai_rt.SessaoRT`
+  reconstruiu ambos os arquivos com 87 voxels exatos; a conferência está sendo
+  alinhada a esse leitor, mantendo igualdade, planos e SOPs estritos.
+
+O pacote portátil, instalação limpa, latest, atualização da base preservando
+Plugins, corte completo com pesos e revisão geral permanecem em validação.
+Pesos, runtimes, fantomas, resultados e logs continuam fora do Git. Estas provas
+demonstram contratos e execução sintética; não demonstram precisão clínica.
+
+
+29/10 — I04/R02 rodada 1: fechadas barreira global de imagens/licenças, interrupção do turno pela API dona e consumidores de instalação/atualização. Provas pequenas: builder 9, provider 2, host 16, UI 2 e manifest 13 (1 skip), Chrome primeira instalação/progresso/reinício/nova sessão. Relatório: .superpowers/sdd/neuro-plugin/I04-R02-R03-report.md. Aguarda revisão independente e refresh final; sem publicação ou novo ensaio pesado.
