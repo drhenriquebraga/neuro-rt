@@ -19,6 +19,7 @@ from .orchestrator import StudyRunContext, build_study_plan, run_study
 from .series_selection import describe_series, suggest_bindings, evaluate_eligibility
 from .study_types import SeriesDescriptor
 from .integrity import sha256_file
+from .execution_errors import ProcessTreeUnconfirmed
 
 TERMINAL = frozenset(('completed', 'empty', 'partial', 'failed', 'cancelled', 'interrupted'))
 
@@ -89,7 +90,34 @@ class StudyService:
             job = self._jobs[ident]
             job.update(values)
             atomic_json(job.get('base_directory', job['directory']) / 'state.json',
-                {'schema': 'neuro-rt/job-state/1', 'attempt': job.get('attempt', 1), **self._public(job)})
+                {'schema': 'neuro-rt/job-state/1', 'attempt': job.get('attempt', 1),
+                 'release_safe': job.get('release_safe', True), **self._public(job)})
+
+    def _require_safe_launch(self):
+        if any(not job.get('release_safe', True) for job in self._jobs.values()):
+            raise ProcessTreeUnconfirmed('Encerramento do motor não confirmado; a fila permanece bloqueada.')
+
+    def confirm_process_exit(self, ident):
+        """Retry confirmation on the retained owner; never infer exit from status/PID."""
+        with self._lock:
+            job = self._jobs[ident]
+            if job.get('release_safe', True): return
+            if job['status'] not in TERMINAL:
+                raise ProcessTreeUnconfirmed('Aguarde a coordenação do estudo encerrar.')
+            process = job.get('process')
+            if process is None:
+                raise ProcessTreeUnconfirmed('A recuperação exige confirmação da árvore pela estação.')
+            try:
+                if process.close() is False:
+                    raise ProcessTreeUnconfirmed('Encerramento do motor não confirmado.')
+            except Exception as error:
+                raise ProcessTreeUnconfirmed('Encerramento do motor não confirmado.') from error
+            # Only the owning handle can unlock this failed execution.
+            if job.get('lease') is not None:
+                job['lease'].finish(job['status'])
+                job['lease'] = None
+            job['process'] = None
+            self._update(ident, release_safe=True)
 
     def job(self, ident, revision=None):
         with self._lock:
@@ -97,7 +125,7 @@ class StudyService:
             job = self._public(self._jobs[ident])
             if revision is not None:
                 view = self.store.public_view(self.store.load_manifest(ident, revision)).to_dict()
-                job.update(status=view['status'], result=view)
+                job.update(status=view['status'], result=view, progress=None)
             return job
 
     def list_jobs(self):
@@ -139,6 +167,8 @@ class StudyService:
                 'channels': spec['channels'], 'classes': spec['classes'],
                 'reference_role': spec.get('reference_role'), 'revision': spec.get('revision'),
                 'license': spec['license'], 'source_url': spec.get('source_url'),
+                'supported_devices': spec.get('supported_devices', ['cpu', 'cuda']),
+                'validated_devices': spec.get('validated_devices', ['cpu']),
                 'help': spec.get('help', {}), 'bindings': [b.to_dict() for b in bindings],
                 'eligibility': eligibility.to_dict()})
         return {'series': [{'ticket': d.ticket, 'modality': d.modality,
@@ -185,6 +215,7 @@ class StudyService:
             self.check_capabilities(item)
         with self._lock:
             if self._closed: raise RuntimeError('Serviço encerrado.')
+            self._require_safe_launch()
             previous = self._requests.get(request.request_id)
             if previous:
                 if previous['digest'] != digest: raise ValueError('O identificador já pertence a outro pedido.')
@@ -272,7 +303,16 @@ class StudyService:
         with (directory / log_name).open('wb') as log:
             with self._lock:
                 if event.is_set() or self._closed: raise RunCancelled()
-                process = ManagedProcess(command, cwd=self.settings.root, env=env, stdout=log)
+                self._require_safe_launch()
+                if self._jobs[ident].get('process') is not None:
+                    self._update(ident, release_safe=False)
+                    raise ProcessTreeUnconfirmed('O estudo já possui uma árvore de processos.')
+                try:
+                    process = ManagedProcess(command, cwd=self.settings.root, env=env, stdout=log)
+                except ProcessTreeUnconfirmed as error:
+                    self._jobs[ident]['process'] = error.process
+                    self._update(ident, release_safe=False)
+                    raise
                 self._jobs[ident]['process'] = process
             try:
                 while process.poll() is None:
@@ -284,10 +324,11 @@ class StudyService:
                 if process.returncode: raise RuntimeError('O motor local falhou; consulte o registro privado.')
             finally:
                 try:
-                    process.close()
-                except Exception:
-                    with self._lock: self._jobs[ident]['release_safe'] = False
-                    raise
+                    if process.close() is False:
+                        raise ProcessTreeUnconfirmed('Encerramento do motor não confirmado.')
+                except Exception as error:
+                    self._update(ident, release_safe=False)
+                    raise ProcessTreeUnconfirmed('Encerramento do motor não confirmado.') from error
                 else:
                     with self._lock: self._jobs[ident]['process'] = None
 
@@ -329,6 +370,8 @@ class StudyService:
         outcome = 'failed'
         try:
             lease = self.host.queue_bridge.await_turn(job['ticket'], event)
+            job['lease'] = lease
+            with self._lock: self._require_safe_launch()
             if event.is_set(): raise RunCancelled()
             preference = self.host.device_preference()
             if preference not in ('auto', 'cpu', 'cuda'):
@@ -372,7 +415,7 @@ class StudyService:
                     self._execute([self.settings.host_python, '-m', 'neuro_rt.export_study',
                         '--job-dir', str(directory), '--host-app', str(self.settings.host_app)],
                         directory, 'export.log', event, ident)
-                except RunCancelled: raise
+                except (RunCancelled, ProcessTreeUnconfirmed): raise
                 except Exception as error:
                     error_sink('export', error)
                     data = json.loads((directory / 'study-manifest.json').read_text(encoding='utf-8'))
@@ -386,7 +429,7 @@ class StudyService:
                     self._report_stage(ident, 'visualizing', 'Preparando os visores e as estruturas.')
                     self.build_views(ident, directory, event)
                     data = json.loads((directory / 'study-manifest.json').read_text(encoding='utf-8'))
-                except RunCancelled: raise
+                except (RunCancelled, ProcessTreeUnconfirmed): raise
                 except Exception as error:
                     error_sink('views', error)
                     if any(r['masks'] for r in data['results']): data['status'] = 'partial'
@@ -428,7 +471,9 @@ class StudyService:
                 else 'O processamento falhou. Consulte os registros locais.')
         finally:
             # _execute always terminates/reaps its child before this release.
-            if lease is not None and job.get('release_safe', True): lease.finish(outcome)
+            if lease is not None and job.get('release_safe', True):
+                lease.finish(outcome)
+                job['lease'] = None
             self._update(ident, status=outcome)
 
     def build_views(self, ident, directory, event):
@@ -499,6 +544,7 @@ class StudyService:
             if job is None: raise KeyError('Resultado não encontrado.')
             if self._closed or job['status'] not in TERMINAL:
                 raise RuntimeError('Aguarde o estudo encerrar antes de repetir.')
+            self._require_safe_launch()
             old = job['directory']
             payload = json.loads((old / 'request.json').read_text(encoding='utf-8'))
             sources = json.loads((old / 'source-bindings.json').read_text(encoding='utf-8'))
@@ -547,7 +593,8 @@ class StudyService:
             reusable = (cached.is_file() and self._preparation_complete(item,
                 json.loads(cached.read_text(encoding='utf-8'))))
             job.update(directory=directory, attempt=attempt, cancel=threading.Event(), ticket=ticket,
-                process=None, previous_results=previous, prepared_from=old if reusable else None)
+                process=None, previous_results=previous, prepared_from=old if reusable else None,
+                result=None, progress=None)
             self._update(ident, status='queued', message='Repetição aguardando na fila da estação.')
             thread = threading.Thread(target=self._run, args=(request, item, sources), daemon=True)
             job['thread'] = thread; thread.start()

@@ -3,6 +3,7 @@ import argparse
 import configparser
 import importlib.metadata
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -10,6 +11,7 @@ from .catalog import get_model, validate_model_folder, requires_brain, BRAIN, RE
 from .contracts import validate_request
 from .imaging import geometry, load_input, validate_mask
 from .model_paths import preflight_model_folders
+from .scientific_io import native_file_path, read_image, write_image
 
 
 def write_runtime_config(job_dir, model_folder, device, output_name='predictions', brain_mask=None):
@@ -18,14 +20,20 @@ def write_runtime_config(job_dir, model_folder, device, output_name='predictions
     if any(char in str(path) for path in (job_dir, model_folder) for char in '#%'):
         raise ValueError('O backend não aceita # ou % nos caminhos de trabalho/modelo.')
     cfg = configparser.ConfigParser(interpolation=None)
+    # The pinned backend also opens the NIfTI with ImageFileReader internally.
+    # In an owned Unicode child, run from this private directory and give its
+    # native reader ASCII relative names. Weight paths stay explicit and pinned.
+    relative_io = os.name == 'nt' and not str(job_dir).isascii()
     cfg['System'] = {'gpu_id': '0' if device == 'cuda' else '-1', 'acceleration': 'cpu',
-                     'inputs_folder': str(job_dir / 'inputs'),
-                     'output_folder': str(job_dir / output_name), 'model_folder': str(model_folder)}
+                     'inputs_folder': 'inputs' if relative_io else str(job_dir / 'inputs'),
+                     'output_folder': output_name if relative_io else str(job_dir / output_name),
+                     'model_folder': str(model_folder)}
     cfg['Runtime'] = {'batch_size': '1', 'folds_ensembling': 'false',
                       'reconstruction_method': 'thresholding', 'reconstruction_order': 'resample_first',
                       'use_preprocessed_data': 'false', 'test_time_augmentation_iteration': '0'}
     if brain_mask:
-        cfg['Neuro'] = {'brain_segmentation_filename': str(brain_mask)}
+        cfg['Neuro'] = {'brain_segmentation_filename':
+            Path(brain_mask).relative_to(job_dir).as_posix() if relative_io else str(brain_mask)}
     path = job_dir / f'{output_name}.ini'
     with path.open('w', encoding='utf-8') as handle:
         cfg.write(handle)
@@ -64,7 +72,7 @@ def run_job(request, job_dir, models_dir, *, allow_legacy_models=True):
     (job_dir / 'predictions').mkdir()
     print('Lendo e conferindo a geometria da RM.', flush=True)
     image, source = load_input(request['input_path'], request['series_uid'])
-    sitk.WriteImage(image, str(inputs / 'input0.nii.gz'))
+    write_image(image, inputs / 'input0.nii.gz')
     if source['dicom_files']:
         stage = job_dir / 'dicom_source'
         stage.mkdir()
@@ -75,15 +83,17 @@ def run_job(request, job_dir, models_dir, *, allow_legacy_models=True):
         (job_dir / 'brain_predictions').mkdir()
         print('Gerando máscara cerebral auxiliar oficial.', flush=True)
         brain_cfg = write_runtime_config(job_dir, brain_folder, request['device'], 'brain_predictions')
-        run_model(config_filename=str(brain_cfg))
+        with native_file_path(brain_cfg) as local:
+            run_model(config_filename=local)
         brain_mask = job_dir / 'brain_predictions' / 'labels_Brain.nii.gz'
         if not brain_mask.is_file():
             raise RuntimeError('O modelo auxiliar não produziu a máscara cerebral esperada.')
-        if not validate_mask(sitk.ReadImage(str(brain_mask)), image)['voxels']:
+        if not validate_mask(read_image(brain_mask), image)['voxels']:
             raise ValueError('Máscara cerebral vazia; a inferência tumoral não será executada.')
     cfg = write_runtime_config(job_dir, folder, request['device'], brain_mask=brain_mask)
     print(f"ACHADO solicitado: {model['id']}; inferência {request['device']} com pesos locais.", flush=True)
-    run_model(config_filename=str(cfg))
+    with native_file_path(cfg) as local:
+        run_model(config_filename=local)
     masks_dir = job_dir / 'masks'
     masks_dir.mkdir()
     masks = []
@@ -92,10 +102,10 @@ def run_job(request, job_dir, models_dir, *, allow_legacy_models=True):
         candidates = list((job_dir / 'predictions').glob(f'*_{label}.nii.gz'))
         if len(candidates) != 1:
             raise RuntimeError(f'Esperada exatamente uma máscara de {label}; encontradas {len(candidates)}.')
-        output = sitk.ReadImage(str(candidates[0]))
+        output = read_image(candidates[0])
         metrics = validate_mask(output, image)
         destination = masks_dir / f'{label}.nii.gz'
-        sitk.WriteImage(sitk.Cast(output, sitk.sitkUInt8), str(destination))
+        write_image(sitk.Cast(output, sitk.sitkUInt8), destination)
         masks.append({'label': label, 'roi_name': 'Tumor_NeuroRT',
                       'path': destination.relative_to(job_dir).as_posix(), **metrics})
     from neuro_rt import __version__

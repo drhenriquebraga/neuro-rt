@@ -117,3 +117,45 @@ class RaidionicsAdapterTests(unittest.TestCase):
         adapter = RaidionicsAdapter()
         with self.assertRaisesRegex(ValueError, 'CUDA indisponível'):
             adapter.predict(adapter.prepare(self.context), self.context)
+
+
+class UnicodeRaidionicsTests(unittest.TestCase):
+    def test_owned_child_adapter_and_real_backend_unicode_input_output(self):
+        import os, sys
+        from neuro_rt.process_tree import ManagedProcess
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+            log_path=Path(tmp)/'unicode.log'
+            code="import sys;sys.path.insert(0,'tests');from test_raidionics_adapter import unicode_adapter_check;unicode_adapter_check()"
+            with log_path.open('wb') as log:
+                process=ManagedProcess([sys.executable,'-c',code],cwd=Path(__file__).resolve().parents[1],
+                    env=dict(os.environ,PYTHONUTF8='1',OMP_NUM_THREADS='2',ITK_GLOBAL_DEFAULT_NUMBER_OF_THREADS='2'),stdout=log)
+                try: process.wait(timeout=90)
+                finally: process.close()
+            self.assertEqual(process.returncode,0,log_path.read_text(encoding='utf8',errors='replace'))
+
+
+def unicode_adapter_check():
+    import shutil, configparser
+    from dataclasses import replace
+    from neuro_rt.scientific_io import read_image
+    case=RaidionicsAdapterTests();case.setUp()
+    original=Path.cwd()
+    try:
+        unicode_root=case.root/'Suíte sintética NEURO'
+        shutil.copytree(case.root/'models',unicode_root/'models')
+        shutil.copyfile(case.root/'input.nii.gz',unicode_root/'input.nii.gz')
+        ctx=replace(case.context,authorized_inputs={'ref':unicode_root/'input.nii.gz'},
+            models_dir=unicode_root/'models',job_dir=unicode_root/'job')
+        adapter=RaidionicsAdapter();prepared=adapter.prepare(ctx)
+        raw=adapter.predict(prepared,ctx);result=adapter.normalize_result(raw,ctx)
+        assert result.status=='completed'
+        actual=sitk.GetArrayFromImage(read_image(result.masks[0].path))
+        assert actual[1:3,2:4,5:7].any() and actual[5:7,5:7,1:3].any()
+        assert result.masks[0].geometry==geometry(case.image)
+        for name in ('brain_predictions.ini','predictions.ini'):
+            cfg=configparser.ConfigParser();cfg.read(raw.job_dir/name,encoding='utf8')
+            for field in ('inputs_folder','output_folder','model_folder'):
+                path=Path(cfg['System'][field]);path=path if path.is_absolute() else raw.job_dir/path;assert path.is_dir() and 'Suíte' in str(path)
+        assert Path.cwd()==original
+        print('PASS Unicode owned child: adapter prepare/predict/normalize, Brain + tumor tiny ONNX, backend paths, foci, native geometry, cwd unchanged')
+    finally: case.doCleanups()

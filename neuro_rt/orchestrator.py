@@ -6,6 +6,7 @@ from typing import Callable
 
 from .adapters.base import ModelRunContext, RunCancelled
 from .contracts import validate_model_result
+from .execution_errors import ProcessTreeUnconfirmed
 from .study_types import ContractMessage, ModelResult, SeriesDescriptor, StudyItem, StudyManifest
 
 
@@ -111,6 +112,8 @@ def run_study(plan, context, runner) -> StudyManifest:
             if result.status == 'cancelled':
                 cancelled = True
             results.append(result)
+        except ProcessTreeUnconfirmed:
+            raise
         except RunCancelled:
             cancelled = True
             results.append(ModelResult(model_id, 'cancelled'))

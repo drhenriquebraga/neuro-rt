@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pydicom
 import SimpleITK as sitk
+from .scientific_io import read_image
 
 
 def geometry(image):
@@ -38,7 +39,7 @@ def dicom_series(folder, *, allowed_modalities=('MR',)):
 def load_input(path, uid='', *, allowed_modalities=('MR',)):
     path = Path(path)
     if path.is_file() and (path.name.lower().endswith('.nii.gz') or path.suffix.lower() == '.nii'):
-        image = sitk.ReadImage(str(path))
+        image = read_image(path)
         source = {'kind': 'nifti', 'dicom_files': [], 'series_uid': '', 'frame_uid': ''}
     elif path.is_dir():
         series = dicom_series(path, allowed_modalities=allowed_modalities)

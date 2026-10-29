@@ -10,7 +10,7 @@ from .base import PreparedInputs
 from ..contracts import validate_model_result
 from ..geometry_pipeline import prepare_model_inputs, restore_masks
 from ..model_paths import resolve_model_folder
-from ..study_types import MaskArtifact, ModelResult
+from ..study_types import ContractMessage, MaskArtifact, ModelResult
 
 
 def asset_spec(model_id):
@@ -67,11 +67,26 @@ class ScientificAdapter:
         result = ModelResult(context.model_spec['id'], 'completed', raw.masks,
                              transformations=raw.prepared.transform_chain + raw.transformations,
                              versions=raw.versions, hashes=raw.hashes)
-        masks = restore_masks(result, raw.prepared, context.reference)
-        # Empty classes have no published ROI; all present disconnected foci stay.
-        masks = [m for m in masks if np.any(sitk.GetArrayFromImage(read_image(m.path)))]
+        before = {m.class_id: int(np.count_nonzero(sitk.GetArrayFromImage(read_image(m.path))))
+                  for m in raw.masks}
+        restored = restore_masks(result, raw.prepared, context.reference)
+        masks, warnings, counts = [], [], []
+        for mask in restored:
+            after = int(np.count_nonzero(sitk.GetArrayFromImage(read_image(mask.path))))
+            record = {'model_id': result.model_id, 'class_id': mask.class_id,
+                      'working_voxels': before[mask.class_id], 'reference_voxels': after,
+                      'interpolation': 'nearest_neighbor'}
+            counts.append(record)
+            if before[mask.class_id] and not after:
+                warnings.append(ContractMessage('class_lost_on_reference_grid',
+                    'Classe não vazia ficou vazia ao retornar à grade de referência.', record))
+            if after:
+                masks.append(replace(mask, provenance={**mask.provenance, 'restoration_counts': record}))
+        # Retain counts even for originally empty classes; never invent a voxel.
         result = replace(result, status='completed' if masks else 'empty', masks=masks,
-                         geometry=context.reference.geometry)
+                         geometry=context.reference.geometry, warnings=warnings,
+                         transformations=result.transformations + [{
+                             'operation': 'reference_grid_class_counts', 'classes': counts}])
         context.checkpoint('restoring', 1.)
         return validate_model_result(result, context.model_spec)
 

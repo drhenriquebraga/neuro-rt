@@ -93,7 +93,7 @@
   function closeHelp() { el('model-help').hidden = true; if (helpAnchor && helpAnchor.isConnected) helpAnchor.focus(); }
   const statusLabels = {queued:'Na fila comum',preparing:'Preparando séries',running:'Segmentando',restoring:'Retornando à referência',exporting:'Exportando RTSTRUCT',visualizing:'Preparando visualização',completed:'Concluído',partial:'Resultado parcial',empty:'Máscaras vazias; isso não confirma ausência de tumor',failed:'Falha no estudo',cancelled:'Estudo cancelado',interrupted:'Estudo interrompido'};
   const terminal = status => ['completed','partial','empty','failed','cancelled','interrupted'].includes(status);
-  function viewOf(job) { return job.result || job.view || job; }
+  function viewOf(job) { return job.status && !terminal(job.status) ? job : job.result || job.view || job; }
   function jobKey(job) { const v = viewOf(job); return String(v.study_id || job.id || '') + ':' + (v.revision || 0); }
   function jobId(job) { const v = viewOf(job); return v.study_id || job.id; }
   function renderJobs() {
@@ -104,6 +104,7 @@
   async function refreshJobs() { const data = await api('studies'),records=[...(data.results||[]),...(data.studies||(Array.isArray(data)?data:[]))]; state.jobs=Array.from(new Map(records.map(job=>[jobKey(job),job])).values()); renderJobs(); if (!state.job && state.jobs.length) await selectResultSeries(jobKey(state.jobs[state.jobs.length-1])); }
   function artifactURL(artifact) { return '/neuro/api/studies/' + encodeURIComponent(jobId(state.job)) + '/artifacts/' + encodeURIComponent(artifact.artifact_id); }
   function clearScene() {
+    closeExpandedPlane();
     if (state.abort) state.abort.abort(); state.abort = new AbortController(); state.scene = null; state.rois = {}; state.artifactMap = {}; el('viewer').hidden = true;
     ['axial','coronal','sagittal'].forEach(name => el('slice-' + name).replaceChildren());
     if (window.r3gLimpar) r3gLimpar(); if (window.R3G) { R3G.anim = null; R3M.lig = {}; R3M.alfa = {}; }
@@ -131,6 +132,7 @@
     el('job-status').textContent = (statusLabels[status] || status || '') + (current ? ' · ' + ((state.models.find(m=>m.id===current)||{}).label||current) : '') + (view.export_status === 'failed' || view.export_status === 'incomplete' ? '. A publicação do RTSTRUCT não foi concluída.' : '') + (results.length ? '. '+results.join('; ')+'.' : '');
     el('cancel').hidden = terminal(status); el('retry').hidden = !['failed','partial','interrupted','cancelled'].includes(status);
     el('downloads').innerHTML = (view.artifacts || []).filter(a => a.kind === 'rtstruct').map(a => '<a href="' + esc(artifactURL(a)) + '" download>Baixar RTSTRUCT não aprovado</a>').join('');
+    el('result-warnings').innerHTML = (view.models || []).flatMap(model => (model.warnings || []).filter(w => w.code === 'class_lost_on_reference_grid').map(w => '<p class="nr-warning">' + esc(model.model_id + ' · ' + w.class_id) + ': Classe não vazia ficou vazia ao retornar à grade de referência. ' + esc(w.working_voxels + ' → ' + w.reference_voxels) + ' voxels. Interpolação: vizinho mais próximo.</p>')).join('');
   }
   async function pollJob(generation) {
     if (generation !== state.generation || !state.job) return;
@@ -178,14 +180,49 @@
       try { const bytes = await artifactFetch(roi.mesh,'arrayBuffer'); if (generation !== state.generation) return; if (roi.visible) r3gSubir(roi.id,r3gLerStl(bytes),roi.color); syncVisibility(); } catch(e) { if (e.name !== 'AbortError' && generation === state.generation) el('mesh-status').textContent = 'Uma superfície não pôde ser aberta. Os cortes continuam disponíveis.'; } finally { roi.loading = false; }
     }
   }
+  let expandedPlane = null, expandedAnchor = null;
+  function closeExpandedPlane() {
+    if (!expandedPlane) return;
+    const button = expandedPlane.querySelector('[data-enlarge]');
+    expandedPlane.classList.remove('nr-expanded'); expandedPlane.removeAttribute('role');
+    expandedPlane.removeAttribute('aria-modal');
+    button.textContent = 'Ampliar'; button.setAttribute('aria-expanded','false');
+    expandedPlane = null;
+    if (expandedAnchor && expandedAnchor.isConnected) expandedAnchor.focus();
+  }
+  function enlargePlane(name, anchor) {
+    const plane = document.querySelector('[data-plane="'+name+'"]');
+    if (!plane || !state.scene) return;
+    if (expandedPlane === plane) { closeExpandedPlane(); return; }
+    closeExpandedPlane(); expandedAnchor = anchor; expandedPlane = plane;
+    plane.classList.add('nr-expanded'); plane.setAttribute('role','dialog');
+    plane.setAttribute('aria-modal','true'); plane.setAttribute('aria-label',name);
+    const button = plane.querySelector('[data-enlarge]');
+    button.textContent = 'Voltar'; button.setAttribute('aria-expanded','true'); button.focus();
+  }
+  function setPrimaryPlane(name) {
+    document.querySelectorAll('[data-plane]').forEach(plane=>{
+      plane.dataset.primary=String(plane.dataset.plane===name);
+      plane.querySelector('[data-primary-plane]').setAttribute('aria-pressed',String(plane.dataset.plane===name));
+    });
+  }
+  document.addEventListener('dblclick',event=>{
+    const slice=event.target.closest('.nr-slice');
+    if(slice){const plane=slice.closest('[data-plane]');enlargePlane(plane.dataset.plane,plane.querySelector('[data-enlarge]'));}
+  });
   document.addEventListener('click', event => {
+    const enlarge=event.target.closest('[data-enlarge]'); if(enlarge){enlargePlane(enlarge.dataset.enlarge,enlarge);return;}
+    const primary=event.target.closest('[data-primary-plane]'); if(primary){setPrimaryPlane(primary.dataset.primaryPlane);return;}
     const help = event.target.closest('[data-help]'); if (help) { openModelHelp(help,help.dataset.help); return; }
     if (!el('model-help').hidden && !el('model-help').contains(event.target)) closeHelp();
     const remove = event.target.closest('[data-remove]'); if (remove) loadSelection(state.series.filter(s => s.ticket !== remove.dataset.remove).map(s => s.ticket)).catch(e => { el('selection-status').textContent = e.message; });
     const view = event.target.closest('[data-view]'); if (view && window.R3G && R3G.gl) { R3G.M = r3MatrizDaVista6(view.dataset.view); R3G.anim = null; r3gPedir(); }
   });
   el('help-close').addEventListener('click',closeHelp);
-  document.addEventListener('keydown',event => { if (el('model-help').hidden) return; if (event.key === 'Escape') closeHelp(); else if (event.key === 'Tab' && window.uiPrenderFoco) uiPrenderFoco(el('model-help'),event); });
+  document.addEventListener('keydown',event => {
+    if (!el('model-help').hidden) {if(event.key==='Escape')closeHelp();else if(event.key==='Tab'&&window.uiPrenderFoco)uiPrenderFoco(el('model-help'),event);return;}
+    if(expandedPlane){if(event.key==='Escape')closeExpandedPlane();else if(event.key==='Tab'&&window.uiPrenderFoco)uiPrenderFoco(expandedPlane,event);}
+  });
   el('models').addEventListener('change',event => { const target=event.target; if (target.dataset.model) { if(target.checked) state.selected.add(target.dataset.model); else state.selected.delete(target.dataset.model); updateStart(); } if (target.dataset.bindingModel) { const id=target.dataset.bindingModel, role=target.dataset.role; state.bindings[id]=(state.bindings[id]||[]).filter(b => b.role !== role); if(target.value) state.bindings[id].push({role,series_ticket:target.value,certainty:'certain',association_source:'manual',warnings:[]}); renderModelSelection(el('models')); } });
   el('reference').addEventListener('change',() => {state.reference=el('reference').value;renderModelSelection(el('models'));});
   el('scan-form').addEventListener('submit',event => { event.preventDefault(); if (!window.uiVarrer) { el('scan-status').textContent='O carregador comum não está disponível. Reabra pelo Local Suite.';return; } el('scan-status').textContent='Procurando séries…'; uiVarrer({uso:'series',chave:'neuro-study',pasta:el('folder').value,dias:0,opcoes:{modalidades:['MR','CT']},aoFim:lines => { const tickets=lines.map(l => l.b || l.bilhete || l.ticket).filter(Boolean); loadSelection(tickets).catch(e => {el('scan-status').textContent=e.message;}); },aoErro:message => {el('scan-status').textContent=message;}}); });

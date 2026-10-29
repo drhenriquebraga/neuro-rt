@@ -170,9 +170,25 @@ def public_view(manifest, catalog=None):
                   **({'logical_name': a['logical_name']} if 'logical_name' in a else {})}
                  for a in manifest.artifacts
                  if all(k in a for k in ('artifact_id', 'kind', 'media_type'))]
+    def safe_warnings(result):
+        # Explicit projection: never publish free text, paths or arbitrary details.
+        known = {c['class_id'] for c in catalog[result.model_id]['classes']} if catalog else {
+            c['class_id'] for m in load_catalog() if m['id'] == result.model_id for c in m['classes']}
+        warnings = []
+        for warning in result.warnings:
+            details = warning.details
+            if (warning.code == 'class_lost_on_reference_grid' and isinstance(details, dict)
+                    and details.get('class_id') in known
+                    and type(details.get('working_voxels')) is int and details['working_voxels'] > 0
+                    and type(details.get('reference_voxels')) is int and details['reference_voxels'] == 0):
+                warnings.append({'code': warning.code, 'model_id': result.model_id,
+                    'class_id': details['class_id'], 'working_voxels': details['working_voxels'],
+                    'reference_voxels': 0, 'interpolation': 'nearest_neighbor'})
+        return warnings
     models = [{'model_id': r.model_id, 'status': r.status,
                'classes': [m.class_id for m in r.masks],
-               'warning_count': len(r.warnings), 'error_count': len(r.errors)}
+               'warning_count': len(r.warnings), 'warnings': safe_warnings(r),
+               'error_count': len(r.errors)}
               for r in manifest.results]
     return StudyView(manifest.study_id, manifest.request_id, manifest.revision,
                      manifest.reference.ticket, manifest.status, manifest.export_status,

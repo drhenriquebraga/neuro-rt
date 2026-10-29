@@ -82,6 +82,13 @@
       "provenance": {
         "path": "provenance.json",
         "release": "1.2.0"
+      },
+      "help": {
+        "method": "AGU-Net (Raidionics)",
+        "preparation": "Normalização e reconstrução publicadas pelo Raidionics; máscaras devolvidas à referência. Máscara cerebral auxiliar oficial necessária.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Ensino e pesquisa. Confira lesões e cavidades; contornos não comprovam função ou invasão tumoral.",
+        "summary": "Glioblastoma · pré-operatório"
       }
     },
     {
@@ -165,6 +172,13 @@
       "provenance": {
         "path": "provenance.json",
         "release": "1.2.0"
+      },
+      "help": {
+        "method": "AGU-Net (Raidionics)",
+        "preparation": "Normalização e reconstrução publicadas pelo Raidionics; máscaras devolvidas à referência. Máscara cerebral auxiliar oficial necessária.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Ensino e pesquisa. Confira lesões e cavidades; contornos não comprovam função ou invasão tumoral.",
+        "summary": "Glioma de baixo grau"
       }
     },
     {
@@ -219,6 +233,13 @@
       "provenance": {
         "path": "provenance.json",
         "release": "1.2.0"
+      },
+      "help": {
+        "method": "AGU-Net (Raidionics)",
+        "preparation": "Normalização e reconstrução publicadas pelo Raidionics; máscaras devolvidas à referência.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Ensino e pesquisa. Confira lesões e cavidades; contornos não comprovam função ou invasão tumoral.",
+        "summary": "Meningioma"
       }
     },
     {
@@ -302,6 +323,13 @@
       "provenance": {
         "path": "provenance.json",
         "release": "1.2.0"
+      },
+      "help": {
+        "method": "AGU-Net (Raidionics)",
+        "preparation": "Normalização e reconstrução publicadas pelo Raidionics; máscaras devolvidas à referência. Máscara cerebral auxiliar oficial necessária.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Ensino e pesquisa. Confira lesões e cavidades; contornos não comprovam função ou invasão tumoral.",
+        "summary": "Metástases"
       }
     },
     {
@@ -385,6 +413,13 @@
       "provenance": {
         "path": "provenance.json",
         "release": "1.2.0"
+      },
+      "help": {
+        "method": "AGU-Net (Raidionics)",
+        "preparation": "Normalização e reconstrução publicadas pelo Raidionics; máscaras devolvidas à referência. Máscara cerebral auxiliar oficial necessária.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Ensino e pesquisa. Confira lesões e cavidades; contornos não comprovam função ou invasão tumoral.",
+        "summary": "Tumor residual no pós-operatório precoce."
       }
     },
     {
@@ -490,7 +525,14 @@
             "release": "1.2.0"
           }
         }
-      ]
+      ],
+      "help": {
+        "method": "AGU-Net (Raidionics)",
+        "preparation": "Séries distintas, alinhadas explicitamente; normalização por canal e retorno à referência.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Ensino e pesquisa. Confira lesões e cavidades; contornos não comprovam função ou invasão tumoral.",
+        "summary": "Tumor residual no pós-operatório precoce."
+      }
     },
     {
       "id": "glioma_attention_unet3d",
@@ -587,7 +629,14 @@
       "supported_devices": [
         "cpu"
       ],
-      "verification_evidence": ".superpowers/sdd/neuro-plugin/M03-M06-report.md"
+      "verification_evidence": ".superpowers/sdd/neuro-plugin/M03-M06-report.md",
+      "help": {
+        "method": "Attention U-Net 3D (WT / TC / ET)",
+        "preparation": "Séries distintas, alinhadas explicitamente; normalização por canal e retorno à referência.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Checkpoint de pesquisa; métricas do autor não são validação do Neuro RT.",
+        "summary": "TC, WT e ET independentes e sobrepostos."
+      }
     },
     {
       "id": "metastasis_qtim",
@@ -622,7 +671,14 @@
       "source_url": "https://github.com/QTIM-Lab/Brain-Mets-Seg",
       "availability_reason": "Adiado: distribuicao Linux/NVIDIA DALI sem runtime Windows equivalente verificado.",
       "addition": true,
-      "deferred": true
+      "deferred": true,
+      "help": {
+        "method": "Ensemble U-Net 3D (Brain-Mets-Seg / QTIM)",
+        "preparation": "T1 com contraste.",
+        "hardware": "Modelo adiado; não distribuído nesta versão.",
+        "limitations": "Modelo adiado; não distribuído nesta versão.",
+        "summary": "Metástases"
+      }
     },
     {
       "id": "anatomy_synthseg",
@@ -853,7 +909,14 @@
       "supported_devices": [
         "cpu"
       ],
-      "verification_evidence": ".superpowers/sdd/neuro-plugin/M03-M06-report.md"
+      "verification_evidence": ".superpowers/sdd/neuro-plugin/M03-M06-report.md",
+      "help": {
+        "method": "SynthSeg / DIPY 1.12.0 (PyTorch)",
+        "preparation": "T1; preparo 1 mm, recorte, normalização, flip e retorno de labels à referência.",
+        "hardware": "Somente CPU neste adaptador. A preferência global GPU estrita impede a execução.",
+        "limitations": "Implementação DIPY; não é a variante TensorFlow robust/parcellation. Confira lesões e cavidades.",
+        "summary": "32 estruturas anatômicas."
+      }
     },
     {
       "id": "anatomy_cerebra_ants",
@@ -1444,7 +1507,14 @@
         "cpu"
       ],
       "source_revision": "CerebrA DOI10.12751/g-node.be5e62 + MNI2009c symmetric",
-      "verification_evidence": ".superpowers/sdd/neuro-plugin/M03-M06-report.md"
+      "verification_evidence": ".superpowers/sdd/neuro-plugin/M03-M06-report.md",
+      "help": {
+        "method": "CerebrA / ANTs: Propagação de atlas por registro deformável",
+        "preparation": "T1; template MNI 2009c simétrico, máscara e atlas locais; registro rígido, afim e deformável.",
+        "hardware": "Somente CPU neste adaptador. A preferência global GPU estrita impede a execução.",
+        "limitations": "Depende da qualidade do registro. Lesões e cavidades podem deslocar estruturas; convergência não valida a anatomia.",
+        "summary": "102 labels anatômicos do atlas."
+      }
     },
     {
       "id": "cranio_buti",
@@ -1555,6 +1625,13 @@
         "output_policy": "Oito classes originais, sem filtro FULL/renomeação e sem remover focos; classes vazias não geram ROI.",
         "weights_owner": "radai_models.pasta_do_modelo(cranio_buti)",
         "revision": "d3f8bc7248ac9138e03be7e6a839d7844599b8a1"
+      },
+      "help": {
+        "method": "Buti / nnU-Net (Local Suite)",
+        "preparation": "TC 3D; CTNormalization e reamostragem originais nnU-Net; pesos e executor do host.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Evidência específica em TC sem contraste ainda não validada nesta instalação; não há bloqueio automático por contraste.",
+        "summary": "Oito labels originais de anatomia na TC."
       }
     }
   ]

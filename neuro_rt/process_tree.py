@@ -4,6 +4,7 @@ import signal
 import subprocess
 import time
 from pathlib import Path
+from .execution_errors import ProcessTreeUnconfirmed
 
 
 class ManagedProcess:
@@ -26,9 +27,13 @@ class ManagedProcess:
             self.process.stdin.write(b'NEURO_RT_READY\n')
             self.process.stdin.flush(); self.process.stdin.close()
         except BaseException:
-            if self.process is not None:
-                self.process.kill(); self.process.wait()
-            self.close()
+            try:
+                if self.process is not None:
+                    self.process.kill(); self.process.wait(timeout=10)
+                self.close()
+            except BaseException as error:
+                # Preserve ownership even when construction/handshake failed.
+                raise ProcessTreeUnconfirmed('Encerramento da árvore não confirmado.', process=self) from error
             raise
 
     def _create_job(self):
