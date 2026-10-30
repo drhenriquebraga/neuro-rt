@@ -7,6 +7,7 @@ import hashlib
 import importlib.util
 import json
 import re
+import stat
 import sys
 import threading
 from pathlib import Path, PureWindowsPath
@@ -27,7 +28,15 @@ def _inside(root, relative):
             or any(ord(c) < 32 or c in '<>:"|?*' for c in relative)):
         raise ValueError('Caminho fora do contrato de instalação.')
     root = Path(root).resolve()
-    path = root.joinpath(*parts).resolve()
+    raw_path = root.joinpath(*parts)
+    for parent in (raw_path, *raw_path.parents):
+        if parent.exists() or parent.is_symlink():
+            info = parent.lstat()
+            if stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
+                raise ValueError('A instalação do plugin não permite links ou redirecionamentos.')
+        if parent == root:
+            break
+    path = raw_path.resolve()
     if not path.is_relative_to(root):
         raise ValueError('Caminho escapa da instalação.')
     return path
@@ -122,9 +131,17 @@ def discover_plugin(suite_root, plugin_id=PLUGIN_ID, host_info=None):
         if (adapter_file not in covered or 'module.json' not in covered
                 or not re.fullmatch('[A-Za-z_]\\w*', function)):
             raise ValueError('Adaptador não protegido pelo inventário.')
-        for file in code.rglob('*.py'):
-            if file.relative_to(code).as_posix() not in covered:
-                raise ValueError('Código Python não previsto na release.')
+        allowed_receipts = {'release-manifest.json', 'install-receipt.json'}
+        actual = set()
+        for file in code.rglob('*'):
+            relative = file.relative_to(code).as_posix()
+            _inside(code, relative)
+            if file.is_file():
+                if '__pycache__' in file.parts or file.suffix.lower() in ('.pyc', '.pyo'):
+                    raise ValueError('Bytecode não é permitido no código instalado do plugin.')
+                actual.add(relative)
+        if actual - allowed_receipts != covered:
+            raise ValueError('A instalação contém arquivos não previstos no inventário.')
         result.update(state='ready', reason='', active_version=version,
                       code_dir=str(code), manifest=manifest, adapter_file=adapter_file,
                       adapter_function=function)

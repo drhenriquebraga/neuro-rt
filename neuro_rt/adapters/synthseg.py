@@ -1,4 +1,4 @@
-"""DIPY1.12 SynthSeg CPU, retaining its published preprocessing and TTA."""
+"""Pinned SynthSeg CPU compatibility on the unchanged host DIPY/PyTorch base."""
 from ._scientific import ScientificAdapter, ScientificPrediction, verified_assets, label_masks
 
 
@@ -11,7 +11,7 @@ class SynthSegAdapter(ScientificAdapter):
         import nibabel as nib
         import numpy as np
         import torch
-        from dipy.nn.torch.synthseg import SynthSeg
+        from ..compat_synthseg import SynthSeg, COMPAT_REVISION
         context.checkpoint('running', 0.)
         folder, hashes = verified_assets(context)
         if context.device != 'cpu':
@@ -31,4 +31,5 @@ class SynthSegAdapter(ScientificAdapter):
             'operation': 'DIPY_SynthSeg_predict', 'spacing_mm': [1, 1, 1],
             'crop_size': [192, 192, 192], 'flip_tta': True,
             'recovery_interpolation_order': 0, 'upstream_topological_cleanup': True}],
-            {'engine': 'dipy/' + dipy.__version__, 'torch': torch.__version__}, hashes)
+            {'engine': 'dipy-synthseg-compat/' + COMPAT_REVISION,
+             'dipy_base': dipy.__version__, 'torch': torch.__version__}, hashes)

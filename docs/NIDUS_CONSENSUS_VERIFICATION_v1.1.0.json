@@ -3,17 +3,17 @@
   "python": "3.10.11",
   "synthetic_only": true,
   "python_tests": 24,
-  "root_rerun_seconds": 17.379,
+  "root_rerun_seconds": 7.202,
   "chrome_checks": 9,
   "chrome_page_errors": 0,
   "viewports": [
     "1280x800",
     "1024x768"
   ],
-  "recon_source_commit": "2abd18e",
+  "recon_source_commit": "51b0e6918b7b7743a54f17a9146df2a18d03f538",
   "sources": {
-    "RECON_3D/app/radai_projection.py": "812652358781ae2f21a586148356b9724a1477349ae95c84a68a671bc14156bc",
-    "RECON_3D/app/radai_projection_consensus.py": "3bf5a0844c5c1a660826f839d7afe63d58640fdf2e2269ff2bb5f75fb3187be2",
+    "RECON_3D/app/radai_projection.py": "744cd6faa365b5aa18e6b9a9d9152c322704abc7850eee319ae82720c4e4ae51",
+    "RECON_3D/app/radai_projection_consensus.py": "363617304f956dd5a235279e2a038e3f7dc789188ba05a7d361f095bb46b4b78",
     "NEURO_RT/app/radai_nidus_screen.py": "e0521d66c17ba56cbf9ab057ac20b15602720b84a698e40b61c0bd4a366a92fd",
     "NEURO_RT/integration/nidus_bridge.py": "48b963042821dafb953d71e8695654885f60d73e07ee55df5cfc6eaef37dcceb",
     "NEURO_RT/integration/nidus_consensus.py": "add361037a049f44b49d9df3c9b7f105c261eff3f61b9594fac0efdfc72f5401",
@@ -29,5 +29,17 @@
     "No GPU or clinical study tested",
     "Synchronous host RTSTRUCT writer cancellation checked before and after",
     "Private candidate files do not automatically reopen a session after restart"
-  ]
+  ],
+  "sanitization": {
+    "app/radai_projection.py": {
+      "original_sha256": "07986f040d0b783cd13f5cf2111966fdff656c9f06b08a461b3e9d002df526f9",
+      "current_sha256": "744cd6faa365b5aa18e6b9a9d9152c322704abc7850eee319ae82720c4e4ae51",
+      "ast_equal_without_docstrings": true
+    },
+    "app/radai_projection_consensus.py": {
+      "original_sha256": "3bf5a0844c5c1a660826f839d7afe63d58640fdf2e2269ff2bb5f75fb3187be2",
+      "current_sha256": "363617304f956dd5a235279e2a038e3f7dc789188ba05a7d361f095bb46b4b78",
+      "ast_equal_without_docstrings": true
+    }
+  }
 }

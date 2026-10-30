@@ -57,6 +57,39 @@ class PluginLoaderTests(unittest.TestCase):
             (code / 'integration/adapter.py').write_text('raise RuntimeError("corrupt")')
             self.assertEqual(discover_plugin(base, host_info=host)['state'], 'failed')
 
+    def test_uninventoried_bytecode_or_other_payload_never_reaches_mount(self):
+        from integration.plugin_loader import discover_plugin
+        for relative in ('integration/__pycache__/adapter.cpython-310.pyc',
+                         'integration/adapter.pyc','integration/extra.pyd','web/extra.js'):
+            with self.subTest(relative=relative), tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+                base = Path(tmp)
+                _, code = self.fixture(base)
+                path = code / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b'unverified-payload')
+                status = discover_plugin(base, host_info={
+                    'contract':'local-suite/plugins/1','version':'8.10'})
+                self.assertEqual(status['state'], 'failed')
+
+    def test_redirected_empty_cache_directory_is_refused_before_import(self):
+        from integration.plugin_loader import discover_plugin
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+            base = Path(tmp)
+            _, code = self.fixture(base)
+            cache = code / 'integration/__pycache__'
+            cache.mkdir()
+            original = Path.lstat
+            def stat_with_reparse(path, *args, **kwargs):
+                info = original(path, *args, **kwargs)
+                if path == cache:
+                    return SimpleNamespace(st_mode=info.st_mode, st_file_attributes=0x400)
+                return info
+            with patch.object(Path, 'lstat', stat_with_reparse):
+                status = discover_plugin(base, host_info={
+                    'contract':'local-suite/plugins/1','version':'8.10'})
+            self.assertEqual(status['state'], 'failed')
+
     def test_mount_is_idempotent_and_carries_host_services(self):
         from integration.plugin_loader import discover_plugin, mount_plugin
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:

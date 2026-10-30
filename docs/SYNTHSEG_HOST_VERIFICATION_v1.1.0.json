@@ -1,0 +1,57 @@
+{
+  "scope": "SynthSeg DIPY1.12 compatibility on host DIPY1.11",
+  "revision": "407e9319cbfe3d05304682d317363ecd09a83fdc-host1",
+  "tests": 11,
+  "seconds": 15.466,
+  "architecture_ast_equal": true,
+  "scientific_methods_ast_equal": true,
+  "geometry_bit_equal_to_pinned_source": true,
+  "topology_source_git_blob": "b6b1708e57c05257eb26c646bbf1b63697a63e88",
+  "checkpoint_sha256": "3023c046e3996796b1e87badeb337cc7edd2da4c79794a0214afc76b63c701fe",
+  "parameters": 13240641,
+  "checkpoint_tensors": 83,
+  "forward_shape": [
+    1,
+    33,
+    32,
+    32,
+    32
+  ],
+  "forward_finite": true,
+  "cpu_threads": 2,
+  "schema": "neuro-rt/synthseg-host-verification/1",
+  "sources": {
+    "neuro_rt/compat_synthseg.py": "f8a03e2280565077a3d42c399003d1b7b212a2ba4d38ff2d7be075d2e17c1497",
+    "neuro_rt/compat_synthseg_utils.py": "16790e4bbd1a7a8e7d99709fcf6486467c71e19cf036936b677de34115cf552a",
+    "neuro_rt/adapters/synthseg.py": "b982f440719cc1525ca26de61a05858c90897217e045224956d4509806d31f81",
+    "tests/test_synthseg_compat.py": "55131ff6b05e332f3a6c5abedb9a526df0aaa7ce8737b4a61894f2df854f68e1",
+    "licenses/DIPY_SYNTHSEG_COMPAT_BSD.txt": "1d59889e299a5bfcd152f0561ced0bcb19d1682c72634e44ecb4910841a3d009",
+    "licenses/SYNTHSEG_ARCHITECTURE_APACHE_2.txt": "c95bae1d1ce0235ecccd3560b772ec1efb97f348a79f0fbe0a634f0c2ccefe2c",
+    "licenses/SYNTHSEG_COMPAT_NOTICE.md": "25a105732db88887a764d5ccf026c972bb9916ad011e0bf72b519738603f3a2b",
+    "docs/SYNTHSEG_HOST_COMPAT.md": "8355fd8ad5b8a5c6b6970e8290748ed47f974971fe32df6ad2626a354de4c00c"
+  },
+  "root_tests": 11,
+  "root_rerun_seconds": 5.228,
+  "full192": {
+    "status": "empty",
+    "restored_classes": 32,
+    "returned_masks": 0,
+    "seconds": 113.56091180001386,
+    "python": "3.10.11",
+    "base_versions": {
+      "numpy": "1.26.4",
+      "scipy": "1.15.3",
+      "SimpleITK": "2.5.6",
+      "torch": "2.5.1+cu121",
+      "monai": "1.4.0",
+      "dipy": "1.11.0"
+    },
+    "same_host_interpreter": true,
+    "geometry_valid": true,
+    "evidence_sha256": "92c3f20c01803039bdf84619d353f5e73108fffc610f820792312cf32f700161"
+  },
+  "limitations": [
+    "Synthetic phantom only; no clinical accuracy claim",
+    "No GPU validation"
+  ]
+}
