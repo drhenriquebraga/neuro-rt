@@ -52,6 +52,13 @@ Pedidos concorrentes que recebem `InstallReceipt.following=True` não ativam
 versões nem solicitam reabertura. Erros expõem código e fase controlados;
 paths, nomes de pacientes e texto bruto de exceções não entram no status.
 
+Uma comparação isolada de 100 arquivos aquecidos mediu 1,186 s antes e
+0,732 s após consolidar duas guardas duplicadas. O alvo continua tendo todos
+os ancestrais conferidos, a resolução/contenção permanece igual e o hash só
+é lido depois da guarda completa imediatamente anterior à abertura. Não há
+cache de integridade. A amostra mede essa operação e não prevê o tempo total
+de uma instalação fria.
+
 ## Distribuição e verificação
 
 Os pacotes 1.0.1 e suas tags permanecem imutáveis. A candidata 1.0.2 deve ser

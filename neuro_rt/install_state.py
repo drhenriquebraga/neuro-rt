@@ -117,7 +117,6 @@ def _validate_name(name):
 
 def _path(root, name):
     _validate_name(name)
-    _plain(root)
     target = _relative_path(root, name)
     _plain(Path(root).joinpath(*name.split('/')))
     return target
@@ -397,7 +396,7 @@ def _file_digest(path):
 
 
 def _verify_file(path, record):
-    path = _plain(path)
+    path = Path(path)
     if not path.is_file() or path.stat().st_size != record['size'] or _file_digest(path) != record['sha256']:
         raise InstallFailure('PACKAGE_INTEGRITY', 'Arquivo ausente ou corrompido; identidade SHA256 não confere.')
 
