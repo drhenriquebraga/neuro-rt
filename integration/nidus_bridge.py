@@ -27,7 +27,7 @@ def montar(app, host_services):
     if core is not None and core is not radai_projection:
         raise RuntimeError('O core Nidus já foi carregado fora do plugin Neuro RT.')
     import radai_nidus_screen
-    radai_nidus_screen.montar(app)
+    radai_nidus_screen.montar(app, host_services=host_services)
     receipt = {'screen': radai_nidus_screen, 'path': '/nidus/projecao'}
     app.state.neuro_nidus = receipt
     return receipt

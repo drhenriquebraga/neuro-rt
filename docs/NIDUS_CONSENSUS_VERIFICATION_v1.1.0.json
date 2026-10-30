@@ -1,0 +1,33 @@
+{
+  "schema": "neuro-rt/nidus-verification/1",
+  "python": "3.10.11",
+  "synthetic_only": true,
+  "python_tests": 24,
+  "root_rerun_seconds": 17.379,
+  "chrome_checks": 9,
+  "chrome_page_errors": 0,
+  "viewports": [
+    "1280x800",
+    "1024x768"
+  ],
+  "recon_source_commit": "2abd18e",
+  "sources": {
+    "RECON_3D/app/radai_projection.py": "812652358781ae2f21a586148356b9724a1477349ae95c84a68a671bc14156bc",
+    "RECON_3D/app/radai_projection_consensus.py": "3bf5a0844c5c1a660826f839d7afe63d58640fdf2e2269ff2bb5f75fb3187be2",
+    "NEURO_RT/app/radai_nidus_screen.py": "e0521d66c17ba56cbf9ab057ac20b15602720b84a698e40b61c0bd4a366a92fd",
+    "NEURO_RT/integration/nidus_bridge.py": "48b963042821dafb953d71e8695654885f60d73e07ee55df5cfc6eaef37dcceb",
+    "NEURO_RT/integration/nidus_consensus.py": "add361037a049f44b49d9df3c9b7f105c261eff3f61b9594fac0efdfc72f5401",
+    "NEURO_RT/neuro_rt/nidus_geometry.py": "c7b7aa62cd266ec3da2fae9287544ad9d96b70cd17cb79bb2a3b0a50e108e890",
+    "NEURO_RT/tests/test_nidus_consensus_core.py": "865e59071e3e3ba146a62b01f637a468106da566ccdd5326f2d5fa836b6d7580",
+    "NEURO_RT/tests/test_nidus_geometry.py": "b87d01a84aadcc6e2b3707cbc1b83b66059766743dddbf62f33d1c25d7337f9c",
+    "NEURO_RT/tests/test_nidus_consensus_api.py": "ec378675c131f032031656ea9dedb3208a180fa675af908ceb21be7f80fb44f2",
+    "NEURO_RT/tests/browser_nidus_consensus.cjs": "7fb199f8693bc7cec030b194c5260224e98a7c8c579518f5bb1dbcf4d9f38787",
+    "NEURO_RT/docs/NIDUS_CONSENSUS.md": "ee012725801fc32030ee5ef9ab30f416b80b6cd9ba42a7fef5b858fa36ab974f"
+  },
+  "limits": [
+    "No clinical accuracy claim",
+    "No GPU or clinical study tested",
+    "Synchronous host RTSTRUCT writer cancellation checked before and after",
+    "Private candidate files do not automatically reopen a session after restart"
+  ]
+}

@@ -77,4 +77,11 @@ class ResourcePathsTests(unittest.TestCase):
         catalog_file.write_text(json.dumps(catalog))
         self.assertEqual(self.paths().resources['model_relative_paths'], {'phantom':'models/phantom/1.0'})
 
+    def test_verified_additions_use_the_same_confined_model_contract(self):
+        catalog_file = self.code / 'catalog/models.json'
+        catalog = json.loads(catalog_file.read_text())
+        catalog['models'][0]['catalog_state'] = 'verified'
+        catalog_file.write_text(json.dumps(catalog))
+        self.assertEqual(self.paths().resources['model_relative_paths'], {'phantom':'models/phantom/1.0'})
+
 if __name__ == '__main__': unittest.main()

@@ -53,7 +53,7 @@ def resolve_resources(plugin_root, code_dir, descriptor):
             if not isinstance(spec, dict): raise ValueError('Modelo de recursos inválido.')
             if spec.get('host_managed') is True:
                 return  # Buti and its weights already belong to the complete suite.
-            if spec.get('catalog_state') == 'distributed':
+            if spec.get('catalog_state') in ('distributed', 'verified'):
                 ident, revision = spec.get('id'), spec.get('revision')
                 if not all(isinstance(v, str) and re.fullmatch('[A-Za-z0-9][A-Za-z0-9_.-]{0,127}', v) for v in (ident, revision)):
                     raise ValueError('Identidade dos recursos inválida.')
