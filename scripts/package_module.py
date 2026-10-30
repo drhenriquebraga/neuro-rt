@@ -14,7 +14,7 @@ from neuro_rt import __version__
 SOURCE_FILES = ['README.md','AGENTS.md','LICENSE','NOTICE','module.json','models.lock.json',
                 'requirements.txt','requirements-dev.txt','neuro_rt.example.json',
                 'INICIAR.cmd','PREPARAR.cmd']
-SOURCE_DIRS = ['neuro_rt','web','integration','licenses','scripts','docs','tests']
+SOURCE_DIRS = ['neuro_rt','web','integration','catalog','app','tools','licenses','scripts','docs','tests','installer','.github']
 IMAGE_SUFFIXES = ('.dcm','.nii','.nii.gz')
 
 
@@ -28,7 +28,14 @@ def source_files(root):
     return files
 
 
-def package(offline=False):
+def package(offline=False, runtime_spec=None):
+    if runtime_spec is not None:
+        from scripts.build_plugin_release import build_release
+        result = build_release(__version__, ROOT / 'catalog/models.json',
+            json.loads(Path(runtime_spec).read_text(encoding='utf-8')), ROOT / 'dist')
+        return result.offline if offline else result.plugin
+    if offline:
+        raise ValueError('Offline instalável exige --runtime-spec com os dois runtimes portáteis fixados.')
     files = source_files(ROOT)
     if offline:
         if not (ROOT / 'python/provenance.json').is_file():
@@ -43,7 +50,7 @@ def package(offline=False):
         raise ValueError('Imagem clínica/sintética não pode entrar no pacote.')
     out = ROOT / 'dist'
     out.mkdir(exist_ok=True)
-    name = f'NEURO_RT_OFFLINE_v{__version__}.zip' if offline else f'NEURO_RT_PLUGIN_v{__version__}.zip'
+    name = f'NEURO_RT_SOURCE_v{__version__}.zip'
     path = out / name
     with zipfile.ZipFile(path, 'w', compression=zipfile.ZIP_DEFLATED,
                          compresslevel=1 if offline else 6) as zipped:
@@ -64,4 +71,6 @@ def package(offline=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--offline', action='store_true')
-    package(parser.parse_args().offline)
+    parser.add_argument('--runtime-spec', type=Path)
+    args = parser.parse_args()
+    package(args.offline, args.runtime_spec)

@@ -1,0 +1,80 @@
+{
+  "schema": "neuro-rt/atlas-assets/1",
+  "model_id": "anatomy_cerebra_ants",
+  "revision": "CerebrA DOI10.12751/g-node.be5e62 + MNI2009c symmetric",
+  "license": {
+    "code": "Apache-2.0",
+    "atlas": "CC0-1.0",
+    "template": "LicenseRef-MNI-ICBM152",
+    "weights": "CC0-1.0 AND LicenseRef-MNI-ICBM152"
+  },
+  "allowlist": [
+    {
+      "path": "anatomy_cerebra_ants/atlas_labels.nii",
+      "sha256": "8cbb7a90a8ae6f34001a1d659d99c9480dd79121184c2e2f01b160ad32d7800c",
+      "size": 34120436,
+      "format": "nifti"
+    },
+    {
+      "path": "anatomy_cerebra_ants/CerebrA_LabelDetails.csv",
+      "sha256": "16ba5fec63159b69699d17d79274d34ec68d14099c3c989dadbbed83e2da9999",
+      "size": 2798,
+      "format": "text"
+    },
+    {
+      "path": "anatomy_cerebra_ants/template_t1.nii",
+      "sha256": "93359ab97c1c027376397612a9b6c30e95406c15bf8695bd4a8efcb2064eaa34",
+      "size": 17060394,
+      "format": "nifti"
+    },
+    {
+      "path": "anatomy_cerebra_ants/template_mask.nii",
+      "sha256": "27b30156598d900b74931bb7d88e7c8eaf73071fd87433055bc25509fe4a7c68",
+      "size": 17060394,
+      "format": "nifti"
+    },
+    {
+      "path": "anatomy_cerebra_ants/LICENSE.template-MNI.txt",
+      "sha256": "5915d16f84d99c3cedc8290b09da72f6f92e5dde1ba1c9859ee186aa952b66a4",
+      "size": 676,
+      "format": "text"
+    },
+    {
+      "path": "anatomy_cerebra_ants/LICENSE.atlas-DOI.html",
+      "sha256": "1e6306848f65d8dc69ee5c31915aa31f38b20d99a04713f752399d2a73771ff2",
+      "size": 6656,
+      "format": "html"
+    },
+    {
+      "path": "anatomy_cerebra_ants/LICENSE.atlas-CC0.txt",
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "size": 7048,
+      "format": "text"
+    },
+    {
+      "path": "anatomy_cerebra_ants/LICENSE.code-ANTsPy.txt",
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+      "size": 11357,
+      "format": "text"
+    }
+  ],
+  "registration": {
+    "fixed": "subject_T1",
+    "moving": "MNI_2009c_symmetric_template",
+    "type_of_transform": "SyN",
+    "reg_iterations": [
+      40,
+      20,
+      0
+    ],
+    "aff_iterations": [
+      2100,
+      1200,
+      1200,
+      10
+    ],
+    "label_interpolation": "genericLabel",
+    "random_seed": 1729,
+    "direction": "fwdtransforms template_to_subject"
+  }
+}

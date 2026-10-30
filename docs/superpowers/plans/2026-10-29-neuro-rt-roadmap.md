@@ -1,9 +1,9 @@
 # NEURO RT — Roadmap e plano mestre de implementação
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> **Limite desta entrega:** o usuário pediu somente documentação. A frase acima
-> orienta uma execução futura; não autoriza iniciar código, criar repositórios,
-> baixar pesos, instalar dependências, publicar releases ou excluir o NIDUS agora.
+> **Estado atual:** o usuário autorizou iniciar a codificação em 29/10/2026.
+> Consulte `../../IMPLEMENTACAO_PLUGIN.md` para entregas, testes e pendências.
+> Exclusão do Nidus e publicação de release seguem suas etapas próprias.
 
 **Goal:** entregar o primeiro plugin opcional do Local Suite, incorporando Nidus,
 segmentação tumoral e anatomia num fluxo integrado de estudo e pesquisa.
@@ -23,7 +23,7 @@ provas de compatibilidade, não escolhidas por memória neste plano.
 
 ## Global Constraints
 
-- Desenho aceito pelo usuário em 29/10/2026; nesta etapa, somente planejamento.
+- Desenho e roadmap aceitos; codificação autorizada explicitamente em 29/10/2026.
 - Destino instalado: `<LocalSuite>/Plugins/NEURO RT`; não usar caminhos do checkout.
 - Cards: Nidus RT, Glioma RT, Metastasis RT, Meningioma RT, Anatomia RT.
 - Até cinco modelos novos; QTIM pode ficar fora se a adaptação Windows não passar.
@@ -323,8 +323,8 @@ arquivos exatos propostos, interfaces e passos com caixas de acompanhamento.
 ## 10. Estado deste roadmap
 
 - Desenho de produto consolidado e aceito; roadmap escrito para orientar agentes.
-- Todas as tarefas de implementação abaixo permanecem não iniciadas.
+- A execução foi iniciada; o estado por unidade está em `../../IMPLEMENTACAO_PLUGIN.md`.
 - Os nomes de novos arquivos, schemas e assinaturas são contratos propostos de
   engenharia. Não constituem código já implantado.
-- A próxima ação autorizada nesta conversa é entregar esta documentação.
-- Só após um pedido posterior de execução se inicia o trabalho nos repositórios.
+- O pedido posterior de execução foi recebido; continuar pelos marcos sem reabrir decisões já aceitas.
+- Distinguir código de fundamentos de instalação, integração e release completas.

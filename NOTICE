@@ -19,3 +19,29 @@ Scientific Reports 13 (2023), DOI: 10.1038/s41598-023-42048-7.
 
 Pesos e dependências mantêm seus contratos próprios. O preparador registra
 URL, versão e SHA256 dos arquivos; nenhuma imagem é enviada ao autor do modelo.
+
+Nidus RT — código e documentação incorporados ao plugin (Apache-2.0)
+As fontes app/radai_nidus.py, app/radai_nidus_screen.py, tools/test_nidus.py
+ e a documentação/arquivos originais enumerados em docs/MIGRACAO_NIDUS.md
+provêm de NIDUS_RT, revisão 4067bddc3c875af62c6917362661d3d3d1d0036b.
+Licença original integral: licenses/NIDUS_RT_APACHE_2.txt.
+Créditos e documentos originais foram preservados; a licença MIT do NeuroRT
+não substitui Apache-2.0 nesses arquivos. A integração é ativada pela instalação
+versionada do plugin no host.
+
+Distribuição plugin 1.0.0
+O catálogo distribuído inclui os quatro modelos novos verificados, além dos
+cinco modelos Raidionics anteriores e do Brain auxiliar. As identidades de
+arquivo, revisões e fontes ficam em release-manifest.json e no catálogo.
+Os textos originais de licença acompanham cada models/<id>/<revision>.
+O atlas CerebrA e o template MNI mantêm seus avisos originais, inclusive
+LICENSE.template-MNI.txt; a licença do NeuroRT não os substitui.
+Somente os NIfTI públicos fixados em catalog/atlas_assets.json são distribuídos.
+Nenhuma imagem de exame, cache de demonstração ou resultado integra a release.
+
+Os dois runtimes privados preservam LICENSE.txt do CPython e os textos das
+dependências nos respectivos diretórios de distribuição. O runtime científico
+usa CPython embeddable 3.12.10 e um lock independente; não copia os executáveis
+nem caminhos absolutos de um virtualenv de desenvolvimento.
+Buti é uma capacidade opcional do Local Suite: seus pesos e runtime não são
+duplicados neste pacote. A presença do plugin não afirma disponibilidade Buti.

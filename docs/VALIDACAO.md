@@ -1,5 +1,10 @@
 # Validação técnica — 11/10/2026
 
+Este documento registra o protótipo histórico. A integração atual como plugin
+do Local Suite está em [VALIDACAO_PLUGIN.md](VALIDACAO_PLUGIN.md), com ambientes,
+testes, inferências instaladas e limites próprios. As frases abaixo sobre não
+alterar o host descrevem somente a fase anterior.
+
 Dados exclusivamente sintéticos. Não houve leitura de exames de pacientes,
 envio a TPS, instalação no host ou alteração de suas fontes.
 

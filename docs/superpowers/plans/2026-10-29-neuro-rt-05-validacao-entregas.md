@@ -1,7 +1,7 @@
 # NEURO RT — Validação, empacotamento e entregas Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> Plano para futura execução; nenhuma publicação, instalação ou exclusão nesta entrega documental.
+> Execução autorizada em 29/10/2026. Consultar `../../IMPLEMENTACAO_PLUGIN.md` para estado e pendências.
 
 **Goal:** transformar os subsistemas implementados num pacote demonstravelmente
 instalável, atualizável e rastreável, com evidência das funcionalidades prometidas.

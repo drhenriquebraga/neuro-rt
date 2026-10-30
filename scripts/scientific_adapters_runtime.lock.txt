@@ -1,0 +1,4 @@
+# Private worker environment; extends the already audited scientific stack.
+-r model_assets_v1_runtime.lock.txt
+SimpleITK==2.5.2
+pydicom==3.0.1

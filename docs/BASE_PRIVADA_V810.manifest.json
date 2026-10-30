@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "artifact_kind": "LOCAL_SUITE_SETUP",
+  "version": "8.10",
+  "release_status": "private_local_development_unpublished",
+  "published": false,
+  "artifact": {
+    "path": "dist/base-local-suite/LOCAL_SUITE/v8.10/RADIOTERAPIA_AI_LOCAL_SUITE_SETUP_v8.10.zip",
+    "size_bytes": 6173463,
+    "sha256": "6577c069a011d2926d496e756266e409d3349cdac917ab45e6a2e87e4947060e",
+    "zip_entries": 269,
+    "build": "2026-10-29.5d46a4d",
+    "data": "2026-10-29",
+    "latest_path": "dist/base-local-suite/LOCAL_SUITE/latest/RADIOTERAPIA_AI_LOCAL_SUITE_SETUP_LATEST.zip",
+    "latest_sha256": "6577c069a011d2926d496e756266e409d3349cdac917ab45e6a2e87e4947060e"
+  },
+  "build": {
+    "script": "AUTO_CONTORNO/build/empacotar_instalador.py",
+    "python_version": "3.14.6",
+    "source_policy": "Six clean local Git clones at exact committed HEADs, no ignored/untracked files copied",
+    "network_used": false,
+    "dos_repositorios_used": false,
+    "pip_or_runtime_preparation_used": false,
+    "neuro_offline_zip_rebuilt": false,
+    "component_repositories": [
+      "AUTO_CONTORNO",
+      "CONTOURLAB",
+      "DICOM_BRIDGE",
+      "RECON_3D",
+      "ELASTIC_RT",
+      "3D_PRINTED_BOLUS"
+    ],
+    "all_clones_clean_before_and_after": true,
+    "original_heads_and_indices_unchanged": true
+  },
+  "sources": [
+    {
+      "repository": "AUTO_CONTORNO",
+      "head": "5d46a4dfab1817532c5df42d94c903a94b184b82",
+      "original_index_sha256_before": "3b4e46a8460ecd9f4dca1e3b0c7ac505c4d8c6042f11461f65f75909ce052abc",
+      "clone_head": "5d46a4dfab1817532c5df42d94c903a94b184b82",
+      "clone_clean_before_build": true,
+      "original_head_after": "5d46a4dfab1817532c5df42d94c903a94b184b82",
+      "original_index_sha256_after": "3b4e46a8460ecd9f4dca1e3b0c7ac505c4d8c6042f11461f65f75909ce052abc",
+      "clone_clean_after_build": true
+    },
+    {
+      "repository": "CONTOURLAB",
+      "head": "f84e5e694381ece3cef222fa27a4bbd08555b1d0",
+      "original_index_sha256_before": "e2914dd0c86e23c7fddabf60722e2a8e74639415e84e2f3bcf46d3c6ca7353d8",
+      "clone_head": "f84e5e694381ece3cef222fa27a4bbd08555b1d0",
+      "clone_clean_before_build": true,
+      "original_head_after": "f84e5e694381ece3cef222fa27a4bbd08555b1d0",
+      "original_index_sha256_after": "e2914dd0c86e23c7fddabf60722e2a8e74639415e84e2f3bcf46d3c6ca7353d8",
+      "clone_clean_after_build": true
+    },
+    {
+      "repository": "DICOM_BRIDGE",
+      "head": "1433abd29509383861c2d5c85aa85f6feac1d306",
+      "original_index_sha256_before": "8ea8bded6585a081693e15ccbfffdb2e7e56ca9d877215f4048fd339c01a513a",
+      "clone_head": "1433abd29509383861c2d5c85aa85f6feac1d306",
+      "clone_clean_before_build": true,
+      "original_head_after": "1433abd29509383861c2d5c85aa85f6feac1d306",
+      "original_index_sha256_after": "8ea8bded6585a081693e15ccbfffdb2e7e56ca9d877215f4048fd339c01a513a",
+      "clone_clean_after_build": true
+    },
+    {
+      "repository": "RECON_3D",
+      "head": "41052d873f38ebe12f3f2f7841973b3364074020",
+      "original_index_sha256_before": "9e27d34f029114b6baa4253b3d454a7f4981ca53fec464fd3593fb2f87dd4b69",
+      "clone_head": "41052d873f38ebe12f3f2f7841973b3364074020",
+      "clone_clean_before_build": true,
+      "original_head_after": "41052d873f38ebe12f3f2f7841973b3364074020",
+      "original_index_sha256_after": "9e27d34f029114b6baa4253b3d454a7f4981ca53fec464fd3593fb2f87dd4b69",
+      "clone_clean_after_build": true
+    },
+    {
+      "repository": "ELASTIC_RT",
+      "head": "3274d8bac3a5124db3b2d0dbbccf5130eb7389fb",
+      "original_index_sha256_before": "1478118941ee7d40d537f30f970e50af0982612fa9ee8a12a2457a376820589e",
+      "clone_head": "3274d8bac3a5124db3b2d0dbbccf5130eb7389fb",
+      "clone_clean_before_build": true,
+      "original_head_after": "3274d8bac3a5124db3b2d0dbbccf5130eb7389fb",
+      "original_index_sha256_after": "1478118941ee7d40d537f30f970e50af0982612fa9ee8a12a2457a376820589e",
+      "clone_clean_after_build": true
+    },
+    {
+      "repository": "3D_PRINTED_BOLUS",
+      "head": "bc9be52aa3d2f1cbec2f8e7e3dfc98e6207dd550",
+      "original_index_sha256_before": "7388837172a47bb255fceaad27447f605b4fe9ea76c170b28fd6f525453a30bd",
+      "clone_head": "bc9be52aa3d2f1cbec2f8e7e3dfc98e6207dd550",
+      "clone_clean_before_build": true,
+      "original_head_after": "bc9be52aa3d2f1cbec2f8e7e3dfc98e6207dd550",
+      "original_index_sha256_after": "7388837172a47bb255fceaad27447f605b4fe9ea76c170b28fd6f525453a30bd",
+      "clone_clean_after_build": true
+    }
+  ],
+  "validation": {
+    "zip_testzip": "passed",
+    "duplicate_entries": 0,
+    "required_paths": [
+      "programa/app/radai_neuro_install.py",
+      "programa/app/radai_plugins.py",
+      "programa/app/radai_projection.py",
+      "programa/app/radai_projection_bone.py"
+    ],
+    "all_required_paths_present": true,
+    "nidus_modules_or_repository_paths": [],
+    "neuro_plugin_package_paths": [],
+    "runtime_or_model_directories": [],
+    "model_weights_or_runtime_binaries": [],
+    "clinical_image_paths": [],
+    "static_branding_images": [
+      "programa/app/favicon.ico",
+      "programa/app/favicon.png",
+      "programa/app/favicon.svg",
+      "programa/app/porta/local-suite-vidros-v2.png",
+      "programa/app/radioterapia_ai.ico",
+      "programa/app/radioterapia_ai.png"
+    ],
+    "build_clean": true,
+    "latest_byte_identical": true,
+    "formal_collector_checks_bypassed": false
+  }
+}

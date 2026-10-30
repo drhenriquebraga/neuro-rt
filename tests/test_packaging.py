@@ -9,6 +9,14 @@ from test_pipeline import TEMP_ROOT
 
 
 class PackagingTests(unittest.TestCase):
+    def test_sources_include_catalog_and_migrated_nidus(self):
+        root = Path(__file__).resolve().parents[1]
+        names = {file.relative_to(root).as_posix() for file in source_files(root)}
+        for required in ('catalog/models.json', 'app/radai_nidus.py',
+                         'app/radai_nidus_screen.py', 'tools/test_nidus.py',
+                         'licenses/NIDUS_RT_APACHE_2.txt'):
+            self.assertIn(required, names)
+
     def test_sources_exclude_private_config_and_jobs(self):
         root = Path(__file__).resolve().parents[1]
         files = source_files(root)

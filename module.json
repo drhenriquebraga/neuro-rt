@@ -1,15 +1,32 @@
 {
+  "schema": "neuro-rt/plugin-manifest/1",
   "id": "neuro-rt",
   "name": "NeuroRT",
-  "version": "0.2.0",
+  "version": "1.0.1",
+  "host_contract": "local-suite/plugins/1",
+  "host_min_version": "8.10",
   "entrypoint": "/neuro/",
   "adapter": "integration/radai_neuro.py:montar",
-  "result_schema": "neuro-rt/result/1",
-  "python": ">=3.10,<3.13",
+  "catalog": "catalog/models.json",
+  "runtimes": {
+    "raidionics-onnx": {
+      "python": "python.exe"
+    },
+    "neuro-scientific-cpu": {
+      "python": "python.exe"
+    }
+  },
+  "artifacts": [],
+  "result_schema": "neuro-rt/result/2",
+  "python": ">=3.10",
   "runtime": "isolated-worker",
   "default_enabled": false,
   "finding_requires_explicit_request": true,
   "approval_status": "UNAPPROVED",
   "license": "MIT",
-  "model_license": "BSD-2-Clause"
+  "model_license": "per-model",
+  "model_license_source": "catalog/models.json",
+  "enabled_tools": ["nidus"],
+  "consent_policy_version": "1.0",
+  "consent_policy_source": "neuro_rt/plugin_consent.py"
 }

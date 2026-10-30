@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pydicom
 import SimpleITK as sitk
+from .scientific_io import read_image
 
 
 def geometry(image):
@@ -19,7 +20,7 @@ def check_volume(image):
         raise ValueError('Volume contém valores não finitos.')
 
 
-def dicom_series(folder):
+def dicom_series(folder, *, allowed_modalities=('MR',)):
     reader = sitk.ImageSeriesReader()
     ids = reader.GetGDCMSeriesIDs(str(folder)) or []
     series = []
@@ -29,18 +30,19 @@ def dicom_series(folder):
             continue
         ds = pydicom.dcmread(files[0], stop_before_pixels=True,
                             specific_tags=['Modality'])
-        if str(ds.get('Modality', '')) == 'MR':
-            series.append({'uid': uid, 'slices': len(files), 'modality': 'MR'})
+        modality = str(ds.get('Modality', ''))
+        if modality in allowed_modalities:
+            series.append({'uid': uid, 'slices': len(files), 'modality': modality})
     return series
 
 
-def load_input(path, uid=''):
+def load_input(path, uid='', *, allowed_modalities=('MR',)):
     path = Path(path)
     if path.is_file() and (path.name.lower().endswith('.nii.gz') or path.suffix.lower() == '.nii'):
-        image = sitk.ReadImage(str(path))
+        image = read_image(path)
         source = {'kind': 'nifti', 'dicom_files': [], 'series_uid': '', 'frame_uid': ''}
     elif path.is_dir():
-        series = dicom_series(path)
+        series = dicom_series(path, allowed_modalities=allowed_modalities)
         if not uid:
             if len(series) != 1:
                 raise ValueError('Selecione uma única série MR pelo SeriesInstanceUID.')
@@ -51,11 +53,14 @@ def load_input(path, uid=''):
         files = list(reader.GetGDCMSeriesFileNames(str(path), uid))
         tags = ['ImagePositionPatient', 'ImageOrientationPatient', 'PixelSpacing',
                 'FrameOfReferenceUID', 'SOPInstanceUID', 'SeriesInstanceUID', 'NumberOfFrames',
-                'Rows', 'Columns']
+                'Rows', 'Columns', 'Modality']
         datasets = [pydicom.dcmread(f, stop_before_pixels=True, specific_tags=tags) for f in files]
         if len(datasets) < 2 or any(int(ds.get('NumberOfFrames', 1)) != 1 for ds in datasets):
             raise ValueError('Use série MR 3D com arquivos de corte único; multiframe não é suportado.')
         first = datasets[0]
+        expected_modality = next(s['modality'] for s in series if s['uid'] == uid)
+        if any(str(ds.get('Modality', '')) != expected_modality for ds in datasets):
+            raise ValueError('A série mistura modalidades de imagem.')
         required = tags[:6] + ['Rows', 'Columns']
         if any(tag not in first for tag in required):
             raise ValueError('DICOM sem geometria e referências completas.')
@@ -82,6 +87,7 @@ def load_input(path, uid=''):
         reader.SetFileNames(files)
         image = reader.Execute()
         source = {'kind': 'dicom', 'dicom_files': files, 'series_uid': uid,
+                  'modality': expected_modality,
                   'frame_uid': str(first.FrameOfReferenceUID),
                   'sop_uids': [str(ds.SOPInstanceUID) for ds in datasets]}
     else:

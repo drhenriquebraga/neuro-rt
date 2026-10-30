@@ -1,0 +1,1638 @@
+{
+  "schema": "neuro-rt/catalog/1",
+  "models": [
+    {
+      "id": "MRI_GBM",
+      "label": "Glioblastoma · pré-operatório",
+      "groups": [
+        "glioma"
+      ],
+      "catalog_state": "distributed",
+      "revision": "1.2.0",
+      "adapter_id": "raidionics",
+      "runtime_id": "raidionics-onnx",
+      "channels": [
+        {
+          "role": "T1c"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "BSD-2-Clause",
+        "weights": "BSD-2-Clause",
+        "sources": [
+          "https://github.com/raidionics/Raidionics-models/blob/main/LICENSE"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "model_config.txt",
+          "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+        },
+        {
+          "path": "pipeline.json",
+          "sha256": "12547b706880a0a0604eba378caf2ed2756b7771b1803613f8fdbcacaff9a7a0"
+        },
+        {
+          "path": "pre_processing.ini",
+          "sha256": "2d68b78247af11b56d6e8c69d4181c52d7bc91088d74f16785550e31a8294028"
+        },
+        {
+          "path": "fold0/model.onnx",
+          "sha256": "1315e58513e80bcb5890a691fd13cc1f110b8f5c3c08c1ecdbc9bbbeb73a5565"
+        }
+      ],
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0",
+      "addition": false,
+      "dependencies": [
+        {
+          "id": "MRI_Brain",
+          "revision": "1.2.0",
+          "catalog_state": "distributed",
+          "artifacts": [
+            {
+              "path": "model_config.txt",
+              "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+            },
+            {
+              "path": "pipeline.json",
+              "sha256": "d5e0bd624b83fb2e4d9aba68a56ca868608eb131ce818ffa2c9032233614909e"
+            },
+            {
+              "path": "pre_processing.ini",
+              "sha256": "16ba4dbf195eef061db0d26805aece024a14d3aa0917b47c2a5e454386e7b7c6"
+            },
+            {
+              "path": "fold0/model.onnx",
+              "sha256": "328efade8ddc037906a2ddcaff84b7a83bee26475ff274424752963f517d155c"
+            }
+          ],
+          "provenance": {
+            "path": "provenance.json",
+            "release": "1.2.0"
+          }
+        }
+      ],
+      "provenance": {
+        "path": "provenance.json",
+        "release": "1.2.0"
+      },
+      "help": {
+        "method": "AGU-Net (Raidionics)",
+        "preparation": "Normalização e reconstrução publicadas pelo Raidionics; máscaras devolvidas à referência. Máscara cerebral auxiliar oficial necessária.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Ensino e pesquisa. Confira lesões e cavidades; contornos não comprovam função ou invasão tumoral.",
+        "summary": "Glioblastoma · pré-operatório"
+      }
+    },
+    {
+      "id": "MRI_LGGlioma",
+      "label": "Glioma de baixo grau · pré-operatório",
+      "groups": [
+        "glioma"
+      ],
+      "catalog_state": "distributed",
+      "revision": "1.2.0",
+      "adapter_id": "raidionics",
+      "runtime_id": "raidionics-onnx",
+      "channels": [
+        {
+          "role": "FLAIR"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "FLAIR",
+      "license": {
+        "code": "BSD-2-Clause",
+        "weights": "BSD-2-Clause",
+        "sources": [
+          "https://github.com/raidionics/Raidionics-models/blob/main/LICENSE"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "model_config.txt",
+          "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+        },
+        {
+          "path": "pipeline.json",
+          "sha256": "95634c9d34703b94943f07ffa69f2c95b0b05b426bdff8d187f842713a8f2358"
+        },
+        {
+          "path": "pre_processing.ini",
+          "sha256": "2d68b78247af11b56d6e8c69d4181c52d7bc91088d74f16785550e31a8294028"
+        },
+        {
+          "path": "fold0/model.onnx",
+          "sha256": "7b18f4a70f4a61ecc81c51dfa0d90d67fc1bcd02eb3c232b5e66fe0a4084cbdf"
+        }
+      ],
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0",
+      "addition": false,
+      "dependencies": [
+        {
+          "id": "MRI_Brain",
+          "revision": "1.2.0",
+          "catalog_state": "distributed",
+          "artifacts": [
+            {
+              "path": "model_config.txt",
+              "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+            },
+            {
+              "path": "pipeline.json",
+              "sha256": "d5e0bd624b83fb2e4d9aba68a56ca868608eb131ce818ffa2c9032233614909e"
+            },
+            {
+              "path": "pre_processing.ini",
+              "sha256": "16ba4dbf195eef061db0d26805aece024a14d3aa0917b47c2a5e454386e7b7c6"
+            },
+            {
+              "path": "fold0/model.onnx",
+              "sha256": "328efade8ddc037906a2ddcaff84b7a83bee26475ff274424752963f517d155c"
+            }
+          ],
+          "provenance": {
+            "path": "provenance.json",
+            "release": "1.2.0"
+          }
+        }
+      ],
+      "provenance": {
+        "path": "provenance.json",
+        "release": "1.2.0"
+      },
+      "help": {
+        "method": "AGU-Net (Raidionics)",
+        "preparation": "Normalização e reconstrução publicadas pelo Raidionics; máscaras devolvidas à referência. Máscara cerebral auxiliar oficial necessária.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Ensino e pesquisa. Confira lesões e cavidades; contornos não comprovam função ou invasão tumoral.",
+        "summary": "Glioma de baixo grau"
+      }
+    },
+    {
+      "id": "MRI_Meningioma",
+      "label": "Meningioma · pré-operatório",
+      "groups": [
+        "meningioma"
+      ],
+      "catalog_state": "distributed",
+      "revision": "1.2.0",
+      "adapter_id": "raidionics",
+      "runtime_id": "raidionics-onnx",
+      "channels": [
+        {
+          "role": "T1c"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "BSD-2-Clause",
+        "weights": "BSD-2-Clause",
+        "sources": [
+          "https://github.com/raidionics/Raidionics-models/blob/main/LICENSE"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "model_config.txt",
+          "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+        },
+        {
+          "path": "pipeline.json",
+          "sha256": "e71f252171fe7ab31077c110920a8b7a5438c3e9c96163ed157f1b8c398ea9a5"
+        },
+        {
+          "path": "pre_processing.ini",
+          "sha256": "ccb73442ba1ae3ed6c9eebd0d7cb892bb1514558aa09780147c1847228096b11"
+        },
+        {
+          "path": "fold0/model.onnx",
+          "sha256": "b74764e90722b1071dab8b085be0d916f8f318d5bed987470fe15198febb81c8"
+        }
+      ],
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0",
+      "addition": false,
+      "provenance": {
+        "path": "provenance.json",
+        "release": "1.2.0"
+      },
+      "help": {
+        "method": "AGU-Net (Raidionics)",
+        "preparation": "Normalização e reconstrução publicadas pelo Raidionics; máscaras devolvidas à referência.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Ensino e pesquisa. Confira lesões e cavidades; contornos não comprovam função ou invasão tumoral.",
+        "summary": "Meningioma"
+      }
+    },
+    {
+      "id": "MRI_Metastasis",
+      "label": "Metástase · pré-operatório",
+      "groups": [
+        "metastasis"
+      ],
+      "catalog_state": "distributed",
+      "revision": "1.2.0",
+      "adapter_id": "raidionics",
+      "runtime_id": "raidionics-onnx",
+      "channels": [
+        {
+          "role": "T1c"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "BSD-2-Clause",
+        "weights": "BSD-2-Clause",
+        "sources": [
+          "https://github.com/raidionics/Raidionics-models/blob/main/LICENSE"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "model_config.txt",
+          "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+        },
+        {
+          "path": "pipeline.json",
+          "sha256": "4b619e376316fb453f3c3bc37ac59e6683ad8b1a4067d9cc238ad5c646eed964"
+        },
+        {
+          "path": "pre_processing.ini",
+          "sha256": "2d68b78247af11b56d6e8c69d4181c52d7bc91088d74f16785550e31a8294028"
+        },
+        {
+          "path": "fold0/model.onnx",
+          "sha256": "50b34b3ae4808fa10dd076389f78523888df6ce85b8b6c15e7824aac710c363a"
+        }
+      ],
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0",
+      "addition": false,
+      "dependencies": [
+        {
+          "id": "MRI_Brain",
+          "revision": "1.2.0",
+          "catalog_state": "distributed",
+          "artifacts": [
+            {
+              "path": "model_config.txt",
+              "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+            },
+            {
+              "path": "pipeline.json",
+              "sha256": "d5e0bd624b83fb2e4d9aba68a56ca868608eb131ce818ffa2c9032233614909e"
+            },
+            {
+              "path": "pre_processing.ini",
+              "sha256": "16ba4dbf195eef061db0d26805aece024a14d3aa0917b47c2a5e454386e7b7c6"
+            },
+            {
+              "path": "fold0/model.onnx",
+              "sha256": "328efade8ddc037906a2ddcaff84b7a83bee26475ff274424752963f517d155c"
+            }
+          ],
+          "provenance": {
+            "path": "provenance.json",
+            "release": "1.2.0"
+          }
+        }
+      ],
+      "provenance": {
+        "path": "provenance.json",
+        "release": "1.2.0"
+      },
+      "help": {
+        "method": "AGU-Net (Raidionics)",
+        "preparation": "Normalização e reconstrução publicadas pelo Raidionics; máscaras devolvidas à referência. Máscara cerebral auxiliar oficial necessária.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Ensino e pesquisa. Confira lesões e cavidades; contornos não comprovam função ou invasão tumoral.",
+        "summary": "Metástases"
+      }
+    },
+    {
+      "id": "MRI_GBM_Postop_FV_1p",
+      "label": "Glioblastoma · pós-operatório (1 sequência)",
+      "groups": [
+        "glioma"
+      ],
+      "catalog_state": "distributed",
+      "revision": "1.2.0",
+      "adapter_id": "raidionics",
+      "runtime_id": "raidionics-onnx",
+      "channels": [
+        {
+          "role": "T1c"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "BSD-2-Clause",
+        "weights": "BSD-2-Clause",
+        "sources": [
+          "https://github.com/raidionics/Raidionics-models/blob/main/LICENSE"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "model_config.txt",
+          "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+        },
+        {
+          "path": "pipeline.json",
+          "sha256": "81995618902f35e3ec53a0bd795c23f72027f5e4671f8d6a7b3d616232be78b8"
+        },
+        {
+          "path": "pre_processing.ini",
+          "sha256": "ebcca05fcf38d0f60400d479224569677782e052a8d03ff72f5b763f68167314"
+        },
+        {
+          "path": "fold0/model.onnx",
+          "sha256": "35ebdef70917b9e053afd13f25fc337b8dfd165f4d89fbe93be49a0facef8bb3"
+        }
+      ],
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/tag/1.2.0",
+      "addition": false,
+      "dependencies": [
+        {
+          "id": "MRI_Brain",
+          "revision": "1.2.0",
+          "catalog_state": "distributed",
+          "artifacts": [
+            {
+              "path": "model_config.txt",
+              "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+            },
+            {
+              "path": "pipeline.json",
+              "sha256": "d5e0bd624b83fb2e4d9aba68a56ca868608eb131ce818ffa2c9032233614909e"
+            },
+            {
+              "path": "pre_processing.ini",
+              "sha256": "16ba4dbf195eef061db0d26805aece024a14d3aa0917b47c2a5e454386e7b7c6"
+            },
+            {
+              "path": "fold0/model.onnx",
+              "sha256": "328efade8ddc037906a2ddcaff84b7a83bee26475ff274424752963f517d155c"
+            }
+          ],
+          "provenance": {
+            "path": "provenance.json",
+            "release": "1.2.0"
+          }
+        }
+      ],
+      "provenance": {
+        "path": "provenance.json",
+        "release": "1.2.0"
+      },
+      "help": {
+        "method": "AGU-Net (Raidionics)",
+        "preparation": "Normalização e reconstrução publicadas pelo Raidionics; máscaras devolvidas à referência. Máscara cerebral auxiliar oficial necessária.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Ensino e pesquisa. Confira lesões e cavidades; contornos não comprovam função ou invasão tumoral.",
+        "summary": "Tumor residual no pós-operatório precoce."
+      }
+    },
+    {
+      "id": "MRI_GBM_Postop_FV_3p",
+      "label": "Glioblastoma pos-operatorio (3 sequencias)",
+      "groups": [
+        "glioma"
+      ],
+      "catalog_state": "verified",
+      "revision": "1.2.0",
+      "adapter_id": "raidionics_postop",
+      "runtime_id": "raidionics-onnx",
+      "channels": [
+        {
+          "role": "T1c"
+        },
+        {
+          "role": "T1"
+        },
+        {
+          "role": "FLAIR"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "BSD-2-Clause",
+        "weights": "BSD-2-Clause",
+        "sources": [
+          "https://github.com/raidionics/Raidionics-models"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "fold0/model.onnx",
+          "sha256": "bf4b9fe0ceff04e39bb7cce1d2a6fec1df62f76c5eed11438174b3bd400953db",
+          "size": 74795300
+        },
+        {
+          "path": "model_config.txt",
+          "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5",
+          "size": 39
+        },
+        {
+          "path": "pre_processing.ini",
+          "sha256": "8d77de5c81c842b44321ffa11ddf0498baff11496cebb98529b06d7eed859328",
+          "size": 467
+        },
+        {
+          "path": "pipeline.json",
+          "sha256": "ba8fcece1c75c397e71a93f3c665bac5260fe5bbfdb80e73fd432ea48a8b8f74",
+          "size": 3795
+        },
+        {
+          "path": "LICENSE.code.txt",
+          "sha256": "3842856c4f19ef762a7a7fcc82bfb65e9258b1cef809e04af80c0ca80deef55c",
+          "size": 1301
+        },
+        {
+          "path": "LICENSE.weights.txt",
+          "sha256": "3842856c4f19ef762a7a7fcc82bfb65e9258b1cef809e04af80c0ca80deef55c",
+          "size": 1301
+        }
+      ],
+      "source_url": "https://github.com/raidionics/Raidionics-models",
+      "availability_reason": "Inferencia completa CPU com artefatos reais e restauracao geometrica em dados sinteticos; requer runtime privado preparado.",
+      "addition": true,
+      "validation_scope": "Pesquisa; testes sinteticos nao representam validacao clinica.",
+      "supported_devices": [
+        "cpu"
+      ],
+      "verification_evidence": ".superpowers/sdd/neuro-plugin/M03-M06-report.md",
+      "dependencies": [
+        {
+          "id": "MRI_Brain",
+          "revision": "1.2.0",
+          "catalog_state": "distributed",
+          "artifacts": [
+            {
+              "path": "model_config.txt",
+              "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5"
+            },
+            {
+              "path": "pipeline.json",
+              "sha256": "d5e0bd624b83fb2e4d9aba68a56ca868608eb131ce818ffa2c9032233614909e"
+            },
+            {
+              "path": "pre_processing.ini",
+              "sha256": "16ba4dbf195eef061db0d26805aece024a14d3aa0917b47c2a5e454386e7b7c6"
+            },
+            {
+              "path": "fold0/model.onnx",
+              "sha256": "328efade8ddc037906a2ddcaff84b7a83bee26475ff274424752963f517d155c"
+            }
+          ],
+          "provenance": {
+            "path": "provenance.json",
+            "release": "1.2.0"
+          }
+        }
+      ],
+      "help": {
+        "method": "AGU-Net (Raidionics)",
+        "preparation": "Séries distintas, alinhadas explicitamente; normalização por canal e retorno à referência.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Ensino e pesquisa. Confira lesões e cavidades; contornos não comprovam função ou invasão tumoral.",
+        "summary": "Tumor residual no pós-operatório precoce."
+      }
+    },
+    {
+      "id": "glioma_attention_unet3d",
+      "label": "Glioma - Attention U-Net 3D",
+      "groups": [
+        "glioma"
+      ],
+      "catalog_state": "verified",
+      "revision": "d36aa60aa5535fcc25fe935282586c8453ab255e",
+      "adapter_id": "attention_unet",
+      "runtime_id": "neuro-scientific-cpu",
+      "channels": [
+        {
+          "role": "FLAIR"
+        },
+        {
+          "role": "T1"
+        },
+        {
+          "role": "T1c"
+        },
+        {
+          "role": "T2"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor_core",
+          "label": "TC"
+        },
+        {
+          "class_id": "whole_tumor",
+          "label": "WT"
+        },
+        {
+          "class_id": "enhancing_tumor",
+          "label": "ET"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "MIT",
+        "weights": "MIT",
+        "sources": [
+          "https://huggingface.co/motazalqaoud/brain-tumor-segmentation-weights"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "best_model.pth",
+          "sha256": "7177bf156edbf4cbffdc140b9e940f09409f9233c8155c38e98869d185a91041",
+          "size": 94617685
+        },
+        {
+          "path": "reference/model.py",
+          "sha256": "2f36adbc29648084d93f1b6f24bf8cc49f624f28a18583db2c66b5d2a9ebc06e",
+          "size": 2111
+        },
+        {
+          "path": "reference/dataset.py",
+          "sha256": "6796890db5141e8346ca84fd2141a68142f3f6f37afe2ab1197e20ef96cf2899",
+          "size": 5534
+        },
+        {
+          "path": "reference/evaluate.py",
+          "sha256": "8c7fa9bf4301fa0f60f702d8e73868262baaecb62af18b78093e15ca36254510",
+          "size": 3245
+        },
+        {
+          "path": "reference/predict.py",
+          "sha256": "89de86e21432dbdab6742f27f1d1238588739d87216268d48c7b4029ea094ecc",
+          "size": 3541
+        },
+        {
+          "path": "LICENSE.code.txt",
+          "sha256": "a4461674d0882a2eeb95955c20b6f6e1f7c61e85e58e2fbe4e38159a3ddcf8f4",
+          "size": 1070
+        },
+        {
+          "path": "LICENSE.weights-model-card.md",
+          "sha256": "bb3dc254f1f26300993d56e468269041166ed69c0d4b77fd41616e021c6a767b",
+          "size": 5685
+        },
+        {
+          "path": "LICENSE.weights.txt",
+          "sha256": "a4461674d0882a2eeb95955c20b6f6e1f7c61e85e58e2fbe4e38159a3ddcf8f4",
+          "size": 1070
+        }
+      ],
+      "source_url": "https://huggingface.co/motazalqaoud/brain-tumor-segmentation-weights",
+      "availability_reason": "Inferencia completa CPU com artefatos reais e restauracao geometrica em dados sinteticos; requer runtime privado preparado.",
+      "addition": true,
+      "validation_scope": "Pesquisa; testes sinteticos nao representam validacao clinica.",
+      "supported_devices": [
+        "cpu"
+      ],
+      "verification_evidence": ".superpowers/sdd/neuro-plugin/M03-M06-report.md",
+      "help": {
+        "method": "Attention U-Net 3D (WT / TC / ET)",
+        "preparation": "Séries distintas, alinhadas explicitamente; normalização por canal e retorno à referência.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Checkpoint de pesquisa; métricas do autor não são validação do Neuro RT.",
+        "summary": "TC, WT e ET independentes e sobrepostos."
+      }
+    },
+    {
+      "id": "metastasis_qtim",
+      "label": "Metastases - QTIM",
+      "groups": [
+        "metastasis"
+      ],
+      "catalog_state": "candidate",
+      "revision": null,
+      "adapter_id": "qtim_mets",
+      "runtime_id": "qtim-tensorflow",
+      "channels": [
+        {
+          "role": "T1c"
+        }
+      ],
+      "classes": [
+        {
+          "class_id": "tumor",
+          "label": "Tumor"
+        }
+      ],
+      "reference_role": "T1c",
+      "license": {
+        "code": "Apache-2.0",
+        "weights": "Apache-2.0",
+        "sources": [
+          "https://github.com/QTIM-Lab/Brain-Mets-Seg"
+        ]
+      },
+      "artifacts": [],
+      "source_url": "https://github.com/QTIM-Lab/Brain-Mets-Seg",
+      "availability_reason": "Adiado: distribuicao Linux/NVIDIA DALI sem runtime Windows equivalente verificado.",
+      "addition": true,
+      "deferred": true,
+      "help": {
+        "method": "Ensemble U-Net 3D (Brain-Mets-Seg / QTIM)",
+        "preparation": "T1 com contraste.",
+        "hardware": "Modelo adiado; não distribuído nesta versão.",
+        "limitations": "Modelo adiado; não distribuído nesta versão.",
+        "summary": "Metástases"
+      }
+    },
+    {
+      "id": "anatomy_synthseg",
+      "label": "Anatomia - SynthSeg",
+      "groups": [
+        "anatomia"
+      ],
+      "catalog_state": "verified",
+      "revision": "407e9319cbfe3d05304682d317363ecd09a83fdc",
+      "adapter_id": "synthseg",
+      "runtime_id": "neuro-scientific-cpu",
+      "channels": [
+        {
+          "role": "T1"
+        }
+      ],
+      "classes": [
+        {
+          "value": 2,
+          "class_id": "left_cerebral_white_matter",
+          "label": "left cerebral white matter"
+        },
+        {
+          "value": 3,
+          "class_id": "left_cerebral_cortex",
+          "label": "left cerebral cortex"
+        },
+        {
+          "value": 4,
+          "class_id": "left_lateral_ventricle",
+          "label": "left lateral ventricle"
+        },
+        {
+          "value": 5,
+          "class_id": "left_inferior_lateral_ventricle",
+          "label": "left inferior lateral ventricle"
+        },
+        {
+          "value": 7,
+          "class_id": "left_cerebellum_white_matter",
+          "label": "left cerebellum white matter"
+        },
+        {
+          "value": 8,
+          "class_id": "left_cerebellum_cortex",
+          "label": "left cerebellum cortex"
+        },
+        {
+          "value": 10,
+          "class_id": "left_thalamus",
+          "label": "left thalamus"
+        },
+        {
+          "value": 11,
+          "class_id": "left_caudate",
+          "label": "left caudate"
+        },
+        {
+          "value": 12,
+          "class_id": "left_putamen",
+          "label": "left putamen"
+        },
+        {
+          "value": 13,
+          "class_id": "left_pallidum",
+          "label": "left pallidum"
+        },
+        {
+          "value": 14,
+          "class_id": "3rd_ventricle",
+          "label": "3rd ventricle"
+        },
+        {
+          "value": 15,
+          "class_id": "4th_ventricle",
+          "label": "4th ventricle"
+        },
+        {
+          "value": 16,
+          "class_id": "brain-stem",
+          "label": "brain-stem"
+        },
+        {
+          "value": 17,
+          "class_id": "left_hippocampus",
+          "label": "left hippocampus"
+        },
+        {
+          "value": 18,
+          "class_id": "left_amygdala",
+          "label": "left amygdala"
+        },
+        {
+          "value": 24,
+          "class_id": "CSF",
+          "label": "CSF"
+        },
+        {
+          "value": 26,
+          "class_id": "left_accumbens_area",
+          "label": "left accumbens area"
+        },
+        {
+          "value": 28,
+          "class_id": "left_ventral_DC",
+          "label": "left ventral DC"
+        },
+        {
+          "value": 41,
+          "class_id": "right_cerebral_white_matter",
+          "label": "right cerebral white matter"
+        },
+        {
+          "value": 42,
+          "class_id": "right_cerebral_cortex",
+          "label": "right cerebral cortex"
+        },
+        {
+          "value": 43,
+          "class_id": "right_lateral_ventricle",
+          "label": "right lateral ventricle"
+        },
+        {
+          "value": 44,
+          "class_id": "right_inferior_lateral_ventricle",
+          "label": "right inferior lateral ventricle"
+        },
+        {
+          "value": 46,
+          "class_id": "right_cerebellum_white_matter",
+          "label": "right cerebellum white matter"
+        },
+        {
+          "value": 47,
+          "class_id": "right_cerebellum_cortex",
+          "label": "right cerebellum cortex"
+        },
+        {
+          "value": 49,
+          "class_id": "right_thalamus",
+          "label": "right thalamus"
+        },
+        {
+          "value": 50,
+          "class_id": "right_caudate",
+          "label": "right caudate"
+        },
+        {
+          "value": 51,
+          "class_id": "right_putamen",
+          "label": "right putamen"
+        },
+        {
+          "value": 52,
+          "class_id": "right_pallidum",
+          "label": "right pallidum"
+        },
+        {
+          "value": 53,
+          "class_id": "right_hippocampus",
+          "label": "right hippocampus"
+        },
+        {
+          "value": 54,
+          "class_id": "right_amygdala",
+          "label": "right amygdala"
+        },
+        {
+          "value": 58,
+          "class_id": "right_accumbens_area",
+          "label": "right accumbens area"
+        },
+        {
+          "value": 60,
+          "class_id": "right_ventral_DC",
+          "label": "right ventral DC"
+        }
+      ],
+      "reference_role": "T1",
+      "license": {
+        "code": "Apache-2.0",
+        "weights": "Apache-2.0",
+        "sources": [
+          "https://github.com/BBillot/SynthSeg"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "synthseg_model_weights.pth",
+          "sha256": "3023c046e3996796b1e87badeb337cc7edd2da4c79794a0214afc76b63c701fe",
+          "size": 53002209
+        },
+        {
+          "path": "reference/synthseg.py",
+          "sha256": "aef78a8a9a47975c22cfcdf87dcd0ed7dc982e6c4b5fb450991286c32ec1091d",
+          "size": 22537
+        },
+        {
+          "path": "reference/fetcher.py",
+          "sha256": "ce05d26718c6dfc4f113ebfb4a626e83d1f82c8caeb584f8a717d2eb385e05b6",
+          "size": 122813
+        },
+        {
+          "path": "reference/utils.py",
+          "sha256": "8fe8d9e3f609a92801cb50aaaba25e9cfea6308a06c276986e9c7e108737878f",
+          "size": 10739
+        },
+        {
+          "path": "LICENSE.dipy.txt",
+          "sha256": "465f0850d617ed64a3052e20e2bb8d3be641f8eef3605c79ad2d7513cf1768ef",
+          "size": 1670
+        },
+        {
+          "path": "LICENSE.weights.txt",
+          "sha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1",
+          "size": 11356
+        },
+        {
+          "path": "LICENSE.architecture.txt",
+          "sha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1",
+          "size": 11356
+        }
+      ],
+      "source_url": "https://github.com/BBillot/SynthSeg",
+      "availability_reason": "Inferencia completa CPU com artefatos reais e restauracao geometrica em dados sinteticos; requer runtime privado preparado.",
+      "addition": true,
+      "validation_scope": "Pesquisa; testes sinteticos nao representam validacao clinica.",
+      "supported_devices": [
+        "cpu"
+      ],
+      "verification_evidence": ".superpowers/sdd/neuro-plugin/M03-M06-report.md",
+      "help": {
+        "method": "SynthSeg / DIPY 1.12.0 (PyTorch)",
+        "preparation": "T1; preparo 1 mm, recorte, normalização, flip e retorno de labels à referência.",
+        "hardware": "Somente CPU neste adaptador. A preferência global GPU estrita impede a execução.",
+        "limitations": "Implementação DIPY; não é a variante TensorFlow robust/parcellation. Confira lesões e cavidades.",
+        "summary": "32 estruturas anatômicas."
+      }
+    },
+    {
+      "id": "anatomy_cerebra_ants",
+      "label": "Anatomia - CerebrA / ANTs",
+      "groups": [
+        "anatomia"
+      ],
+      "catalog_state": "verified",
+      "revision": "cerebra-mni2009c-sym-v1",
+      "adapter_id": "cerebra_ants",
+      "runtime_id": "neuro-scientific-cpu",
+      "channels": [
+        {
+          "role": "T1"
+        }
+      ],
+      "classes": [
+        {
+          "value": 1,
+          "class_id": "right_rostral_middle_frontal",
+          "label": "right Rostral Middle Frontal"
+        },
+        {
+          "value": 2,
+          "class_id": "right_vermal_lobules_vi_vii",
+          "label": "right Vermal lobules VI-VII"
+        },
+        {
+          "value": 3,
+          "class_id": "right_inferior_temporal",
+          "label": "right Inferior temporal"
+        },
+        {
+          "value": 4,
+          "class_id": "right_accumbens_area",
+          "label": "right Accumbens Area"
+        },
+        {
+          "value": 5,
+          "class_id": "right_inferior_lateral_ventricle",
+          "label": "right Inferior Lateral Ventricle"
+        },
+        {
+          "value": 6,
+          "class_id": "right_pericalcarine",
+          "label": "right Pericalcarine"
+        },
+        {
+          "value": 7,
+          "class_id": "right_lateral_orbitofrontal",
+          "label": "right Lateral Orbitofrontal"
+        },
+        {
+          "value": 8,
+          "class_id": "right_rostral_anterior_cingulate",
+          "label": "right Rostral Anterior Cingulate"
+        },
+        {
+          "value": 9,
+          "class_id": "right_superior_parietal",
+          "label": "right Superior Parietal"
+        },
+        {
+          "value": 10,
+          "class_id": "right_inferior_parietal",
+          "label": "right Inferior Parietal"
+        },
+        {
+          "value": 11,
+          "class_id": "right_brainstem",
+          "label": "right Brainstem"
+        },
+        {
+          "value": 12,
+          "class_id": "right_lingual",
+          "label": "right Lingual"
+        },
+        {
+          "value": 13,
+          "class_id": "right_postcentral",
+          "label": "right Postcentral"
+        },
+        {
+          "value": 14,
+          "class_id": "right_transverse_temporal",
+          "label": "right Transverse Temporal"
+        },
+        {
+          "value": 15,
+          "class_id": "right_medial_orbitofrontal",
+          "label": "right Medial Orbitofrontal"
+        },
+        {
+          "value": 16,
+          "class_id": "right_paracentral",
+          "label": "right Paracentral"
+        },
+        {
+          "value": 17,
+          "class_id": "right_optic_chiasm",
+          "label": "right Optic Chiasm"
+        },
+        {
+          "value": 18,
+          "class_id": "right_parahippocampal",
+          "label": "right Parahippocampal"
+        },
+        {
+          "value": 19,
+          "class_id": "right_amygdala",
+          "label": "right Amygdala"
+        },
+        {
+          "value": 20,
+          "class_id": "right_vermal_lobules_viii_x",
+          "label": "right Vermal lobules VIII-X"
+        },
+        {
+          "value": 21,
+          "class_id": "right_putamen",
+          "label": "right Putamen"
+        },
+        {
+          "value": 22,
+          "class_id": "right_pars_triangularis",
+          "label": "right Pars Triangularis"
+        },
+        {
+          "value": 23,
+          "class_id": "right_insula",
+          "label": "right Insula"
+        },
+        {
+          "value": 24,
+          "class_id": "right_fusiform",
+          "label": "right Fusiform"
+        },
+        {
+          "value": 25,
+          "class_id": "right_basal_forebrain",
+          "label": "right Basal Forebrain"
+        },
+        {
+          "value": 26,
+          "class_id": "right_ventral_diencephalon",
+          "label": "right Ventral Diencephalon"
+        },
+        {
+          "value": 27,
+          "class_id": "right_pallidum",
+          "label": "right Pallidum"
+        },
+        {
+          "value": 28,
+          "class_id": "right_middle_temporal",
+          "label": "right Middle Temporal"
+        },
+        {
+          "value": 29,
+          "class_id": "right_third_ventricle",
+          "label": "right Third Ventricle"
+        },
+        {
+          "value": 30,
+          "class_id": "right_caudal_anterior_cingulate",
+          "label": "right Caudal Anterior Cingulate"
+        },
+        {
+          "value": 31,
+          "class_id": "right_precuneus",
+          "label": "right Precuneus"
+        },
+        {
+          "value": 32,
+          "class_id": "right_pars_opercularis",
+          "label": "right Pars Opercularis"
+        },
+        {
+          "value": 33,
+          "class_id": "right_isthmus_cingulate",
+          "label": "right Isthmus Cingulate"
+        },
+        {
+          "value": 34,
+          "class_id": "right_lateral_occipital",
+          "label": "right Lateral Occipital"
+        },
+        {
+          "value": 35,
+          "class_id": "right_precentral",
+          "label": "right Precentral"
+        },
+        {
+          "value": 36,
+          "class_id": "right_entorhinal",
+          "label": "right Entorhinal"
+        },
+        {
+          "value": 37,
+          "class_id": "right_fourth_ventricle",
+          "label": "right Fourth Ventricle"
+        },
+        {
+          "value": 38,
+          "class_id": "right_superior_frontal",
+          "label": "right Superior Frontal"
+        },
+        {
+          "value": 39,
+          "class_id": "right_cerebellum_white_matter",
+          "label": "right Cerebellum White Matter"
+        },
+        {
+          "value": 40,
+          "class_id": "right_thalamus",
+          "label": "right Thalamus"
+        },
+        {
+          "value": 41,
+          "class_id": "right_lateral_ventricle",
+          "label": "right Lateral Ventricle"
+        },
+        {
+          "value": 42,
+          "class_id": "right_caudal_middle_frontal",
+          "label": "right Caudal Middle Frontal"
+        },
+        {
+          "value": 43,
+          "class_id": "right_cuneus",
+          "label": "right Cuneus"
+        },
+        {
+          "value": 44,
+          "class_id": "right_pars_orbitalis",
+          "label": "right Pars Orbitalis"
+        },
+        {
+          "value": 45,
+          "class_id": "right_superior_temporal",
+          "label": "right Superior Temporal"
+        },
+        {
+          "value": 46,
+          "class_id": "right_cerebellum_gray_matter",
+          "label": "right Cerebellum Gray Matter"
+        },
+        {
+          "value": 47,
+          "class_id": "right_posterior_cingulate",
+          "label": "right Posterior Cingulate"
+        },
+        {
+          "value": 48,
+          "class_id": "right_hippocampus",
+          "label": "right Hippocampus"
+        },
+        {
+          "value": 49,
+          "class_id": "right_caudate",
+          "label": "right Caudate"
+        },
+        {
+          "value": 50,
+          "class_id": "right_vermal_lobules_i_v",
+          "label": "right Vermal lobules I-V"
+        },
+        {
+          "value": 51,
+          "class_id": "right_supramarginal",
+          "label": "right Supramarginal"
+        },
+        {
+          "value": 52,
+          "class_id": "left_rostral_middle_frontal",
+          "label": "left Rostral Middle Frontal"
+        },
+        {
+          "value": 53,
+          "class_id": "left_vermal_lobules_vi_vii",
+          "label": "left Vermal lobules VI-VII"
+        },
+        {
+          "value": 54,
+          "class_id": "left_inferior_temporal",
+          "label": "left Inferior temporal"
+        },
+        {
+          "value": 55,
+          "class_id": "left_accumbens_area",
+          "label": "left Accumbens Area"
+        },
+        {
+          "value": 56,
+          "class_id": "left_inferior_lateral_ventricle",
+          "label": "left Inferior Lateral Ventricle"
+        },
+        {
+          "value": 57,
+          "class_id": "left_pericalcarine",
+          "label": "left Pericalcarine"
+        },
+        {
+          "value": 58,
+          "class_id": "left_lateral_orbitofrontal",
+          "label": "left Lateral Orbitofrontal"
+        },
+        {
+          "value": 59,
+          "class_id": "left_rostral_anterior_cingulate",
+          "label": "left Rostral Anterior Cingulate"
+        },
+        {
+          "value": 60,
+          "class_id": "left_superior_parietal",
+          "label": "left Superior Parietal"
+        },
+        {
+          "value": 61,
+          "class_id": "left_inferior_parietal",
+          "label": "left Inferior Parietal"
+        },
+        {
+          "value": 62,
+          "class_id": "left_brainstem",
+          "label": "left Brainstem"
+        },
+        {
+          "value": 63,
+          "class_id": "left_lingual",
+          "label": "left Lingual"
+        },
+        {
+          "value": 64,
+          "class_id": "left_postcentral",
+          "label": "left Postcentral"
+        },
+        {
+          "value": 65,
+          "class_id": "left_transverse_temporal",
+          "label": "left Transverse Temporal"
+        },
+        {
+          "value": 66,
+          "class_id": "left_medial_orbitofrontal",
+          "label": "left Medial Orbitofrontal"
+        },
+        {
+          "value": 67,
+          "class_id": "left_paracentral",
+          "label": "left Paracentral"
+        },
+        {
+          "value": 68,
+          "class_id": "left_optic_chiasm",
+          "label": "left Optic Chiasm"
+        },
+        {
+          "value": 69,
+          "class_id": "left_parahippocampal",
+          "label": "left Parahippocampal"
+        },
+        {
+          "value": 70,
+          "class_id": "left_amygdala",
+          "label": "left Amygdala"
+        },
+        {
+          "value": 71,
+          "class_id": "left_vermal_lobules_viii_x",
+          "label": "left Vermal lobules VIII-X"
+        },
+        {
+          "value": 72,
+          "class_id": "left_putamen",
+          "label": "left Putamen"
+        },
+        {
+          "value": 73,
+          "class_id": "left_pars_triangularis",
+          "label": "left Pars Triangularis"
+        },
+        {
+          "value": 74,
+          "class_id": "left_insula",
+          "label": "left Insula"
+        },
+        {
+          "value": 75,
+          "class_id": "left_fusiform",
+          "label": "left Fusiform"
+        },
+        {
+          "value": 76,
+          "class_id": "left_basal_forebrain",
+          "label": "left Basal Forebrain"
+        },
+        {
+          "value": 77,
+          "class_id": "left_ventral_diencephalon",
+          "label": "left Ventral Diencephalon"
+        },
+        {
+          "value": 78,
+          "class_id": "left_pallidum",
+          "label": "left Pallidum"
+        },
+        {
+          "value": 79,
+          "class_id": "left_middle_temporal",
+          "label": "left Middle Temporal"
+        },
+        {
+          "value": 80,
+          "class_id": "left_third_ventricle",
+          "label": "left Third Ventricle"
+        },
+        {
+          "value": 81,
+          "class_id": "left_caudal_anterior_cingulate",
+          "label": "left Caudal Anterior Cingulate"
+        },
+        {
+          "value": 82,
+          "class_id": "left_precuneus",
+          "label": "left Precuneus"
+        },
+        {
+          "value": 83,
+          "class_id": "left_pars_opercularis",
+          "label": "left Pars Opercularis"
+        },
+        {
+          "value": 84,
+          "class_id": "left_isthmus_cingulate",
+          "label": "left Isthmus Cingulate"
+        },
+        {
+          "value": 85,
+          "class_id": "left_lateral_occipital",
+          "label": "left Lateral Occipital"
+        },
+        {
+          "value": 86,
+          "class_id": "left_precentral",
+          "label": "left Precentral"
+        },
+        {
+          "value": 87,
+          "class_id": "left_entorhinal",
+          "label": "left Entorhinal"
+        },
+        {
+          "value": 88,
+          "class_id": "left_fourth_ventricle",
+          "label": "left Fourth Ventricle"
+        },
+        {
+          "value": 89,
+          "class_id": "left_superior_frontal",
+          "label": "left Superior Frontal"
+        },
+        {
+          "value": 90,
+          "class_id": "left_cerebellum_white_matter",
+          "label": "left Cerebellum White Matter"
+        },
+        {
+          "value": 91,
+          "class_id": "left_thalamus",
+          "label": "left Thalamus"
+        },
+        {
+          "value": 92,
+          "class_id": "left_lateral_ventricle",
+          "label": "left Lateral Ventricle"
+        },
+        {
+          "value": 93,
+          "class_id": "left_caudal_middle_frontal",
+          "label": "left Caudal Middle Frontal"
+        },
+        {
+          "value": 94,
+          "class_id": "left_cuneus",
+          "label": "left Cuneus"
+        },
+        {
+          "value": 95,
+          "class_id": "left_pars_orbitalis",
+          "label": "left Pars Orbitalis"
+        },
+        {
+          "value": 96,
+          "class_id": "left_superior_temporal",
+          "label": "left Superior Temporal"
+        },
+        {
+          "value": 97,
+          "class_id": "left_cerebellum_gray_matter",
+          "label": "left Cerebellum Gray Matter"
+        },
+        {
+          "value": 98,
+          "class_id": "left_posterior_cingulate",
+          "label": "left Posterior Cingulate"
+        },
+        {
+          "value": 99,
+          "class_id": "left_hippocampus",
+          "label": "left Hippocampus"
+        },
+        {
+          "value": 100,
+          "class_id": "left_caudate",
+          "label": "left Caudate"
+        },
+        {
+          "value": 101,
+          "class_id": "left_vermal_lobules_i_v",
+          "label": "left Vermal lobules I-V"
+        },
+        {
+          "value": 102,
+          "class_id": "left_supramarginal",
+          "label": "left Supramarginal"
+        }
+      ],
+      "reference_role": "T1",
+      "license": {
+        "code": "Apache-2.0",
+        "weights": "CC0-1.0",
+        "sources": [
+          "https://doi.gin.g-node.org/10.12751/g-node.be5e62/"
+        ],
+        "template": "LicenseRef-MNI-ICBM152",
+        "template_notice": "LICENSE.template-MNI.txt"
+      },
+      "artifacts": [
+        {
+          "path": "atlas_labels.nii",
+          "sha256": "8cbb7a90a8ae6f34001a1d659d99c9480dd79121184c2e2f01b160ad32d7800c",
+          "size": 34120436
+        },
+        {
+          "path": "CerebrA_LabelDetails.csv",
+          "sha256": "16ba5fec63159b69699d17d79274d34ec68d14099c3c989dadbbed83e2da9999",
+          "size": 2798
+        },
+        {
+          "path": "template_t1.nii",
+          "sha256": "93359ab97c1c027376397612a9b6c30e95406c15bf8695bd4a8efcb2064eaa34",
+          "size": 17060394
+        },
+        {
+          "path": "template_mask.nii",
+          "sha256": "27b30156598d900b74931bb7d88e7c8eaf73071fd87433055bc25509fe4a7c68",
+          "size": 17060394
+        },
+        {
+          "path": "LICENSE.template-MNI.txt",
+          "sha256": "5915d16f84d99c3cedc8290b09da72f6f92e5dde1ba1c9859ee186aa952b66a4",
+          "size": 676
+        },
+        {
+          "path": "LICENSE.atlas-CC0.txt",
+          "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+          "size": 7048
+        },
+        {
+          "path": "LICENSE.code-ANTsPy.txt",
+          "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+          "size": 11357
+        },
+        {
+          "path": "LICENSE.atlas-DOI.html",
+          "sha256": "1e6306848f65d8dc69ee5c31915aa31f38b20d99a04713f752399d2a73771ff2",
+          "size": 6656,
+          "format": "html",
+          "purpose": "licensing_evidence"
+        }
+      ],
+      "source_url": "https://doi.gin.g-node.org/10.12751/g-node.be5e62/",
+      "availability_reason": "Inferencia completa CPU com artefatos reais e restauracao geometrica em dados sinteticos; requer runtime privado preparado.",
+      "addition": true,
+      "validation_scope": "Pesquisa; testes sinteticos nao representam validacao clinica.",
+      "supported_devices": [
+        "cpu"
+      ],
+      "source_revision": "CerebrA DOI10.12751/g-node.be5e62 + MNI2009c symmetric",
+      "verification_evidence": ".superpowers/sdd/neuro-plugin/M03-M06-report.md",
+      "help": {
+        "method": "CerebrA / ANTs: Propagação de atlas por registro deformável",
+        "preparation": "T1; template MNI 2009c simétrico, máscara e atlas locais; registro rígido, afim e deformável.",
+        "hardware": "Somente CPU neste adaptador. A preferência global GPU estrita impede a execução.",
+        "limitations": "Depende da qualidade do registro. Lesões e cavidades podem deslocar estruturas; convergência não valida a anatomia.",
+        "summary": "102 labels anatômicos do atlas."
+      }
+    },
+    {
+      "id": "cranio_buti",
+      "label": "Anatomia de cranio em TC - Buti",
+      "groups": [
+        "anatomia"
+      ],
+      "catalog_state": "verified",
+      "revision": "d3f8bc7248ac9138e03be7e6a839d7844599b8a1",
+      "adapter_id": "buti_host",
+      "runtime_id": "host-nnunet",
+      "channels": [
+        {
+          "role": "CT"
+        }
+      ],
+      "reference_role": "CT",
+      "classes": [
+        {
+          "value": 1,
+          "class_id": "Brain",
+          "label": "Brain"
+        },
+        {
+          "value": 2,
+          "class_id": "Brainstem",
+          "label": "Brainstem"
+        },
+        {
+          "value": 3,
+          "class_id": "Cerebellum",
+          "label": "Cerebellum"
+        },
+        {
+          "value": 4,
+          "class_id": "Chiasm",
+          "label": "Chiasm"
+        },
+        {
+          "value": 5,
+          "class_id": "OpticNerve_L",
+          "label": "OpticNerve_L"
+        },
+        {
+          "value": 6,
+          "class_id": "OpticNerve_R",
+          "label": "OpticNerve_R"
+        },
+        {
+          "value": 7,
+          "class_id": "Ventricles_connected",
+          "label": "Ventricles_connected"
+        },
+        {
+          "value": 8,
+          "class_id": "Midline",
+          "label": "Midline"
+        }
+      ],
+      "license": {
+        "code": "Apache-2.0",
+        "weights": "MIT",
+        "sources": [
+          "https://huggingface.co/GregoryButi/CT_Brain_Segmentation_Radiotherapy"
+        ]
+      },
+      "artifacts": [
+        {
+          "path": "nnUNetTrainer__nnUNetPlans__3d_fullres/dataset.json",
+          "size": 403,
+          "sha256": "1c5a702c9888a2e7e4ad1a984657d1db07ef7aae58dc1d73987a9a0e6391a54e"
+        },
+        {
+          "path": "nnUNetTrainer__nnUNetPlans__3d_fullres/plans.json",
+          "size": 16315,
+          "sha256": "6b64b5f2755a04dd655a39c83090a8dbf01a5e626b0c974bedf33e2d1d94e049"
+        },
+        {
+          "path": "nnUNetTrainer__nnUNetPlans__3d_fullres/dataset_fingerprint.json",
+          "size": 13715,
+          "sha256": "544bc5db679257ba9fa27e688876d2146ad2178e6b92f951313a6ddc9ca0bbfd"
+        },
+        {
+          "path": "nnUNetTrainer__nnUNetPlans__3d_fullres/fold_all/checkpoint_final.pth",
+          "size": 246609534,
+          "sha256": "d098f10fd81292f2722cba5bed556ca411b4c6f778d3f12d00571bdf5eba0862"
+        }
+      ],
+      "source_url": "https://huggingface.co/GregoryButi/CT_Brain_Segmentation_Radiotherapy",
+      "external_executor": "cranio_ct",
+      "availability_reason": "Reutiliza pesos e nnU-Net do host; disponibilidade local exige Python, executor e quatro artefatos. Smoke sintético CPU concluído; GPU estrita, sem validação física.",
+      "addition": false,
+      "host_managed": true,
+      "supported_devices": [
+        "cpu",
+        "cuda"
+      ],
+      "validated_devices": [
+        "cpu"
+      ],
+      "verification_evidence": ".superpowers/sdd/neuro-plugin/M07-report.md",
+      "input_requirements": [
+        "TC escalar 3D autorizada; referência CT original; série diferente exige transform explícito.",
+        "Nenhum filtro por contraste; desempenho específico sem contraste não foi validado."
+      ],
+      "execution_details": {
+        "preprocessing": "CTNormalization e resampling originais nnU-Net; TC preparada inteira, sem dependência de TotalSegmentator.",
+        "output_policy": "Oito classes originais, sem filtro FULL/renomeação e sem remover focos; classes vazias não geram ROI.",
+        "weights_owner": "radai_models.pasta_do_modelo(cranio_buti)",
+        "revision": "d3f8bc7248ac9138e03be7e6a839d7844599b8a1"
+      },
+      "help": {
+        "method": "Buti / nnU-Net (Local Suite)",
+        "preparation": "TC 3D; CTNormalization e reamostragem originais nnU-Net; pesos e executor do host.",
+        "hardware": "Runtime e pesos locais verificados. CPU nesta distribuição; GPU estrita exige ambiente compatível e não faz fallback.",
+        "limitations": "Evidência específica em TC sem contraste ainda não validada nesta instalação; não há bloqueio automático por contraste.",
+        "summary": "Oito labels originais de anatomia na TC."
+      }
+    }
+  ]
+}

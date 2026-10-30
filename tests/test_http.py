@@ -5,6 +5,7 @@ import unittest
 import urllib.error
 import urllib.request
 from pathlib import Path
+from types import SimpleNamespace
 
 from neuro_rt.server import make_server
 from neuro_rt.service import Service, Settings
@@ -34,7 +35,7 @@ class HttpTests(unittest.TestCase):
                       headers={'X-Neuro-Token':status['token'],'Origin':base.removesuffix('/neuro/')})
                 with self.assertRaises(urllib.error.HTTPError) as caught:
                     urllib.request.urlopen(req)
-                self.assertEqual(caught.exception.code, 400)
+                self.assertEqual(caught.exception.code, 409)
                 for route in ('../neuro_rt.local.json','api/jobs/unknown/artifacts/worker.log'):
                     with self.assertRaises(urllib.error.HTTPError):
                         urllib.request.urlopen(base + route)
@@ -45,6 +46,32 @@ class HttpTests(unittest.TestCase):
                 server.server_close()
                 service.close()
                 thread.join(timeout=2)
+
+    def test_standalone_cannot_submit_even_with_valid_security_headers(self):
+        calls = []
+        def submit(payload):
+            calls.append(payload)
+            return {'id': 'must-not-start'}
+        service = SimpleNamespace(token='synthetic-token', submit=submit)
+        server = make_server(service, port=0)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        base = f'http://127.0.0.1:{server.server_port}'
+        try:
+            for supplied, expected in (({}, 409), ({'Host': 'untrusted.example'}, 403),
+                                       ({'Origin': 'https://untrusted.example'}, 403),
+                                       ({'X-Neuro-Token': 'invalid'}, 403)):
+                headers = {'Origin': base, 'X-Neuro-Token': service.token, **supplied}
+                request = urllib.request.Request(base + '/neuro/api/jobs', data=b'{"explicit_request":true}', headers=headers)
+                with self.subTest(headers=supplied):
+                    with self.assertRaises(urllib.error.HTTPError) as caught:
+                        urllib.request.urlopen(request)
+                    self.assertEqual(caught.exception.code, expected)
+            self.assertEqual(calls, [], 'The public standalone server must never call Service.submit')
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
 
 
 if __name__ == '__main__':

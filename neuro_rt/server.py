@@ -88,16 +88,21 @@ def make_server(service, port=8766):
                 return self.reply(403, {'error': 'Origem ou token inválido.'})
             if urlsplit(self.path).path != PREFIX + 'api/jobs':
                 return self.reply(404, {'error': 'Rota não encontrada.'})
+            # The 1.0.1 staged product enables Nidus only through the host.
+            # Keep the scientific Service available for explicit developer tests,
+            # but never expose a standalone HTTP path around the product gate.
+            # Drain a bounded body before closing the HTTP/1.0 connection: Windows
+            # can otherwise reset a socket with unread request bytes before the
+            # client receives our explicit refusal.
             try:
                 length = int(self.headers.get('Content-Length', '0'))
                 if not 0 < length <= 16384:
                     raise ValueError('Pedido JSON inválido.')
-                request = json.loads(self.rfile.read(length))
-                return self.reply(202, service.submit(request))
-            except (ValueError, TypeError) as exc:
+                self.rfile.read(length)
+            except ValueError as exc:
                 return self.reply(400, {'error': str(exc)})
-            except RuntimeError as exc:
-                return self.reply(409, {'error': str(exc)})
+            return self.reply(409, {'error': 'Segmentações em construção nesta entrega. '
+                                   'Abra Nidus RT pela Local Suite.'})
     return ThreadingHTTPServer(('127.0.0.1', port), Handler)
 
 

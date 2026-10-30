@@ -1,7 +1,7 @@
 # NEURO RT — Interface integrada e Nidus Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-> Planejamento apenas. Não gerar novo frontend ou modificar telas nesta rodada.
+> Execução autorizada em 29/10/2026. Consultar `../../IMPLEMENTACAO_PLUGIN.md` para estado e pendências.
 
 **Goal:** tornar o Neuro uma extensão visual e funcional do Local Suite, com
 seleção compreensível de modelos e resultados anatômicos na referência escolhida.

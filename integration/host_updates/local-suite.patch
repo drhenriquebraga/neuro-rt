@@ -1,0 +1,1689 @@
+diff --git a/NOTICE b/NOTICE
+index 607b9dac66bf579ba748388e89ade95e00f39a04..d0666ee7a00051e8852893ff3e94b8e0cb6e2605 100644
+--- a/NOTICE
++++ b/NOTICE
+@@ -674,3 +674,14 @@ APROVADA (`ApprovalStatus = UNAPPROVED`), com sufixo de procedencia no nome:
+ Revisao e aprovacao continuam sendo ato medico, dentro do sistema de
+ planejamento. Nada e aprovado automaticamente, e nenhuma alteracao pode remover
+ essa fronteira.
++
++Shared projection code extracted from NIDUS_RT
++
++app/radai_projection.py and app/radai_projection_bone.py, shipped with
++RECON_3D, derive from NIDUS_RT commit
++4067bddc3c875af62c6917362661d3d3d1d0036b, under Apache-2.0.
++The extraction adapts imports and ownership; the geometric projection,
++incidence convention and segmentation-based bone rules are preserved.
++The full original Apache-2.0 license is the LICENSE shipped with this Suite
++(SHA-256 cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30).
++The Nidus UI belongs to the optional Neuro RT plugin.
+diff --git a/app/radai_atualizar.py b/app/radai_atualizar.py
+index b0c4f813ad75f3dc3b9d6af095d27fe42f395100..2a2048115c869972ec9be4d4df6214eec8edbcfc 100644
+--- a/app/radai_atualizar.py
++++ b/app/radai_atualizar.py
+@@ -32,6 +32,7 @@ PREPARADOR = u"preparador"
+ ERRO = u"erro"
+ EM_ANDAMENTO = (ESPERANDO, BAIXANDO, PREPARANDO, FECHANDO)
+ 
++SEGURA_NEURO = u"O NEURO RT está processando. Caso a atualização interrompa, o item deve ser solicitado novamente."
+ SEGURA_VIGIA = u"A série do vigia está rodando."
+ SEGURA_LOTE = u"O lote do «Rodar agora» está rodando."
+ SEGURA_TURNO = u"O turno da noite está aberto."
+@@ -75,6 +76,12 @@ def etapa():
+ 
+ 
+ def o_que_segura(status):
++    try:
++        import radai_queue_state as Q
++        if Q.quem_tem_a_vez().get("dono") == "neuro":
++            return SEGURA_NEURO
++    except ImportError:
++        pass
+     s = status if isinstance(status, dict) else {}
+     if s.get("overnight"):
+         return SEGURA_TURNO
+@@ -421,6 +428,8 @@ def _fluxo(interromper):
+         _log(u"a v%s precisa de pacote novo: espera a segunda confirmacao"
+              % versao)
+         return None
++    if interromper and not _interromper_neuro():
++        return None
+     if not interromper:
+         segura = o_que_segura(_status())
+         if segura:
+@@ -457,6 +466,16 @@ def _fluxo(interromper):
+     return None
+ 
+ 
++def _interromper_neuro():
++    import radai_queue_state as Q
++    Q.cancelar_neuro_ativo()
++    while Q.quem_tem_a_vez().get("dono") == "neuro":
++        if _CTX.get("cancelar"):
++            return False
++        time.sleep(INTERVALO_DA_ESPERA_S)
++    return True
++
++
+ def _rodar_fluxo(interromper):
+     try:
+         _fluxo(interromper)
+diff --git a/app/radai_breadcrumb.py b/app/radai_breadcrumb.py
+index b8abe84f536a527df26fe9d7855bc205e1d7a7a4..d7a2f58113d2c7acd298fcf624ea5997e2d484fb 100644
+--- a/app/radai_breadcrumb.py
++++ b/app/radai_breadcrumb.py
+@@ -6,7 +6,12 @@ ARVORE = {
+     "bridge":       (u"DicomBridge",           "/bridge",        "inicio"),
+     "autocontorno": (u"ContourLab",            "/autocontorno",  "inicio"),
+     "recon3d":      (u"Reconstruções 3D",      "/recon3d",       "inicio"),
+-    "nidus":        (u"Nidus RT",              "/nidus",         "inicio"),
++    "neuro":        (u"NEURO RT",              "/neuro",         "inicio"),
++    "nidus":        (u"Nidus RT",              "/neuro/nidus",   "neuro"),
++    "neuro_glioma": (u"Glioma RT",             "/neuro/glioma",  "neuro"),
++    "neuro_metastasis": (u"Metastasis RT",     "/neuro/metastasis", "neuro"),
++    "neuro_meningioma": (u"Meningioma RT",     "/neuro/meningioma", "neuro"),
++    "neuro_anatomia": (u"Anatomia RT",         "/neuro/anatomia", "neuro"),
+     "elastic":      (u"Elastic RT",            "/elastic",       "inicio"),
+     "bolus":        (u"3D Printed Bolus",      "/bolus",         "inicio"),
+ 
+@@ -16,7 +21,7 @@ ARVORE = {
+     "ver":          (u"Ver segmentação",       "/ver",           "autocontorno"),
+     "vigia":        (u"Fila de estudo",       "/vigia",         "autocontorno"),
+ 
+-    "nidus_projecao": (u"Projeção Vascular",  "/nidus/projecao", "nidus"),
++    "nidus_projecao": (u"Projeção Vascular",  "/nidus/projecao", "neuro"),
+     "elastic_fusao":  (u"Fusão elástica",     "/elastic/fusao",  "elastic"),
+     "bolus_gerar":    (u"Gerar bólus",        "/bolus/gerar",    "bolus"),
+     "bibliografia": (u"Bibliografia",          "/bibliografia",  "inicio"),
+diff --git a/app/radai_menu.py b/app/radai_menu.py
+index 0db9e3622494e14f2e318e73c8d49f8ecaaa7676..f0f4c17d27f5b6e49e8c191f2652b9016c717729 100644
+--- a/app/radai_menu.py
++++ b/app/radai_menu.py
+@@ -7,6 +7,7 @@ ITENS = [
+     ("inicio",      "/",            u"inicio",      u"Início",        u"os módulos da suíte"),
+     ("bridge",      "/bridge",      u"ponte",      u"DicomBridge",    u"o que impede o TPS de aceitar, e o que a conversão resolve"),
+     ("autocontorno", "/autocontorno", u"contornos",     u"ContourLab",     u"comparar modelos sobre o mesmo exame"),
++    ("neuro",       "/neuro",       u"cruzamento", u"NEURO RT", u"ferramentas de estudo do sistema nervoso central"),
+     ("nidus",       "/nidus",       u"cruzamento",      u"Nidus RT",      u"projeção vascular: a mesma lesão em duas incidências"),
+     ("nidus_projecao", "/nidus/projecao", u"cruzamento", u"Projeção Vascular", u"circular na projeção, ver onde as duas se cruzam"),
+     ("elastic",     "/elastic",     u"malha",      u"Elastic RT",    u"fusão elástica: o que a deformação fez, e se ela é possível"),
+@@ -22,7 +23,7 @@ ITENS = [
+     ("config",      "/config",      u"engrenagem",      u"Configurações", u"o vigia, os modelos e o diagnóstico"),
+ ]
+ 
+-MODULOS_HOME = ("bridge", "autocontorno", "recon3d", "nidus", "elastic",
++MODULOS_HOME = ("bridge", "autocontorno", "recon3d", "neuro", "elastic",
+                 "bolus")
+ 
+ SEM_ITEM_NO_MENU = ("diagnostico",)
+@@ -87,7 +88,7 @@ body{margin-left:var(--ui-lado) !important}
+  --mod-cor-fraca:var(--mod-bridge-fraco,rgba(124,92,255,.14))}
+ .radai-menu a[data-mod="recon3d"]{--mod-cor:var(--mod-recon,#31D0AA);
+  --mod-cor-fraca:var(--mod-recon-fraco,rgba(49,208,170,.14))}
+-.radai-menu a[data-mod="nidus"]{--mod-cor:var(--mod-nidus,#E39B4F);
++.radai-menu a[data-mod="neuro"],.radai-menu a[data-mod="nidus"]{--mod-cor:var(--mod-nidus,#E39B4F);
+  --mod-cor-fraca:var(--mod-nidus-fraco,rgba(227,155,79,.14))}
+ .radai-menu a[data-mod="elastic"]{--mod-cor:var(--mod-elastic,#8FA9F2);
+  --mod-cor-fraca:var(--mod-elastic-fraco,rgba(143,169,242,.14))}
+@@ -134,7 +135,7 @@ ALIAS = {
+     "creditos": "bibliografia",
+ }
+ 
+-MODULOS = ("bridge", "autocontorno", "recon3d", "nidus", "elastic", "bolus")
++MODULOS = ("bridge", "autocontorno", "recon3d", "neuro", "elastic", "bolus")
+ NO_PE = ("bibliografia", "config")
+ 
+ GRUPOS = [(u"", MODULOS), (u"", NO_PE)]
+diff --git a/app/radai_modules.py b/app/radai_modules.py
+index d1220fc79c662ef17a08df48c02ce9ae4af950d9..259876cbfd21a3abff6d3b7b1673111bd12f6fd9 100644
+--- a/app/radai_modules.py
++++ b/app/radai_modules.py
+@@ -5,6 +5,7 @@ CORES = {
+     "bridge": ("--mod-bridge", "--mod-bridge-fraco"),
+     "autocontorno": ("--mod-auto", "--mod-auto-fraco"),
+     "recon3d": ("--mod-recon", "--mod-recon-fraco"),
++    "neuro": ("--mod-nidus", "--mod-nidus-fraco"),
+     "nidus": ("--mod-nidus", "--mod-nidus-fraco"),
+     "elastic": ("--mod-elastic", "--mod-elastic-fraco"),
+     "bolus": ("--mod-bolus", "--mod-bolus-fraco"),
+@@ -36,6 +37,11 @@ MODULOS = {
+                   u"análise tridimensional"),
+         "linha": u"<b>Uso pr&oacute;prio</b> dentro do app",
+     },
++    "neuro": {
++        "icone": u"cruzamento", "titulo": u"NEURO ", "destaque": u"RT",
++        "frase": u"Ferramentas de estudo do sistema nervoso central: projeção vascular, tumores e anatomia.",
++        "linha": u"Material de estudo — processamento local; estruturas não aprovadas.",
++    },
+     "nidus": {
+         "icone": u"cruzamento",
+         "titulo": u"Nidus ", "destaque": u"RT",
+@@ -117,6 +123,13 @@ FERRAMENTAS = {
+          u"sintéticas a partir da segmentação de vasos", u"",
+          (u"angiografia sintética", u"3D", u"MIP")),
+     ],
++    "neuro": [
++        ("nidus", u"cruzamento", u"Nidus RT", "/neuro/nidus", u"Projeção vascular por construção geométrica, sem exportar a interseção.", u""),
++        ("neuro_glioma", u"contornos", u"Glioma RT", "/neuro/glioma", u"Estudo de gliomas por seleção explícita de modelos e sequências.", u""),
++        ("neuro_metastasis", u"contornos", u"Metastasis RT", "/neuro/metastasis", u"Estudo de metástases com máscaras separadas por modelo.", u""),
++        ("neuro_meningioma", u"contornos", u"Meningioma RT", "/neuro/meningioma", u"Estudo de meningiomas com revisão das entradas e dos resultados.", u""),
++        ("neuro_anatomia", u"contornos", u"Anatomia RT", "/neuro/anatomia", u"Estruturas anatômicas na série de referência selecionada.", u""),
++    ],
+     "nidus": [
+         ("nidus_projecao", u"cruzamento", u"Projeção Vascular", "/nidus/projecao",
+          u"Projeta a angiotomografia, ou a RM com gadolínio, na incidência "
+@@ -215,6 +228,10 @@ AJUDA = {
+             u"pontos em canvas 2D. As máscaras vêm do TotalSegmentator, "
+             u"Apache-2.0.",),
+     },
++    "neuro": {
++        u"O que não faz": (u"Nenhuma segmentação roda por omissão. Toda estrutura gerada é sugestão não aprovada, com procedência; não há CTV nem fusão RM–TC implícita.",),
++        u"Componentes de terceiros": (u"Os modelos e suas licenças pertencem ao catálogo versionado do plugin. Nidus conserva seus limites próprios de construção geométrica.",),
++    },
+     "nidus": {
+         u"O que não faz": (
+             u"Não detecta e não segmenta: projeta o que o médico circulou. "
+diff --git a/app/radai_neuro_install.py b/app/radai_neuro_install.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..36b1fead158e45bb90f2970e9f0d443eb62600bf
+--- /dev/null
++++ b/app/radai_neuro_install.py
+@@ -0,0 +1,131 @@
++# Generated by NEURO_RT/scripts/build_host_bootstrap.py.
++# Sources are pinned to the base host release, never loaded from a downloaded ZIP.
++# Original NeuroRT license follows and must accompany redistribution.
++# MIT License
++#
++# Copyright (c) 2026 Radioterapia.AI contributors
++#
++# Permission is hereby granted, free of charge, to any person obtaining a copy
++# of this software and associated documentation files (the "Software"), to deal
++# in the Software without restriction, including without limitation the rights
++# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++# copies of the Software, and to permit persons to whom the Software is
++# furnished to do so, subject to the following conditions:
++#
++# The above copyright notice and this permission notice shall be included in all
++# copies or substantial portions of the Software.
++#
++# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++# SOFTWARE.
++
++SOURCES = {'plugin_manifest': ('ae2b107a7ae1aaf1172865ea4706d5c9a3223bdee6e608a332e57381823759f0', 'IiIiTGlnaHR3ZWlnaHQsIGxvY2FsIHBsdWdpbiBtZXRhZGF0YTsgbmV2ZXIgaW1wb3J0cyBhbiBpbmZlcmVuY2UgZW5naW5lLgoKYGBob3N0X21pbl92ZXJzaW9uPU5vbmVgYCBpZGVudGlmaWVzIGFuIHVucHVibGlzaGVkIGNvbXBhdGliaWxpdHkgcmVxdWlyZW1lbnQuClN1Y2ggYSBkcmFmdCBtYXkgYmUgaW5zcGVjdGVkIGJ1dCBtdXN0IG5vdCBiZSBtb3VudGVkIGluIGEgcHJvZHVjdGlvbiBob3N0LgoiIiIKCmltcG9ydCBqc29uCmltcG9ydCByZQpmcm9tIGRhdGFjbGFzc2VzIGltcG9ydCBkYXRhY2xhc3MKZnJvbSBwYXRobGliIGltcG9ydCBQYXRoLCBQdXJlV2luZG93c1BhdGgKZnJvbSB0eXBpbmcgaW1wb3J0IE1hcHBpbmcKCgpNQU5JRkVTVF9TQ0hFTUEgPSAnbmV1cm8tcnQvcGx1Z2luLW1hbmlmZXN0LzEnCkhPU1RfQ09OVFJBQ1QgPSAnbG9jYWwtc3VpdGUvcGx1Z2lucy8xJwpQTFVHSU5fSUQgPSAnbmV1cm8tcnQnCgoKZGVmIF9udW1lcmljX3ZlcnNpb24odmFsdWUpOgogICAgaWYgbm90IGlzaW5zdGFuY2UodmFsdWUsIHN0cikgb3Igbm90IHJlLmZ1bGxtYXRjaChyJ1swLTldKyg/OlwuWzAtOV0rKSonLCB2YWx1ZSk6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignQSB2ZXJzw6NvIGRldmUgc2VyIHVtYSBzdHJpbmcgbnVtw6lyaWNhLCBwb3IgZXhlbXBsbyAyLjEwLjAuJykKICAgIHJldHVybiB0dXBsZShpbnQocGFydCkgZm9yIHBhcnQgaW4gdmFsdWUuc3BsaXQoJy4nKSkKCgpkZWYgX3JlbGF0aXZlX3BhdGgocm9vdCwgdmFsdWUpOgogICAgIiIiUmVzb2x2ZSBhIHBvcnRhYmxlIHJlbGF0aXZlIHJlZmVyZW5jZSwgcmVqZWN0aW5nIFdpbmRvd3MgYWxpYXNlcyB0b28uIiIiCiAgICBpZiBub3QgaXNpbnN0YW5jZSh2YWx1ZSwgc3RyKSBvciBub3QgdmFsdWU6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignUmVmZXLDqm5jaWEgcmVsYXRpdmEgYXVzZW50ZSBvdSBpbnbDoWxpZGEuJykKICAgIHdpbmRvd3MgPSBQdXJlV2luZG93c1BhdGgodmFsdWUpCiAgICBwYXJ0cyA9IHZhbHVlLnJlcGxhY2UoJ1xcJywgJy8nKS5zcGxpdCgnLycpCiAgICBpZiAod2luZG93cy5kcml2ZSBvciB3aW5kb3dzLnJvb3Qgb3IgdmFsdWUuc3RhcnRzd2l0aCgnLycpIG9yCiAgICAgICAgICAgIGFueShwYXJ0IGluICgnJywgJy4nLCAnLi4nKSBvciBwYXJ0LmVuZHN3aXRoKCgnICcsICcuJykpIGZvciBwYXJ0IGluIHBhcnRzKSBvcgogICAgICAgICAgICBhbnkob3JkKGNoYXIpIDwgMzIgb3IgY2hhciBpbiAnPD46Inw/KicgZm9yIGNoYXIgaW4gdmFsdWUpKToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdSZWZlcsOqbmNpYSBkZXZlIHNlciByZWxhdGl2YSBlIHBlcm1hbmVjZXIgZGVudHJvIGRhIGluc3RhbGHDp8Ojby4nKQogICAgcmVzZXJ2ZWQgPSB7J0NPTicsICdQUk4nLCAnQVVYJywgJ05VTCd9IHwgewogICAgICAgIGYne3ByZWZpeH17bnVtYmVyfScgZm9yIHByZWZpeCBpbiAoJ0NPTScsICdMUFQnKSBmb3IgbnVtYmVyIGluIHJhbmdlKDEsIDEwKX0KICAgIGlmIGFueShwYXJ0LnNwbGl0KCcuJylbMF0udXBwZXIoKSBpbiByZXNlcnZlZCBmb3IgcGFydCBpbiBwYXJ0cyk6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignUmVmZXLDqm5jaWEgY29udMOpbSBub21lIHJlc2VydmFkbyBkbyBXaW5kb3dzLicpCiAgICByb290ID0gUGF0aChyb290KS5yZXNvbHZlKCkKICAgIHJlc29sdmVkID0gcm9vdC5qb2lucGF0aCgqcGFydHMpLnJlc29sdmUoKQogICAgaWYgbm90IHJlc29sdmVkLmlzX3JlbGF0aXZlX3RvKHJvb3QpOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1JlZmVyw6puY2lhIGVzY2FwYSBkYSBpbnN0YWxhw6fDo28sIGluY2x1c2l2ZSBwb3IgbGluayBzaW1iw7NsaWNvLicpCiAgICByZXR1cm4gcmVzb2x2ZWQKCgpAZGF0YWNsYXNzKGZyb3plbj1UcnVlKQpjbGFzcyBQbHVnaW5NYW5pZmVzdDoKICAgIHNjaGVtYTogc3RyCiAgICBpZDogc3RyCiAgICB2ZXJzaW9uOiBzdHIKICAgIGhvc3RfY29udHJhY3Q6IHN0cgogICAgaG9zdF9taW5fdmVyc2lvbjogc3RyIHwgTm9uZQogICAgZW50cnlwb2ludDogc3RyCiAgICBhZGFwdGVyOiBzdHIKICAgIGNhdGFsb2c6IHN0cgogICAgcnVudGltZXM6IGRpY3QKICAgIGFydGlmYWN0czogdHVwbGUKCgpAZGF0YWNsYXNzKGZyb3plbj1UcnVlKQpjbGFzcyBDb21wYXRpYmlsaXR5UmVzdWx0OgogICAgY29tcGF0aWJsZTogYm9vbAogICAgcmVxdWlyZWRfY29udHJhY3Q6IHN0cgogICAgcmVxdWlyZWRfaG9zdF92ZXJzaW9uOiBzdHIgfCBOb25lCiAgICByZWFzb246IHN0cgoKCmRlZiByZWFkX21hbmlmZXN0KHBhdGgpIC0+IFBsdWdpbk1hbmlmZXN0OgogICAgIiIiUmVhZCBhbmQgdmFsaWRhdGUgbWV0YWRhdGEgb25seTsgcmVmZXJlbmNlZCBmaWxlcyBtYXkgYXdhaXQgaW5zdGFsbGF0aW9uLiIiIgogICAgcGF0aCA9IFBhdGgocGF0aCkKICAgIHRyeToKICAgICAgICB2YWx1ZXMgPSBqc29uLmxvYWRzKHBhdGgucmVhZF90ZXh0KGVuY29kaW5nPSd1dGYtOCcpKQogICAgZXhjZXB0IChPU0Vycm9yLCBVbmljb2RlRXJyb3IsIFZhbHVlRXJyb3IpIGFzIGVycm9yOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoZidOw6NvIGZvaSBwb3Nzw612ZWwgbGVyIG8gbWFuaWZlc3RvIGRvIHBsdWdpbjoge2Vycm9yfScpIGZyb20gZXJyb3IKICAgIGlmIG5vdCBpc2luc3RhbmNlKHZhbHVlcywgZGljdCk6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignTyBtYW5pZmVzdG8gZGV2ZSBzZXIgdW0gb2JqZXRvIEpTT04uJykKICAgIGZvciBrZXksIGV4cGVjdGVkIGluICgoJ3NjaGVtYScsIE1BTklGRVNUX1NDSEVNQSksICgnaWQnLCBQTFVHSU5fSUQpLAogICAgICAgICAgICAgICAgICAgICAgICAgICgnaG9zdF9jb250cmFjdCcsIEhPU1RfQ09OVFJBQ1QpKToKICAgICAgICBpZiB2YWx1ZXMuZ2V0KGtleSkgIT0gZXhwZWN0ZWQ6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoZidNYW5pZmVzdG8gY29tIHtrZXl9IGludsOhbGlkbzsgZXNwZXJhZG8ge2V4cGVjdGVkfS4nKQogICAgX251bWVyaWNfdmVyc2lvbih2YWx1ZXMuZ2V0KCd2ZXJzaW9uJykpCiAgICBpZiAnaG9zdF9taW5fdmVyc2lvbicgbm90IGluIHZhbHVlczoKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdNYW5pZmVzdG8gc2VtIGhvc3RfbWluX3ZlcnNpb247IHVzZSBudWxsIGF0w6kgcHVibGljYXIgbyByZXF1aXNpdG8uJykKICAgIG1pbmltdW0gPSB2YWx1ZXNbJ2hvc3RfbWluX3ZlcnNpb24nXQogICAgaWYgbWluaW11bSBpcyBub3QgTm9uZToKICAgICAgICBfbnVtZXJpY192ZXJzaW9uKG1pbmltdW0pCiAgICAjIFRoZSBwdWJsaWMgZW50cnlwb2ludCBpcyBhIHJvdXRlLCB3aGVyZWFzIGFkYXB0ZXIvY2F0YWxvZyBhcmUgZmlsZSByZWZlcmVuY2VzLgogICAgaWYgdmFsdWVzLmdldCgnZW50cnlwb2ludCcpICE9ICcvbmV1cm8vJzoKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdFbnRyYWRhIGRvIHBsdWdpbiBkZXZlIHNlciBhIHJvdGEgL25ldXJvLy4nKQogICAgYWRhcHRlciA9IHZhbHVlcy5nZXQoJ2FkYXB0ZXInKQogICAgaWYgbm90IGlzaW5zdGFuY2UoYWRhcHRlciwgc3RyKSBvciBhZGFwdGVyLmNvdW50KCc6JykgIT0gMToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdBZGFwdGFkb3IgZGV2ZSBkZWNsYXJhciBhcnF1aXZvIHJlbGF0aXZvIGUgZnVuw6fDo28uJykKICAgIGFkYXB0ZXJfcGF0aCwgZnVuY3Rpb24gPSBhZGFwdGVyLnNwbGl0KCc6JykKICAgIGlmIG5vdCByZS5mdWxsbWF0Y2gocidbQS1aYS16X11bQS1aYS16MC05X10qJywgZnVuY3Rpb24pOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0Z1bsOnw6NvIGRvIGFkYXB0YWRvciBpbnbDoWxpZGEuJykKICAgIF9yZWxhdGl2ZV9wYXRoKHBhdGgucGFyZW50LCBhZGFwdGVyX3BhdGgpCiAgICBfcmVsYXRpdmVfcGF0aChwYXRoLnBhcmVudCwgdmFsdWVzLmdldCgnY2F0YWxvZycpKQogICAgcnVudGltZXMgPSB2YWx1ZXMuZ2V0KCdydW50aW1lcycpCiAgICBpZiBub3QgaXNpbnN0YW5jZShydW50aW1lcywgZGljdCkgb3Igbm90IHJ1bnRpbWVzOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ01hbmlmZXN0byBkZXZlIGRlY2xhcmFyIG9zIHJ1bnRpbWVzIGRvIHBsdWdpbi4nKQogICAgZm9yIHJ1bnRpbWVfaWQsIHJ1bnRpbWUgaW4gcnVudGltZXMuaXRlbXMoKToKICAgICAgICBpZiBub3QgcmUuZnVsbG1hdGNoKHInW0EtWmEtejAtOV1bQS1aYS16MC05Xy1dKicsIHJ1bnRpbWVfaWQpOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdJZGVudGlmaWNhZG9yIGRlIHJ1bnRpbWUgaW52w6FsaWRvLicpCiAgICAgICAgaWYgbm90IGlzaW5zdGFuY2UocnVudGltZSwgZGljdCk6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0Rlc2NyacOnw6NvIGRvIHJ1bnRpbWUgaW52w6FsaWRhLicpCiAgICAgICAgX3JlbGF0aXZlX3BhdGgocGF0aC5wYXJlbnQsIHJ1bnRpbWUuZ2V0KCdweXRob24nKSkKICAgIGFydGlmYWN0cyA9IHZhbHVlcy5nZXQoJ2FydGlmYWN0cycpCiAgICBpZiBub3QgaXNpbnN0YW5jZShhcnRpZmFjdHMsIGxpc3QpOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ01hbmlmZXN0byBkZXZlIGRlY2xhcmFyIHVtYSBsaXN0YSBkZSBhcnRlZmF0b3MuJykKICAgIGZvciBhcnRpZmFjdCBpbiBhcnRpZmFjdHM6CiAgICAgICAgaWYgbm90IGlzaW5zdGFuY2UoYXJ0aWZhY3QsIGRpY3QpOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdEZXNjcmnDp8OjbyBkZSBhcnRlZmF0byBpbnbDoWxpZGEuJykKICAgICAgICBfcmVsYXRpdmVfcGF0aChwYXRoLnBhcmVudCwgYXJ0aWZhY3QuZ2V0KCdwYXRoJykpCiAgICByZXR1cm4gUGx1Z2luTWFuaWZlc3QoCiAgICAgICAgc2NoZW1hPXZhbHVlc1snc2NoZW1hJ10sIGlkPXZhbHVlc1snaWQnXSwgdmVyc2lvbj12YWx1ZXNbJ3ZlcnNpb24nXSwKICAgICAgICBob3N0X2NvbnRyYWN0PXZhbHVlc1snaG9zdF9jb250cmFjdCddLCBob3N0X21pbl92ZXJzaW9uPW1pbmltdW0sCiAgICAgICAgZW50cnlwb2ludD12YWx1ZXNbJ2VudHJ5cG9pbnQnXSwgYWRhcHRlcj1hZGFwdGVyLCBjYXRhbG9nPXZhbHVlc1snY2F0YWxvZyddLAogICAgICAgIHJ1bnRpbWVzPXJ1bnRpbWVzLCBhcnRpZmFjdHM9dHVwbGUoYXJ0aWZhY3RzKSkKCgpkZWYgY2hlY2tfaG9zdF9jb21wYXRpYmlsaXR5KG1hbmlmZXN0LCBob3N0X2luZm8pIC0+IENvbXBhdGliaWxpdHlSZXN1bHQ6CiAgICAiIiJIb3N0IGluZm8gaXMgYSBtYXBwaW5nIHdpdGggYGBjb250cmFjdGBgIGFuZCBpdHMgYWN0dWFsIGBgdmVyc2lvbmBgLiIiIgogICAgZGVmIHJlc3VsdChjb21wYXRpYmxlLCByZWFzb24pOgogICAgICAgIHJldHVybiBDb21wYXRpYmlsaXR5UmVzdWx0KGNvbXBhdGlibGUsIG1hbmlmZXN0Lmhvc3RfY29udHJhY3QsCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgbWFuaWZlc3QuaG9zdF9taW5fdmVyc2lvbiwgcmVhc29uKQoKICAgIGlmIG5vdCBpc2luc3RhbmNlKGhvc3RfaW5mbywgTWFwcGluZykgb3IgaG9zdF9pbmZvLmdldCgnY29udHJhY3QnKSAhPSBtYW5pZmVzdC5ob3N0X2NvbnRyYWN0OgogICAgICAgIHJldHVybiByZXN1bHQoRmFsc2UsIGYnSG9zdCBkZXZlIG9mZXJlY2VyIG8gY29udHJhdG8ge21hbmlmZXN0Lmhvc3RfY29udHJhY3R9LicpCiAgICBpZiBtYW5pZmVzdC5ob3N0X21pbl92ZXJzaW9uIGlzIE5vbmU6CiAgICAgICAgcmV0dXJuIHJlc3VsdChGYWxzZSwgJ1ZlcnPDo28gbcOtbmltYSBkbyBob3N0IGFpbmRhIG7Do28gcHVibGljYWRhIG5vIG1hbmlmZXN0by4nKQogICAgdHJ5OgogICAgICAgIGFjdHVhbCA9IF9udW1lcmljX3ZlcnNpb24oaG9zdF9pbmZvLmdldCgndmVyc2lvbicpKQogICAgICAgIG1pbmltdW0gPSBfbnVtZXJpY192ZXJzaW9uKG1hbmlmZXN0Lmhvc3RfbWluX3ZlcnNpb24pCiAgICBleGNlcHQgVmFsdWVFcnJvcjoKICAgICAgICByZXR1cm4gcmVzdWx0KEZhbHNlLCAnVmVyc8OjbyBkbyBob3N0IGF1c2VudGUgb3UgaW52w6FsaWRhOyBjb21wYXRpYmlsaWRhZGUgbsOjbyBjb25maXJtYWRhLicpCiAgICB3aWR0aCA9IG1heChsZW4oYWN0dWFsKSwgbGVuKG1pbmltdW0pKQogICAgaWYgYWN0dWFsICsgKDAsKSAqICh3aWR0aCAtIGxlbihhY3R1YWwpKSA8IG1pbmltdW0gKyAoMCwpICogKHdpZHRoIC0gbGVuKG1pbmltdW0pKToKICAgICAgICByZXR1cm4gcmVzdWx0KEZhbHNlLCBmJ0hvc3QgcmVxdWVyIGF0dWFsaXphw6fDo28gcGFyYSB7bWFuaWZlc3QuaG9zdF9taW5fdmVyc2lvbn0gb3UgcG9zdGVyaW9yLicpCiAgICByZXR1cm4gcmVzdWx0KFRydWUsICdIb3N0IGNvbXBhdMOtdmVsIGNvbSBvIGNvbnRyYXRvIGUgYSB2ZXJzw6NvIG3DrW5pbWEgZG8gcGx1Z2luLicpCg=='), 'model_paths': ('a54a3aba9cad1d1a30751abeafea39719638372322b952bcae7a8cce7da96f58', 'IiIiRXhwbGljaXQgcmV2aXNpb24gcGF0aHMgc2hhcmVkIGJ5IGluc3RhbGxhdGlvbiBhbmQgZXhpc3RpbmcgbW9kZWwgY29uc3VtZXJzLgoKSW5zdGFsbGVkIGNhbGxlcnMga2VlcCBhbGxvd19sZWdhY3k9RmFsc2UuIERldmVsb3BtZW50IGVudHJ5cG9pbnRzIG1heSBleHBsaWNpdGx5CmVuYWJsZSBmbGF0IHYxIGZvbGRlcnM7IG5laXRoZXIgbW9kZSBzY2FucyBvciBjaG9vc2VzIGEgbGF0ZXN0IHJldmlzaW9uLgoiIiIKZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCByZQoKZnJvbSAucGx1Z2luX21hbmlmZXN0IGltcG9ydCBfcmVsYXRpdmVfcGF0aAoKCmRlZiByZXNvbHZlX21vZGVsX2ZvbGRlcihtb2RlbHNfZGlyLCBtb2RlbF9pZCwgcmV2aXNpb24sICosIGFsbG93X2xlZ2FjeT1GYWxzZSkgLT4gUGF0aDoKICAgIGZvciB2YWx1ZSBpbiAobW9kZWxfaWQsIHJldmlzaW9uKToKICAgICAgICBpZiBub3QgaXNpbnN0YW5jZSh2YWx1ZSwgc3RyKSBvciBub3QgcmUuZnVsbG1hdGNoKHInW0EtWmEtejAtOV1bQS1aYS16MC05Xy4tXXswLDc5fScsIHZhbHVlKToKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignSUQgZSByZXZpc8OjbyBleGF0YSBkbyBtb2RlbG8gc8OjbyBvYnJpZ2F0w7NyaW9zIGUgcmVsYXRpdm9zLicpCiAgICByb290ID0gUGF0aChtb2RlbHNfZGlyKS5yZXNvbHZlKCkKICAgIGZsYXQgPSBfcmVsYXRpdmVfcGF0aChyb290LCBtb2RlbF9pZCkKICAgIHZlcnNpb25lZCA9IF9yZWxhdGl2ZV9wYXRoKGZsYXQsIHJldmlzaW9uKQogICAgaWYgdmVyc2lvbmVkLmV4aXN0cygpIG9yIG5vdCBhbGxvd19sZWdhY3k6CiAgICAgICAgcmV0dXJuIHZlcnNpb25lZAogICAgcmV0dXJuIGZsYXQgaWYgZmxhdC5pc19kaXIoKSBlbHNlIHZlcnNpb25lZAoKCmRlZiBwcmVmbGlnaHRfbW9kZWxfZm9sZGVycyhtb2RlbHNfZGlyLCBtb2RlbCwgKiwgYWxsb3dfbGVnYWN5PUZhbHNlKToKICAgICIiIlZhbGlkYXRlIHRoZSBwaW5uZWQgbGVnYWN5IGVuZ2luZSBtb2RlbCBhbmQgaXRzIEJyYWluIGRlcGVuZGVuY3ksIGlmIHVzZWQuIiIiCiAgICBmcm9tIC5jYXRhbG9nIGltcG9ydCBSRUxFQVNFLCBCUkFJTiwgdmFsaWRhdGVfbW9kZWxfZm9sZGVyLCByZXF1aXJlc19icmFpbgogICAgZm9sZGVyID0gcmVzb2x2ZV9tb2RlbF9mb2xkZXIobW9kZWxzX2RpciwgbW9kZWxbJ2lkJ10sIG1vZGVsLmdldCgncmV2aXNpb24nLCBSRUxFQVNFKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGFsbG93X2xlZ2FjeT1hbGxvd19sZWdhY3kpCiAgICB2YWxpZGF0ZV9tb2RlbF9mb2xkZXIoZm9sZGVyLCBtb2RlbCkKICAgIGJyYWluX2ZvbGRlciA9IE5vbmUKICAgIGlmIHJlcXVpcmVzX2JyYWluKGZvbGRlcik6CiAgICAgICAgYnJhaW5fZm9sZGVyID0gcmVzb2x2ZV9tb2RlbF9mb2xkZXIobW9kZWxzX2RpciwgQlJBSU5bJ2lkJ10sIEJSQUlOLmdldCgncmV2aXNpb24nLCBSRUxFQVNFKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBhbGxvd19sZWdhY3k9YWxsb3dfbGVnYWN5KQogICAgICAgIHZhbGlkYXRlX21vZGVsX2ZvbGRlcihicmFpbl9mb2xkZXIsIEJSQUlOKQogICAgcmV0dXJuIGZvbGRlciwgYnJhaW5fZm9sZGVyCgoKZGVmIHNoYXJlZF9tb2RlbF9zdGF0dXMobW9kZWxzX2RpciwgKiwgYWxsb3dfbGVnYWN5PUZhbHNlKToKICAgICIiIlByZXNlcnZlIHRoZSB2MSBzdGF0dXMgc2hhcGUgd2hpbGUgdXNpbmcgdGhlIHNhbWUgcGF0aHMgYXMgcHJlZmxpZ2h0L3dvcmtlci4iIiIKICAgIGltcG9ydCBjb25maWdwYXJzZXIKICAgIGZyb20gLmNhdGFsb2cgaW1wb3J0IE1PREVMUywgUkVMRUFTRQogICAgc3RhdHVzID0gW10KICAgIGZvciBtb2RlbCBpbiBNT0RFTFM6CiAgICAgICAgdHJ5OgogICAgICAgICAgICBwcmVmbGlnaHRfbW9kZWxfZm9sZGVycyhtb2RlbHNfZGlyLCBtb2RlbCwgYWxsb3dfbGVnYWN5PWFsbG93X2xlZ2FjeSkKICAgICAgICAgICAgcmVhZHksIHJlYXNvbiA9IFRydWUsICcnCiAgICAgICAgZXhjZXB0IChWYWx1ZUVycm9yLCBPU0Vycm9yLCBjb25maWdwYXJzZXIuRXJyb3IpIGFzIGVycm9yOgogICAgICAgICAgICByZWFkeSwgcmVhc29uID0gRmFsc2UsIHN0cihlcnJvcikKICAgICAgICBzdGF0dXMuYXBwZW5kKHsqKm1vZGVsLCAncmVhZHknOiByZWFkeSwgJ3JlYXNvbic6IHJlYXNvbiwKICAgICAgICAgICAgICAgICAgICAgICAncmVsZWFzZSc6IG1vZGVsLmdldCgncmV2aXNpb24nLCBSRUxFQVNFKSwgJ2xpY2Vuc2UnOiAnQlNELTItQ2xhdXNlJ30pCiAgICByZXR1cm4gc3RhdHVzCg=='), 'model_registry': ('6b13fb6a60133a874241b5eb060ac5da2e1804d2a252d5594f33e25fc7978d10', 'IiIiTGlnaHR3ZWlnaHQsIHZlcnNpb25lZCBOZXVybyBtb2RlbCBzcGVjaWZpY2F0aW9ucyBhbmQgYXJ0aWZhY3QgdmVyaWZpY2F0aW9uLiIiIgppbXBvcnQgY29weQppbXBvcnQgaGFzaGxpYgppbXBvcnQganNvbgppbXBvcnQgcmUKZnJvbSBwYXRobGliIGltcG9ydCBQYXRoLCBQdXJlV2luZG93c1BhdGgKZnJvbSB1cmxsaWIucGFyc2UgaW1wb3J0IHVybHBhcnNlCgpmcm9tIC5tb2RlbF9wYXRocyBpbXBvcnQgcmVzb2x2ZV9tb2RlbF9mb2xkZXIKCkNBVEFMT0cgPSBQYXRoKF9fZmlsZV9fKS5yZXNvbHZlKCkucGFyZW50c1sxXSAvICdjYXRhbG9nJyAvICdtb2RlbHMuanNvbicKTElDRU5TRVMgPSBmcm96ZW5zZXQoKCdNSVQnLCAnQlNELTItQ2xhdXNlJywgJ0JTRC0zLUNsYXVzZScsICdBcGFjaGUtMi4wJywKICAgICAgICAgICAgICAgICAgICAgICdDQzAtMS4wJywgJ0NDLUJZLTQuMCcpKQpHUk9VUFMgPSBmcm96ZW5zZXQoKCdnbGlvbWEnLCAnbWV0YXN0YXNpcycsICdtZW5pbmdpb21hJywgJ2FuYXRvbWlhJywgJ2F1eGlsaWFyeScpKQpST0xFUyA9IGZyb3plbnNldCgoJ1QxJywgJ1QxYycsICdUMicsICdGTEFJUicsICdDVCcpKQoKCmRlZiBfaWRlbnRpZmllcih2YWx1ZSk6CiAgICByZXR1cm4gaXNpbnN0YW5jZSh2YWx1ZSwgc3RyKSBhbmQgcmUuZnVsbG1hdGNoKHInW0EtWmEtejAtOV1bQS1aYS16MC05Xy4tXXswLDc5fScsIHZhbHVlKQoKCmRlZiBfcmVsYXRpdmVfcGF0aChyb290LCB2YWx1ZSk6CiAgICBpZiAobm90IGlzaW5zdGFuY2UodmFsdWUsIHN0cikgb3Igbm90IHZhbHVlIG9yICdcXCcgaW4gdmFsdWUgb3IgJzonIGluIHZhbHVlCiAgICAgICAgICAgIG9yIFB1cmVXaW5kb3dzUGF0aCh2YWx1ZSkuaXNfYWJzb2x1dGUoKSBvciBQYXRoKHZhbHVlKS5pc19hYnNvbHV0ZSgpKToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdDYW1pbmhvIGRlIGFydGVmYXRvIGludsOhbGlkby4nKQogICAgdGFyZ2V0ID0gKHJvb3QgLyB2YWx1ZSkucmVzb2x2ZSgpCiAgICBpZiBub3QgdGFyZ2V0LmlzX3JlbGF0aXZlX3RvKHJvb3QpIG9yIHRhcmdldCA9PSByb290OgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0FydGVmYXRvIGZvcmEgZGEgcGFzdGEgZG8gbW9kZWxvLicpCiAgICByZXR1cm4gdGFyZ2V0CgoKZGVmIGxvYWRfY2F0YWxvZyhwYXRoPUNBVEFMT0cpOgogICAgZGF0YSA9IGpzb24ubG9hZHMoUGF0aChwYXRoKS5yZWFkX3RleHQoZW5jb2Rpbmc9J3V0Zi04JykpCiAgICBpZiBub3QgaXNpbnN0YW5jZShkYXRhLCBkaWN0KSBvciBkYXRhLmdldCgnc2NoZW1hJykgIT0gJ25ldXJvLXJ0L2NhdGFsb2cvMSc6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignU2NoZW1hIGRvIGNhdMOhbG9nbyBpbnbDoWxpZG8uJykKICAgIG1vZGVscyA9IGRhdGEuZ2V0KCdtb2RlbHMnKQogICAgaWYgbm90IGlzaW5zdGFuY2UobW9kZWxzLCBsaXN0KSBvciBub3QgbW9kZWxzOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0NhdMOhbG9nbyB2YXppbyBvdSBpbnbDoWxpZG8uJykKICAgIHNlZW4gPSBzZXQoKQogICAgZm9yIG1vZGVsIGluIG1vZGVsczoKICAgICAgICBpZiBub3QgaXNpbnN0YW5jZShtb2RlbCwgZGljdCkgb3Igbm90IF9pZGVudGlmaWVyKG1vZGVsLmdldCgnaWQnKSk6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0lEIGRlIG1vZGVsbyBpbnbDoWxpZG8uJykKICAgICAgICBpZiBtb2RlbFsnaWQnXSBpbiBzZWVuOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdJRCBkZSBtb2RlbG8gZHVwbGljYWRvLicpCiAgICAgICAgc2Vlbi5hZGQobW9kZWxbJ2lkJ10pCiAgICAgICAgaWYgbW9kZWwuZ2V0KCdjYXRhbG9nX3N0YXRlJykgbm90IGluICgnZGlzdHJpYnV0ZWQnLCAndmVyaWZpZWQnLCAnY2FuZGlkYXRlJyk6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0VzdGFkbyBkZSBjYXTDoWxvZ28gaW52w6FsaWRvLicpCiAgICAgICAgaWYgKG5vdCBpc2luc3RhbmNlKG1vZGVsLmdldCgnZ3JvdXBzJyksIGxpc3QpIG9yIG5vdCBtb2RlbFsnZ3JvdXBzJ10KICAgICAgICAgICAgICAgIG9yIG5vdCBzZXQobW9kZWxbJ2dyb3VwcyddKS5pc3N1YnNldChHUk9VUFMpKToKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignR3J1cG8gZGUgbW9kZWxvIGludsOhbGlkby4nKQogICAgICAgIGxpY2Vuc2VfaW5mbyA9IG1vZGVsLmdldCgnbGljZW5zZScsIHt9KQogICAgICAgIGlmIChub3QgaXNpbnN0YW5jZShsaWNlbnNlX2luZm8sIGRpY3QpIG9yIGxpY2Vuc2VfaW5mby5nZXQoJ2NvZGUnKSBub3QgaW4gTElDRU5TRVMKICAgICAgICAgICAgICAgIG9yIGxpY2Vuc2VfaW5mby5nZXQoJ3dlaWdodHMnKSBub3QgaW4gTElDRU5TRVMpOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdMaWNlbsOnYSBmb3JhIGRvIGNhdMOhbG9nbyBjb21lcmNpYWwgcGVybWl0aWRvLicpCiAgICAgICAgc291cmNlcyA9IGxpY2Vuc2VfaW5mby5nZXQoJ3NvdXJjZXMnKQogICAgICAgIGlmIG5vdCBpc2luc3RhbmNlKHNvdXJjZXMsIGxpc3QpIG9yIG5vdCBzb3VyY2VzIG9yIGFueSgKICAgICAgICAgICAgICAgIG5vdCBpc2luc3RhbmNlKHVybCwgc3RyKSBvciB1cmxwYXJzZSh1cmwpLnNjaGVtZSAhPSAnaHR0cHMnCiAgICAgICAgICAgICAgICBvciBub3QgdXJscGFyc2UodXJsKS5uZXRsb2MgZm9yIHVybCBpbiBzb3VyY2VzKToKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignRm9udGUgZGEgbGljZW7Dp2EgYXVzZW50ZSBvdSBpbnbDoWxpZGEuJykKICAgICAgICBjaGFubmVscyA9IG1vZGVsLmdldCgnY2hhbm5lbHMnKQogICAgICAgIGlmIG5vdCBpc2luc3RhbmNlKGNoYW5uZWxzLCBsaXN0KSBvciBub3QgY2hhbm5lbHMgb3IgYW55KAogICAgICAgICAgICAgICAgbm90IGlzaW5zdGFuY2UoY2gsIGRpY3QpIG9yIGNoLmdldCgncm9sZScpIG5vdCBpbiBST0xFUyBmb3IgY2ggaW4gY2hhbm5lbHMpOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdDYW5haXMgZGUgZW50cmFkYSBpbnbDoWxpZG9zLicpCiAgICAgICAgaWYgbGVuKHtjaFsncm9sZSddIGZvciBjaCBpbiBjaGFubmVsc30pICE9IGxlbihjaGFubmVscyk6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0NhbmFpcyBkZSBlbnRyYWRhIGR1cGxpY2Fkb3MuJykKICAgICAgICBjbGFzc2VzID0gbW9kZWwuZ2V0KCdjbGFzc2VzJykKICAgICAgICBpZiBub3QgaXNpbnN0YW5jZShjbGFzc2VzLCBsaXN0KSBvciBhbnkoCiAgICAgICAgICAgICAgICBub3QgaXNpbnN0YW5jZShjLCBkaWN0KSBvciBub3QgX2lkZW50aWZpZXIoYy5nZXQoJ2NsYXNzX2lkJykpIGZvciBjIGluIGNsYXNzZXMpOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdDbGFzc2VzIGRlIHNhw61kYSBpbnbDoWxpZGFzLicpCiAgICAgICAgaWYgbGVuKHtjWydjbGFzc19pZCddIGZvciBjIGluIGNsYXNzZXN9KSAhPSBsZW4oY2xhc3Nlcyk6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0NsYXNzZXMgZGUgc2HDrWRhIGR1cGxpY2FkYXMuJykKICAgICAgICBpZiBtb2RlbFsnY2F0YWxvZ19zdGF0ZSddIGluICgnZGlzdHJpYnV0ZWQnLCAndmVyaWZpZWQnKSBhbmQgKAogICAgICAgICAgICAgICAgbm90IG1vZGVsLmdldCgncmV2aXNpb24nKSBvciBub3QgY2xhc3NlcyBvciBub3QgbW9kZWwuZ2V0KCdhcnRpZmFjdHMnKSk6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ01vZGVsbyBhbnVuY2lhZG8gc2VtIHJldmlzw6NvLCBjbGFzc2VzIG91IGFydGVmYXRvcyBmaXhhZG9zLicpCiAgICByZXR1cm4gY29weS5kZWVwY29weShtb2RlbHMpCgoKZGVmIGdldF9tb2RlbF9zcGVjKG1vZGVsX2lkLCBwYXRoPUNBVEFMT0cpOgogICAgZm9yIG1vZGVsIGluIGxvYWRfY2F0YWxvZyhwYXRoKToKICAgICAgICBpZiBtb2RlbFsnaWQnXSA9PSBtb2RlbF9pZDoKICAgICAgICAgICAgcmV0dXJuIG1vZGVsCiAgICByYWlzZSBWYWx1ZUVycm9yKCdNb2RlbG8gbsOjbyBwZXJ0ZW5jZSBhbyBjYXTDoWxvZ28gTmV1cm8uJykKCgpkZWYgdmVyaWZ5X2FydGlmYWN0cyhtb2RlbF9zcGVjLCBwYXRocyk6CiAgICAiIiJWZXJpZnkgYSBtb2RlbCBhbmQgaXRzIHBpbm5lZCBydW50aW1lIGRlcGVuZGVuY2llcyBiZWZvcmUgZWxpZ2liaWxpdHkuIiIiCiAgICByZXR1cm4gX3ZlcmlmeV9hcnRpZmFjdHMobW9kZWxfc3BlYywgcGF0aHMsIGZyb3plbnNldCgpKQoKCmRlZiBfdmVyaWZ5X2FydGlmYWN0cyhtb2RlbF9zcGVjLCBwYXRocywgYW5jZXN0b3JzKToKICAgIG1vZGVsX2lkID0gbW9kZWxfc3BlYy5nZXQoJ2lkJykKICAgIHJlcG9ydCA9IHsnbW9kZWxfaWQnOiBtb2RlbF9pZCwgJ3JldmlzaW9uJzogbW9kZWxfc3BlYy5nZXQoJ3JldmlzaW9uJyksCiAgICAgICAgICAgICAgJ3N0YXR1cyc6ICdjb3JydXB0JywgJ3ZlcmlmaWVkX2ZpbGVzJzogW10sICdtaXNzaW5nX2ZpbGVzJzogW10sICdlcnJvcnMnOiBbXX0KICAgIHRyeToKICAgICAgICBpZiBub3QgX2lkZW50aWZpZXIobW9kZWxfaWQpOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdJRCBkZSBtb2RlbG8gaW52w6FsaWRvLicpCiAgICAgICAgaWRlbnRpdHkgPSAobW9kZWxfaWQsIG1vZGVsX3NwZWMuZ2V0KCdyZXZpc2lvbicpKQogICAgICAgIGlmIGlkZW50aXR5IGluIGFuY2VzdG9yczoKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignRGVwZW5kw6puY2lhIGNpcmN1bGFyIGRlIG1vZGVsb3MuJykKICAgICAgICBpZiBtb2RlbF9zcGVjLmdldCgnY2F0YWxvZ19zdGF0ZScpID09ICdjYW5kaWRhdGUnOgogICAgICAgICAgICByZXBvcnRbJ3N0YXR1cyddID0gJ2NhbmRpZGF0ZScKICAgICAgICAgICAgcmV0dXJuIHJlcG9ydAogICAgICAgIGlmIG1vZGVsX3NwZWMuZ2V0KCdjYXRhbG9nX3N0YXRlJykgbm90IGluICgnZGlzdHJpYnV0ZWQnLCAndmVyaWZpZWQnKToKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignRXN0YWRvIGRvIG1vZGVsbyBpbnbDoWxpZG8uJykKICAgICAgICBiYXNlID0gUGF0aChnZXRhdHRyKHBhdGhzLCAnbW9kZWxzX2RpcicsIHBhdGhzKSkucmVzb2x2ZSgpCiAgICAgICAgIyBBIHJhdyBwYXRoIGlzIHRoZSBsZWdhY3kgZGV2ZWxvcG1lbnQgQVBJOyBpbnN0YWxsYXRpb24gb2JqZWN0cyBhcmUgc3RyaWN0LgogICAgICAgIGZvbGRlciA9IHJlc29sdmVfbW9kZWxfZm9sZGVyKGJhc2UsIG1vZGVsX2lkLCBtb2RlbF9zcGVjLmdldCgncmV2aXNpb24nKSwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBhbGxvd19sZWdhY3k9bm90IGhhc2F0dHIocGF0aHMsICdtb2RlbHNfZGlyJykpCiAgICAgICAgc3ViZGlyID0gbW9kZWxfc3BlYy5nZXQoJ2FydGlmYWN0X3N1YmRpcicpCiAgICAgICAgaWYgc3ViZGlyIGlzIG5vdCBOb25lOgogICAgICAgICAgICBkZWNsYXJlZCA9IF9yZWxhdGl2ZV9wYXRoKGJhc2UsIHN1YmRpcikKICAgICAgICAgICAgaWYgZGVjbGFyZWQgIT0gZm9sZGVyOgogICAgICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignYXJ0aWZhY3Rfc3ViZGlyIGRpZmVyZSBkYSByZXZpc8OjbyBleGF0YSBzZWxlY2lvbmFkYS4nKQogICAgICAgIGFydGlmYWN0cyA9IG1vZGVsX3NwZWMuZ2V0KCdhcnRpZmFjdHMnKQogICAgICAgIGlmIG5vdCBpc2luc3RhbmNlKGFydGlmYWN0cywgbGlzdCkgb3Igbm90IGFydGlmYWN0czoKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignTW9kZWxvIHNlbSBhcnRlZmF0b3MgZml4YWRvcy4nKQogICAgICAgIGZvciBhcnRpZmFjdCBpbiBhcnRpZmFjdHM6CiAgICAgICAgICAgIGZpbGUgPSBfcmVsYXRpdmVfcGF0aChmb2xkZXIsIGFydGlmYWN0LmdldCgncGF0aCcpKQogICAgICAgICAgICBkaWdlc3QgPSBhcnRpZmFjdC5nZXQoJ3NoYTI1NicpCiAgICAgICAgICAgIGlmIG5vdCBpc2luc3RhbmNlKGRpZ2VzdCwgc3RyKSBvciBub3QgcmUuZnVsbG1hdGNoKCdbMC05YS1mXXs2NH0nLCBkaWdlc3QpOgogICAgICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignQXJ0ZWZhdG8gc2VtIFNIQS0yNTYgZml4YWRvLicpCiAgICAgICAgICAgIGlmIG5vdCBmaWxlLmlzX2ZpbGUoKToKICAgICAgICAgICAgICAgIHJlcG9ydFsnbWlzc2luZ19maWxlcyddLmFwcGVuZChhcnRpZmFjdFsncGF0aCddKQogICAgICAgICAgICAgICAgY29udGludWUKICAgICAgICAgICAgd2l0aCBmaWxlLm9wZW4oJ3JiJykgYXMgc3RyZWFtOgogICAgICAgICAgICAgICAgaGVhZCA9IHN0cmVhbS5yZWFkKDI1NikubHN0cmlwKCkubG93ZXIoKQogICAgICAgICAgICAgICAgZXhwZWN0ZWRfaHRtbCA9IChhcnRpZmFjdC5nZXQoJ2Zvcm1hdCcpID09ICdodG1sJyBhbmQKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgYXJ0aWZhY3QuZ2V0KCdwdXJwb3NlJykgPT0gJ2xpY2Vuc2luZ19ldmlkZW5jZScgYW5kCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGZpbGUuc3VmZml4Lmxvd2VyKCkgaW4gKCcuaHRtbCcsICcuaHRtJykgYW5kCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGZpbGUubmFtZS5sb3dlcigpLnN0YXJ0c3dpdGgoKCdsaWNlbnNlJywgJ2xpY2VuY2UnLCAnbm90aWNlJykpIGFuZAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB0eXBlKGFydGlmYWN0LmdldCgnc2l6ZScpKSBpcyBpbnQgYW5kIGFydGlmYWN0WydzaXplJ10gPiAwKQogICAgICAgICAgICAgICAgaWYgaGVhZC5zdGFydHN3aXRoKChiJzwhZG9jdHlwZSBodG1sJywgYic8aHRtbCcpKSBhbmQgbm90IGV4cGVjdGVkX2h0bWw6CiAgICAgICAgICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignRG93bmxvYWQgY29udMOpbSBIVE1MIGVtIHZleiBkbyBhcnRlZmF0by4nKQogICAgICAgICAgICAgICAgc3RyZWFtLnNlZWsoMCkKICAgICAgICAgICAgICAgIGNvbXB1dGVkID0gaGFzaGxpYi5zaGEyNTYoKQogICAgICAgICAgICAgICAgZm9yIGNodW5rIGluIGl0ZXIobGFtYmRhOiBzdHJlYW0ucmVhZCgxMDI0ICogMTAyNCksIGInJyk6CiAgICAgICAgICAgICAgICAgICAgY29tcHV0ZWQudXBkYXRlKGNodW5rKQogICAgICAgICAgICBpZiBjb21wdXRlZC5oZXhkaWdlc3QoKSAhPSBkaWdlc3Qgb3IgKAogICAgICAgICAgICAgICAgICAgIGFydGlmYWN0LmdldCgnc2l6ZScpIGlzIG5vdCBOb25lIGFuZCBmaWxlLnN0YXQoKS5zdF9zaXplICE9IGFydGlmYWN0WydzaXplJ10pOgogICAgICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignQXJ0ZWZhdG8gbsOjbyBjb3JyZXNwb25kZSDDoCBpZGVudGlkYWRlIGZpeGFkYS4nKQogICAgICAgICAgICByZXBvcnRbJ3ZlcmlmaWVkX2ZpbGVzJ10uYXBwZW5kKGFydGlmYWN0WydwYXRoJ10pCiAgICAgICAgcHJvdmVuYW5jZSA9IG1vZGVsX3NwZWMuZ2V0KCdwcm92ZW5hbmNlJykKICAgICAgICBpZiBwcm92ZW5hbmNlIGlzIG5vdCBOb25lOgogICAgICAgICAgICByZWNlaXB0ID0gX3JlbGF0aXZlX3BhdGgoZm9sZGVyLCBwcm92ZW5hbmNlWydwYXRoJ10pCiAgICAgICAgICAgIGlmIG5vdCByZWNlaXB0LmlzX2ZpbGUoKToKICAgICAgICAgICAgICAgIHJlcG9ydFsnbWlzc2luZ19maWxlcyddLmFwcGVuZChwcm92ZW5hbmNlWydwYXRoJ10pCiAgICAgICAgICAgIGVsc2U6CiAgICAgICAgICAgICAgICByZWNvcmRlZCA9IGpzb24ubG9hZHMocmVjZWlwdC5yZWFkX3RleHQoZW5jb2Rpbmc9J3V0Zi04JykpCiAgICAgICAgICAgICAgICBpZiAocmVjb3JkZWQuZ2V0KCdtb2RlbF9pZCcpICE9IG1vZGVsX2lkIG9yCiAgICAgICAgICAgICAgICAgICAgICAgIHJlY29yZGVkLmdldCgncmVsZWFzZScpICE9IHByb3ZlbmFuY2VbJ3JlbGVhc2UnXSBvcgogICAgICAgICAgICAgICAgICAgICAgICBhbnkocmVjb3JkZWQuZ2V0KCdmaWxlcycsIHt9KS5nZXQoZW50cnlbJ3BhdGgnXSkgIT0gZW50cnlbJ3NoYTI1NiddCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBmb3IgZW50cnkgaW4gYXJ0aWZhY3RzKSk6CiAgICAgICAgICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignUHJvY2Vkw6puY2lhIGRvIG1vZGVsbyBuw6NvIGNvcnJlc3BvbmRlIGFvcyBhcnRlZmF0b3MgZml4YWRvcy4nKQogICAgICAgICAgICAgICAgcmVwb3J0Wyd2ZXJpZmllZF9maWxlcyddLmFwcGVuZChwcm92ZW5hbmNlWydwYXRoJ10pCiAgICAgICAgZGVwZW5kZW5jaWVzID0gbW9kZWxfc3BlYy5nZXQoJ2RlcGVuZGVuY2llcycsIFtdKQogICAgICAgIGlmIG5vdCBpc2luc3RhbmNlKGRlcGVuZGVuY2llcywgbGlzdCk6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0RlcGVuZMOqbmNpYXMgb2JyaWdhdMOzcmlhcyBkZXZlbSBzZXIgdW1hIGxpc3RhLicpCiAgICAgICAgZGVwZW5kZW5jeV9pZHMgPSBzZXQoKQogICAgICAgIGZvciBkZXBlbmRlbmN5IGluIGRlcGVuZGVuY2llczoKICAgICAgICAgICAgaWYgbm90IGlzaW5zdGFuY2UoZGVwZW5kZW5jeSwgZGljdCkgb3Igbm90IF9pZGVudGlmaWVyKGRlcGVuZGVuY3kuZ2V0KCdpZCcpKToKICAgICAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0RlcGVuZMOqbmNpYSBkZSBtb2RlbG8gaW52w6FsaWRhLicpCiAgICAgICAgICAgIGRlcGVuZGVuY3lfaWQgPSAoZGVwZW5kZW5jeVsnaWQnXSwgZGVwZW5kZW5jeS5nZXQoJ3JldmlzaW9uJykpCiAgICAgICAgICAgIGlmIGRlcGVuZGVuY3lfaWQgaW4gZGVwZW5kZW5jeV9pZHM6CiAgICAgICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdEZXBlbmTDqm5jaWEgZGUgbW9kZWxvIHJlcGV0aWRhLicpCiAgICAgICAgICAgIGRlcGVuZGVuY3lfaWRzLmFkZChkZXBlbmRlbmN5X2lkKQogICAgICAgICAgICBjaGlsZCA9IF92ZXJpZnlfYXJ0aWZhY3RzKGRlcGVuZGVuY3ksIHBhdGhzLCBhbmNlc3RvcnMgfCB7aWRlbnRpdHl9KQogICAgICAgICAgICBwcmVmaXggPSBmIntkZXBlbmRlbmN5WydpZCddfS97ZGVwZW5kZW5jeS5nZXQoJ3JldmlzaW9uJyl9LyIKICAgICAgICAgICAgcmVwb3J0Wyd2ZXJpZmllZF9maWxlcyddLmV4dGVuZChwcmVmaXggKyBuYW1lIGZvciBuYW1lIGluIGNoaWxkWyd2ZXJpZmllZF9maWxlcyddKQogICAgICAgICAgICByZXBvcnRbJ21pc3NpbmdfZmlsZXMnXS5leHRlbmQocHJlZml4ICsgbmFtZSBmb3IgbmFtZSBpbiBjaGlsZFsnbWlzc2luZ19maWxlcyddKQogICAgICAgICAgICBpZiBjaGlsZFsnc3RhdHVzJ10gbm90IGluICgncmVhZHknLCAnbWlzc2luZycpOgogICAgICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignRGVwZW5kw6puY2lhIG9icmlnYXTDs3JpYSBpbnbDoWxpZGE6ICcgKyBkZXBlbmRlbmN5WydpZCddICsKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgJzsgJyArICc7ICcuam9pbihjaGlsZFsnZXJyb3JzJ10pKQogICAgICAgIHJlcG9ydFsnc3RhdHVzJ10gPSAnbWlzc2luZycgaWYgcmVwb3J0WydtaXNzaW5nX2ZpbGVzJ10gZWxzZSAncmVhZHknCiAgICBleGNlcHQgKFZhbHVlRXJyb3IsIE9TRXJyb3IsIFR5cGVFcnJvciwgQXR0cmlidXRlRXJyb3IsIEtleUVycm9yKSBhcyBleGM6CiAgICAgICAgcmVwb3J0WydlcnJvcnMnXS5hcHBlbmQoc3RyKGV4YykpCiAgICByZXR1cm4gcmVwb3J0Cg=='), 'install_state': ('aac5b8508cad15e2dce88d208669eb546d6248d9c103c2396685a31c61466368', 'IiIiVHJhbnNhY3Rpb25hbCBvZmZsaW5lIHBsdWdpbiBpbnN0YWxsYXRpb24gdXNpbmcgb25seSB0aGUgUHl0aG9uIHN0YW5kYXJkIGxpYnJhcnkuCgpUaGUgY2FsbGVyIHN1cHBsaWVzIGEgbG9jYWxseSBhdXRob3JpemVkIFpJUCBhbmQgYW4gZXh0ZXJuYWxseSBvYnRhaW5lZCBTSEEyNTY7CnRoaXMgbW9kdWxlIG5ldmVyIGRvd25sb2FkcywgaW52b2tlcyBwaXAsIGltcG9ydHMgb3IgZXhlY3V0ZXMgcGFja2FnZWQgY29kZS4KQWN0aXZhdGlvbiBpcyBjYWxsZWQgYnkgdGhlIGhvc3QncyBjb29yZGluYXRlZCByZW9wZW4gZmxvdywgbmV2ZXIgYnkgaW5zdGFsbC4KU2VlIGluc3RhbGxlci9QQUNLQUdFX0ZPUk1BVC5tZCBmb3IgdGhlIGNvbXBsZXRlIHJlbGVhc2UtcGFja2FnZS8xIGNvbnRyYWN0LgoiIiIKaW1wb3J0IGFyZ3BhcnNlCmZyb20gY29udGV4dGxpYiBpbXBvcnQgY29udGV4dG1hbmFnZXIKZnJvbSBkYXRhY2xhc3NlcyBpbXBvcnQgYXNkaWN0LCBkYXRhY2xhc3MKaW1wb3J0IGhhc2hsaWIKaW1wb3J0IGpzb24KaW1wb3J0IG9zCmZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aCwgUHVyZVdpbmRvd3NQYXRoCmltcG9ydCByZQppbXBvcnQgc2h1dGlsCmltcG9ydCBzdGF0CmltcG9ydCBzeXMKaW1wb3J0IHRpbWUKaW1wb3J0IHV1aWQKaW1wb3J0IHppcGZpbGUKCmZyb20gLnBsdWdpbl9tYW5pZmVzdCBpbXBvcnQgX251bWVyaWNfdmVyc2lvbiwgX3JlbGF0aXZlX3BhdGgsIHJlYWRfbWFuaWZlc3QKZnJvbSAubW9kZWxfcmVnaXN0cnkgaW1wb3J0IGxvYWRfY2F0YWxvZwoKU0NIRU1BID0gJ25ldXJvLXJ0L3JlbGVhc2UtcGFja2FnZS8xJwpNQVhfTUFOSUZFU1QgPSAxNiAqIDEwMjQgKiAxMDI0Ck1BWF9GSUxFUyA9IDEwMF8wMDAKTUFYX0ZJTEVfU0laRSA9IDE2ICogMTAyNCAqKiAzCk1BWF9UT1RBTF9TSVpFID0gNjQgKiAxMDI0ICoqIDMKTUFYX0NPTVBSRVNTSU9OX1JBVElPID0gMTAwMApTUEFDRV9NQVJHSU4gPSAxNiAqIDEwMjQgKiAxMDI0CkNPREVfUk9PVFMgPSB7J21vZHVsZS5qc29uJywgJ25ldXJvX3J0JywgJ3dlYicsICdpbnRlZ3JhdGlvbicsICdhcHAnLCAnY2F0YWxvZycsCiAgICAgICAgICAgICAgJ2xpY2Vuc2VzJywgJ0xJQ0VOU0UnLCAnTk9USUNFJywgJ3JlcXVpcmVtZW50cy50eHQnLCAnbW9kZWxzLmxvY2suanNvbid9CgoKQGRhdGFjbGFzcyhmcm96ZW49VHJ1ZSkKY2xhc3MgSW5zdGFsbFN0YXR1czoKICAgIHRyYW5zYWN0aW9uX2lkOiBzdHIgfCBOb25lID0gTm9uZQogICAgc3RhdGU6IHN0ciA9ICdhYnNlbnQnCiAgICBzdGFnZTogc3RyID0gJ2lkbGUnCiAgICBkb3dubG9hZGVkX2J5dGVzOiBpbnQgPSAwCiAgICB0b3RhbF9ieXRlczogaW50ID0gMAogICAgcmVhc29uOiBzdHIgPSAnJwoKCkBkYXRhY2xhc3MoZnJvemVuPVRydWUpCmNsYXNzIEluc3RhbGxSZWNlaXB0OgogICAgdHJhbnNhY3Rpb25faWQ6IHN0ciB8IE5vbmUKICAgIHZlcnNpb246IHN0ciB8IE5vbmUKICAgIHZlcmlmaWVkX2FydGlmYWN0czogdHVwbGUKICAgIGFjdGl2YXRpb25fcGVuZGluZzogYm9vbAogICAgZm9sbG93aW5nOiBib29sID0gRmFsc2UKCgpAZGF0YWNsYXNzKGZyb3plbj1UcnVlKQpjbGFzcyBBY3RpdmF0aW9uUmVjZWlwdDoKICAgIHByZXZpb3VzX3ZlcnNpb246IHN0ciB8IE5vbmUKICAgIGFjdGl2ZV92ZXJzaW9uOiBzdHIKICAgIHJlc3RhcnRfcmVxdWlyZWQ6IGJvb2wKICAgIHN0YXR1czogc3RyCgoKZGVmIF9pZGVudGlmaWVyKHZhbHVlKToKICAgIGlmIG5vdCBpc2luc3RhbmNlKHZhbHVlLCBzdHIpIG9yIG5vdCByZS5mdWxsbWF0Y2gocidbQS1aYS16MC05XVtBLVphLXowLTlfLi1dezAsNzl9JywgdmFsdWUpOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0lkZW50aWZpY2Fkb3IgaW52w6FsaWRvLicpCiAgICByZXR1cm4gdmFsdWUKCgpkZWYgX3NoYSh2YWx1ZSk6CiAgICBpZiBub3QgaXNpbnN0YW5jZSh2YWx1ZSwgc3RyKSBvciBub3QgcmUuZnVsbG1hdGNoKCdbMC05YS1mXXs2NH0nLCB2YWx1ZSk6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignU0hBMjU2IGV4dGVybm8vZml4YWRvIG9icmlnYXTDs3JpbywgaGV4YWRlY2ltYWwgbWluw7pzY3Vsby4nKQogICAgcmV0dXJuIHZhbHVlCgoKZGVmIF9wbGFpbihwYXRoKToKICAgICIiIlJlamVjdCBhbGwgbGlua3MvcmVwYXJzZSBwb2ludHMsIGV2ZW4gdGhvc2UgcmVzb2x2aW5nIHdpdGhpbiB0aGUgYm91bmRhcnkuIiIiCiAgICBwYXRoID0gUGF0aChwYXRoKS5hYnNvbHV0ZSgpCiAgICBmb3IgY3VycmVudCBpbiAocGF0aCwgKnBhdGgucGFyZW50cyk6CiAgICAgICAgdHJ5OgogICAgICAgICAgICBpbmZvID0gY3VycmVudC5sc3RhdCgpCiAgICAgICAgZXhjZXB0IEZpbGVOb3RGb3VuZEVycm9yOgogICAgICAgICAgICBjb250aW51ZQogICAgICAgIGlmIHN0YXQuU19JU0xOSyhpbmZvLnN0X21vZGUpIG9yIGdldGF0dHIoaW5mbywgJ3N0X2ZpbGVfYXR0cmlidXRlcycsIDApICYgMHg0MDA6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0xpbmtzLCBqdW5jdGlvbnMgZSByZXBhcnNlIHBvaW50cyBuw6NvIHPDo28gcGVybWl0aWRvcyBuYSBpbnN0YWxhw6fDo28uJykKICAgIHJldHVybiBwYXRoCgoKZGVmIF92YWxpZGF0ZV9uYW1lKG5hbWUpOgogICAgIiIiVmFsaWRhdGUgcGFja2FnZSBzcGVsbGluZyBvbmx5OyBuZXZlciBjb25zdWx0IGN3ZCBvciBhbnkgZmlsZXN5c3RlbS4iIiIKICAgIGlmIG5vdCBpc2luc3RhbmNlKG5hbWUsIHN0cikgb3IgJ1xcJyBpbiBuYW1lOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0NhbWluaG8gZGUgcGFjb3RlIGRldmUgdXNhciBzZXBhcmFkb3JlcyAvIHJlbGF0aXZvcy4nKQogICAgcGFydHMgPSBuYW1lLnNwbGl0KCcvJykKICAgIHdpbmRvd3MgPSBQdXJlV2luZG93c1BhdGgobmFtZSkKICAgIGlmIChub3QgbmFtZSBvciB3aW5kb3dzLmRyaXZlIG9yIHdpbmRvd3Mucm9vdCBvcgogICAgICAgICAgICBhbnkocGFydCBpbiAoJycsICcuJywgJy4uJykgb3IgcGFydC5lbmRzd2l0aCgoJyAnLCAnLicpKSBmb3IgcGFydCBpbiBwYXJ0cykgb3IKICAgICAgICAgICAgYW55KG9yZChjaGFyKSA8IDMyIG9yIGNoYXIgaW4gJzw+OiJ8PyonIGZvciBjaGFyIGluIG5hbWUpKToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdDYW1pbmhvIGRvIHBhY290ZSBkZXZlIHNlciByZWxhdGl2bywgY29udGlkbyBlIHNlbSBhbGlhc2VzIFdpbmRvd3MuJykKICAgIHJlc2VydmVkID0geydDT04nLCAnUFJOJywgJ0FVWCcsICdOVUwnfSB8IHsKICAgICAgICBmJ3twcmVmaXh9e251bWJlcn0nIGZvciBwcmVmaXggaW4gKCdDT00nLCAnTFBUJykgZm9yIG51bWJlciBpbiByYW5nZSgxLCAxMCl9CiAgICBpZiBhbnkocGFydC5zcGxpdCgnLicpWzBdLnVwcGVyKCkgaW4gcmVzZXJ2ZWQgZm9yIHBhcnQgaW4gcGFydHMpOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0NhbWluaG8gY29udMOpbSBub21lIHJlc2VydmFkbyBkbyBXaW5kb3dzLicpCiAgICByZXR1cm4gbmFtZQoKCmRlZiBfcGF0aChyb290LCBuYW1lKToKICAgIF92YWxpZGF0ZV9uYW1lKG5hbWUpCiAgICBfcGxhaW4ocm9vdCkKICAgIHRhcmdldCA9IF9yZWxhdGl2ZV9wYXRoKHJvb3QsIG5hbWUpCiAgICBfcGxhaW4oUGF0aChyb290KS5qb2lucGF0aCgqbmFtZS5zcGxpdCgnLycpKSkKICAgIHJldHVybiB0YXJnZXQKCgpkZWYgdmFsaWRhdGVfaG9zdF9yb290KGhvc3Rfcm9vdCk6CiAgICAiIiJSZWNvZ25pemUgdGhlIGFjdHVhbCBmbGF0IGJ1bmRsZSBvciBzb3VyY2UgY2hlY2tvdXQsIHdpdGhvdXQgZ3Vlc3NpbmcgcGF0aHMuIiIiCiAgICByb290ID0gX3BsYWluKGhvc3Rfcm9vdCkucmVzb2x2ZSgpCiAgICBidW5kbGVkID0gYWxsKChyb290IC8gbmFtZSkuaXNfZmlsZSgpIGZvciBuYW1lIGluICgncmFkYWlfcGFuZWwucHknLCAncmFkYWlfdWkucHknLCAnZW50cmVnYS50eHQnKSkKICAgIHNvdXJjZSA9IGFsbCgocm9vdCAvIG5hbWUpLmlzX2ZpbGUoKSBmb3IgbmFtZSBpbiAoJ2FwcC9yYWRhaV9wYW5lbC5weScsICdhcHAvcmFkYWlfdWkucHknLCAndG9vbHMvX2NvbXBvbmVudGVzLnB5JykpCiAgICBpZiBub3Qgcm9vdC5pc19kaXIoKSBvciBub3QgKGJ1bmRsZWQgb3Igc291cmNlKToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdTdWl0ZVJvb3QgbsOjbyBjb250w6ltIG9zIG1hcmNhZG9yZXMgcmVhaXMgZG8gTG9jYWwgU3VpdGUuJykKICAgIGZvciBuYW1lIGluICgoJ3JhZGFpX3BhbmVsLnB5JywgJ3JhZGFpX3VpLnB5JywgJ2VudHJlZ2EudHh0JykgaWYgYnVuZGxlZCBlbHNlCiAgICAgICAgICAgICAgICAgKCdhcHAvcmFkYWlfcGFuZWwucHknLCAnYXBwL3JhZGFpX3VpLnB5JywgJ3Rvb2xzL19jb21wb25lbnRlcy5weScpKToKICAgICAgICBfcGxhaW4ocm9vdCAvIG5hbWUpCiAgICByZXR1cm4gcm9vdAoKCmRlZiBfcGx1Z2luKGhvc3QpOgogICAgcm9vdCA9IF9wYXRoKGhvc3QsICdQbHVnaW5zL05FVVJPIFJUJykKICAgIGZvciBuYW1lIGluICgndmVyc2lvbnMnLCAncnVudGltZXMnLCAnbW9kZWxzJywgJ2RhdGEnLCAnY29uZmlnJywgJ3N0YWdpbmcnLAogICAgICAgICAgICAgICAgICd0cmFuc2FjdGlvbnMnLCAnaW5zdGFsbGF0aW9uLmpzb24nLCAnaW5zdGFsbC1zdGF0dXMuanNvbicsICcuaW5zdGFsbC5sb2NrJyk6CiAgICAgICAgX3BhdGgocm9vdCwgbmFtZSkKICAgIHJldHVybiByb290CgoKZGVmIF9yZWFkX2pzb24ocGF0aCk6CiAgICBfcGxhaW4ocGF0aCkKICAgIGlmIFBhdGgocGF0aCkuc3RhdCgpLnN0X3NpemUgPiBNQVhfTUFOSUZFU1Q6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignTWFuaWZlc3RvL2VzdGFkbyBleGNlZGUgbyBsaW1pdGUgZGUgdGFtYW5oby4nKQogICAgcmV0dXJuIGpzb24ubG9hZHMoUGF0aChwYXRoKS5yZWFkX3RleHQoZW5jb2Rpbmc9J3V0Zi04JykpCgoKZGVmIF9hdG9taWNfanNvbihwYXRoLCB2YWx1ZXMpOgogICAgcGF0aCA9IF9wbGFpbihwYXRoKQogICAgcGF0aC5wYXJlbnQubWtkaXIocGFyZW50cz1UcnVlLCBleGlzdF9vaz1UcnVlKQogICAgdGVtcCA9IHBhdGgud2l0aF9uYW1lKCcuJyArIHBhdGgubmFtZSArICcuJyArIHV1aWQudXVpZDQoKS5oZXggKyAnLnRtcCcpCiAgICB0cnk6CiAgICAgICAgd2l0aCB0ZW1wLm9wZW4oJ3gnLCBlbmNvZGluZz0ndXRmLTgnLCBuZXdsaW5lPSdcbicpIGFzIHN0cmVhbToKICAgICAgICAgICAganNvbi5kdW1wKHZhbHVlcywgc3RyZWFtLCBlbnN1cmVfYXNjaWk9VHJ1ZSwgaW5kZW50PTIpCiAgICAgICAgICAgIHN0cmVhbS53cml0ZSgnXG4nKQogICAgICAgICAgICBzdHJlYW0uZmx1c2goKQogICAgICAgICAgICBvcy5mc3luYyhzdHJlYW0uZmlsZW5vKCkpCiAgICAgICAgX3BsYWluKHBhdGgpCiAgICAgICAgX3JlcGxhY2UodGVtcCwgcGF0aCkKICAgIGZpbmFsbHk6CiAgICAgICAgdGVtcC51bmxpbmsobWlzc2luZ19vaz1UcnVlKQoKCmRlZiBfcmVwbGFjZShzb3VyY2UsIHRhcmdldCk6CiAgICAjIEFudGl2aXJ1cy9pbmRleGVycyBjYW4gYnJpZWZseSBob2xkIFdpbmRvd3MgZmlsZXMgd2l0aG91dCBkZWxldGUgc2hhcmluZy4KICAgIGZvciBhdHRlbXB0IGluIHJhbmdlKDEwKToKICAgICAgICBfcGxhaW4odGFyZ2V0KQogICAgICAgIHRyeToKICAgICAgICAgICAgb3MucmVwbGFjZShzb3VyY2UsIHRhcmdldCkKICAgICAgICAgICAgcmV0dXJuCiAgICAgICAgZXhjZXB0IFBlcm1pc3Npb25FcnJvciBhcyBlcnJvcjoKICAgICAgICAgICAgaWYgZ2V0YXR0cihlcnJvciwgJ3dpbmVycm9yJywgTm9uZSkgbm90IGluICg1LCAzMiwgMzMpIG9yIGF0dGVtcHQgPT0gOToKICAgICAgICAgICAgICAgIHJhaXNlCiAgICAgICAgICAgIHRpbWUuc2xlZXAoMC4wNSAqIChhdHRlbXB0ICsgMSkpCgoKQGNvbnRleHRtYW5hZ2VyCmRlZiBfaW5zdGFsbGF0aW9uX2xvY2socm9vdCk6CiAgICAiIiJBIGtlcm5lbCBsb2NrIHN1cnZpdmVzIHN0YWxlIGxvY2sgZmlsZXMgYW5kIHJlbGVhc2VzIG9uIHByb2Nlc3MgZGVhdGguIiIiCiAgICByb290ID0gX3BsYWluKHJvb3QpCiAgICByb290Lm1rZGlyKHBhcmVudHM9VHJ1ZSwgZXhpc3Rfb2s9VHJ1ZSkKICAgIGZpbGUgPSBfcGF0aChyb290LCAnLmluc3RhbGwubG9jaycpCiAgICBhY3F1aXJlZCA9IEZhbHNlCiAgICB3aXRoIGZpbGUub3BlbignYStiJykgYXMgc3RyZWFtOgogICAgICAgIHN0cmVhbS5zZWVrKDAsIDIpCiAgICAgICAgaWYgc3RyZWFtLnRlbGwoKSA9PSAwOgogICAgICAgICAgICBzdHJlYW0ud3JpdGUoYicwJykKICAgICAgICAgICAgc3RyZWFtLmZsdXNoKCkKICAgICAgICBzdHJlYW0uc2VlaygwKQogICAgICAgIHRyeToKICAgICAgICAgICAgaWYgb3MubmFtZSA9PSAnbnQnOgogICAgICAgICAgICAgICAgaW1wb3J0IG1zdmNydAogICAgICAgICAgICAgICAgbXN2Y3J0LmxvY2tpbmcoc3RyZWFtLmZpbGVubygpLCBtc3ZjcnQuTEtfTkJMQ0ssIDEpCiAgICAgICAgICAgIGVsc2U6CiAgICAgICAgICAgICAgICBpbXBvcnQgZmNudGwKICAgICAgICAgICAgICAgIGZjbnRsLmZsb2NrKHN0cmVhbS5maWxlbm8oKSwgZmNudGwuTE9DS19FWCB8IGZjbnRsLkxPQ0tfTkIpCiAgICAgICAgICAgIGFjcXVpcmVkID0gVHJ1ZQogICAgICAgIGV4Y2VwdCBPU0Vycm9yOgogICAgICAgICAgICBwYXNzCiAgICAgICAgdHJ5OgogICAgICAgICAgICB5aWVsZCBhY3F1aXJlZAogICAgICAgIGZpbmFsbHk6CiAgICAgICAgICAgIGlmIGFjcXVpcmVkOgogICAgICAgICAgICAgICAgc3RyZWFtLnNlZWsoMCkKICAgICAgICAgICAgICAgIGlmIG9zLm5hbWUgPT0gJ250JzoKICAgICAgICAgICAgICAgICAgICBtc3ZjcnQubG9ja2luZyhzdHJlYW0uZmlsZW5vKCksIG1zdmNydC5MS19VTkxDSywgMSkKICAgICAgICAgICAgICAgIGVsc2U6CiAgICAgICAgICAgICAgICAgICAgZmNudGwuZmxvY2soc3RyZWFtLmZpbGVubygpLCBmY250bC5MT0NLX1VOKQoKCmRlZiBfc3RhdHVzKHJvb3QsIHRyYW5zYWN0aW9uLCBzdGF0ZSwgc3RhZ2UsIHRvdGFsPTAsIGRvd25sb2FkZWQ9MCwgcmVhc29uPScnKToKICAgIHZhbHVlID0gYXNkaWN0KEluc3RhbGxTdGF0dXModHJhbnNhY3Rpb24sIHN0YXRlLCBzdGFnZSwgZG93bmxvYWRlZCwgdG90YWwsIHJlYXNvbikpCiAgICBfYXRvbWljX2pzb24oX3BhdGgocm9vdCwgJ2luc3RhbGwtc3RhdHVzLmpzb24nKSwgdmFsdWUpCiAgICBfYXRvbWljX2pzb24oX3BhdGgocm9vdCwgZid0cmFuc2FjdGlvbnMve3RyYW5zYWN0aW9ufS9zdGF0dXMuanNvbicpLCB2YWx1ZSkKCgpkZWYgX2NvcHlfc3RyZWFtKHNvdXJjZSwgZGVzdGluYXRpb24sIHByb2dyZXNzPU5vbmUpOgogICAgY29waWVkID0gMAogICAgZm9yIGNodW5rIGluIGl0ZXIobGFtYmRhOiBzb3VyY2UucmVhZCgxMDI0ICogMTAyNCksIGInJyk6CiAgICAgICAgZGVzdGluYXRpb24ud3JpdGUoY2h1bmspCiAgICAgICAgY29waWVkICs9IGxlbihjaHVuaykKICAgICAgICBpZiBwcm9ncmVzczoKICAgICAgICAgICAgcHJvZ3Jlc3MoY29waWVkKQogICAgcmV0dXJuIGNvcGllZAoKCmRlZiBfZmlsZV9kaWdlc3QocGF0aCk6CiAgICBfcGxhaW4ocGF0aCkKICAgIGRpZ2VzdCA9IGhhc2hsaWIuc2hhMjU2KCkKICAgIHdpdGggUGF0aChwYXRoKS5vcGVuKCdyYicpIGFzIHN0cmVhbToKICAgICAgICBmb3IgY2h1bmsgaW4gaXRlcihsYW1iZGE6IHN0cmVhbS5yZWFkKDEwMjQgKiAxMDI0KSwgYicnKToKICAgICAgICAgICAgZGlnZXN0LnVwZGF0ZShjaHVuaykKICAgIHJldHVybiBkaWdlc3QuaGV4ZGlnZXN0KCkKCgpkZWYgX3ZlcmlmeV9maWxlKHBhdGgsIHJlY29yZCk6CiAgICBwYXRoID0gX3BsYWluKHBhdGgpCiAgICBpZiBub3QgcGF0aC5pc19maWxlKCkgb3IgcGF0aC5zdGF0KCkuc3Rfc2l6ZSAhPSByZWNvcmRbJ3NpemUnXSBvciBfZmlsZV9kaWdlc3QocGF0aCkgIT0gcmVjb3JkWydzaGEyNTYnXToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdBcnF1aXZvIGF1c2VudGUgb3UgY29ycm9tcGlkbzsgaWRlbnRpZGFkZSBTSEEyNTYgbsOjbyBjb25mZXJlLicpCgoKZGVmIF9tYW5pZmVzdF9zaGFwZShkYXRhKToKICAgIGlmIG5vdCBpc2luc3RhbmNlKGRhdGEsIGRpY3QpIG9yIGRhdGEuZ2V0KCdzY2hlbWEnKSAhPSBTQ0hFTUEgb3IgZGF0YS5nZXQoJ3BsdWdpbl9pZCcpICE9ICduZXVyby1ydCc6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignTWFuaWZlc3RvIGRlIHJlbGVhc2UgaW52w6FsaWRvLicpCiAgICBfbnVtZXJpY192ZXJzaW9uKGRhdGEuZ2V0KCd2ZXJzaW9uJykpCiAgICBmaWxlcyA9IGRhdGEuZ2V0KCdmaWxlcycpCiAgICBpZiBub3QgaXNpbnN0YW5jZShmaWxlcywgbGlzdCkgb3Igbm90IGZpbGVzIG9yIGxlbihmaWxlcykgPiBNQVhfRklMRVM6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignSW52ZW50w6FyaW8gZGUgYXJxdWl2b3MgaW52w6FsaWRvLicpCiAgICBzZWVuID0gc2V0KCkKICAgIHRvdGFsID0gMAogICAgZm9yIHJlY29yZCBpbiBmaWxlczoKICAgICAgICBpZiBub3QgaXNpbnN0YW5jZShyZWNvcmQsIGRpY3QpOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdSZWdpc3RybyBkZSBhcnF1aXZvIGludsOhbGlkby4nKQogICAgICAgIG5hbWUgPSByZWNvcmQuZ2V0KCdwYXRoJykKICAgICAgICBfdmFsaWRhdGVfbmFtZShuYW1lKQogICAgICAgIGlmIG5hbWUuY2FzZWZvbGQoKSBpbiBzZWVuOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdDYW1pbmhvcyBkdXBsaWNhZG9zIG91IGFsaWFzZXMgZGUgY2FpeGEgbm8gcGFjb3RlLicpCiAgICAgICAgc2Vlbi5hZGQobmFtZS5jYXNlZm9sZCgpKQogICAgICAgIHBhcnRzID0gbmFtZS5zcGxpdCgnLycpCiAgICAgICAgaWYgcGFydHNbMF0gPT0gJ2NvZGUnOgogICAgICAgICAgICBpZiBsZW4ocGFydHMpIDwgMiBvciBwYXJ0c1sxXSBub3QgaW4gQ09ERV9ST09UUzoKICAgICAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1BheWxvYWQgZGUgY8OzZGlnbyBjb250w6ltIGRpcmV0w7NyaW8gcHJpdmFkby9uw6NvIGF1dG9yaXphZG8uJykKICAgICAgICBlbGlmIHBhcnRzWzBdIG5vdCBpbiAoJ21vZGVscycsICdydW50aW1lcycpIG9yIGxlbihwYXJ0cykgPCA0OgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdQYXlsb2FkIGRldmUgc2VwYXJhciBjb2RlLCBydW50aW1lcyBlIG1vZGVscy4nKQogICAgICAgIGlmIHR5cGUocmVjb3JkLmdldCgnc2l6ZScpKSBpcyBub3QgaW50IG9yIG5vdCAwIDw9IHJlY29yZFsnc2l6ZSddIDw9IE1BWF9GSUxFX1NJWkU6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1RhbWFuaG8gZGUgYXJxdWl2byBpbnbDoWxpZG8uJykKICAgICAgICBfc2hhKHJlY29yZC5nZXQoJ3NoYTI1NicpKQogICAgICAgIHRvdGFsICs9IHJlY29yZFsnc2l6ZSddCiAgICBpZiB0b3RhbCA+IE1BWF9UT1RBTF9TSVpFOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1BheWxvYWQgZXhjZWRlIG8gbGltaXRlIGRlIGV4dHJhw6fDo28uJykKICAgIGNvbXBvbmVudHMgPSBbKCdjb2RlJywgTm9uZSldCiAgICBydW50aW1lcyA9IGRhdGEuZ2V0KCdydW50aW1lcycpCiAgICBpZiBub3QgaXNpbnN0YW5jZShydW50aW1lcywgbGlzdCkgb3Igbm90IHJ1bnRpbWVzOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1JlbGVhc2UgZGV2ZSBmaXhhciBydW50aW1lcyBjb21wbGV0b3MuJykKICAgIHJ1bnRpbWVfa2V5cyA9IHNldCgpCiAgICBmb3IgcnVudGltZSBpbiBydW50aW1lczoKICAgICAgICBrZXkgPSAoX2lkZW50aWZpZXIocnVudGltZS5nZXQoJ2lkJykpLCBfc2hhKHJ1bnRpbWUuZ2V0KCdsb2NrX2RpZ2VzdCcpKSkKICAgICAgICBpZiBrZXkgaW4gcnVudGltZV9rZXlzOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdSdW50aW1lIGR1cGxpY2Fkby4nKQogICAgICAgIHJ1bnRpbWVfa2V5cy5hZGQoa2V5KQogICAgICAgIHByZWZpeCA9IGYncnVudGltZXMve2tleVswXX0ve2tleVsxXX0nCiAgICAgICAgX3ZhbGlkYXRlX25hbWUocnVudGltZS5nZXQoJ3B5dGhvbicpKQogICAgICAgIGNvbXBvbmVudHMuYXBwZW5kKChwcmVmaXgsIHJ1bnRpbWUpKQogICAgc2VsZWN0ZWQgPSBkYXRhLmdldCgncnVudGltZScpCiAgICBpZiBub3QgaXNpbnN0YW5jZShzZWxlY3RlZCwgZGljdCkgb3Igbm90IGFueSgKICAgICAgICAgICAgYWxsKHNlbGVjdGVkLmdldChrKSA9PSBydW50aW1lLmdldChrKSBmb3IgayBpbiAoJ2lkJywgJ2xvY2tfZGlnZXN0JywgJ3B5dGhvbicpKSBmb3IgcnVudGltZSBpbiBydW50aW1lcyk6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignUnVudGltZSBwcmluY2lwYWwgbsOjbyBwZXJ0ZW5jZSBhb3MgcnVudGltZXMgZml4YWRvcy4nKQogICAgbW9kZWxzID0gZGF0YS5nZXQoJ21vZGVscycpCiAgICBpZiBub3QgaXNpbnN0YW5jZShtb2RlbHMsIGxpc3QpOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0xpc3RhIGRlIG1vZGVsb3MgaW52w6FsaWRhLicpCiAgICBtb2RlbF9rZXlzID0gc2V0KCkKICAgIGZvciBtb2RlbCBpbiBtb2RlbHM6CiAgICAgICAga2V5ID0gKF9pZGVudGlmaWVyKG1vZGVsLmdldCgnaWQnKSksIF9pZGVudGlmaWVyKG1vZGVsLmdldCgncmV2aXNpb24nKSkpCiAgICAgICAgaWYga2V5IGluIG1vZGVsX2tleXM6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ01vZGVsby9yZXZpc8OjbyBkdXBsaWNhZG8uJykKICAgICAgICBtb2RlbF9rZXlzLmFkZChrZXkpCiAgICAgICAgY29tcG9uZW50cy5hcHBlbmQoKGYnbW9kZWxzL3trZXlbMF19L3trZXlbMV19JywgbW9kZWwpKQogICAgbmFtZXMgPSB7cmVjb3JkWydwYXRoJ10gZm9yIHJlY29yZCBpbiBmaWxlc30KICAgIGZvciBwcmVmaXgsIGNvbXBvbmVudCBpbiBjb21wb25lbnRzOgogICAgICAgIHJlY29yZHMgPSBbbmFtZSBmb3IgbmFtZSBpbiBuYW1lcyBpZiBuYW1lLnN0YXJ0c3dpdGgocHJlZml4ICsgJy8nKV0KICAgICAgICBpZiBub3QgcmVjb3JkczoKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignQ29tcG9uZW50ZSBzZW0gaW52ZW50w6FyaW8gY29tcGxldG8uJykKICAgICAgICBsaWNlbnNlcyA9IGRhdGEuZ2V0KCdjb2RlX2xpY2Vuc2VfcGF0aHMnKSBpZiBjb21wb25lbnQgaXMgTm9uZSBlbHNlIGNvbXBvbmVudC5nZXQoJ2xpY2Vuc2VfcGF0aHMnKQogICAgICAgIGlmIG5vdCBpc2luc3RhbmNlKGxpY2Vuc2VzLCBsaXN0KSBvciBub3QgbGljZW5zZXM6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0NvbXBvbmVudGUgc2VtIHRleHRvcyBkZSBsaWNlbsOnYSBmaXhhZG9zLicpCiAgICAgICAgZm9yIGxpY2Vuc2VfcGF0aCBpbiBsaWNlbnNlczoKICAgICAgICAgICAgX3ZhbGlkYXRlX25hbWUobGljZW5zZV9wYXRoKQogICAgICAgICAgICBpZiBwcmVmaXggKyAnLycgKyBsaWNlbnNlX3BhdGggbm90IGluIG5hbWVzOgogICAgICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignTGljZW7Dp2EgbsOjbyBwZXJ0ZW5jZSBhbyBpbnZlbnTDoXJpby4nKQogICAgICAgIGlmIHByZWZpeC5zdGFydHN3aXRoKCdydW50aW1lcy8nKSBhbmQgcHJlZml4ICsgJy8nICsgY29tcG9uZW50WydweXRob24nXSBub3QgaW4gbmFtZXM6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1B5dGhvbiBkbyBydW50aW1lIG7Do28gZXN0w6EgZml4YWRvIG5vIGludmVudMOhcmlvLicpCiAgICBpZiBhbnkobm90IGFueShuYW1lLnN0YXJ0c3dpdGgocHJlZml4ICsgJy8nKSBmb3IgcHJlZml4LCBfIGluIGNvbXBvbmVudHMpIGZvciBuYW1lIGluIG5hbWVzKToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdBcnF1aXZvIGZvcmEgZG9zIGNvbXBvbmVudGVzIGRlY2xhcmFkb3MuJykKICAgIGlmICdjb2RlL21vZHVsZS5qc29uJyBub3QgaW4gbmFtZXM6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignTWFuaWZlc3RvIGRvIHBsdWdpbiBhdXNlbnRlLicpCiAgICByZXR1cm4gY29tcG9uZW50cywgdG90YWwKCgpkZWYgX2luc3BlY3RfemlwKHppcHBlZCk6CiAgICBlbnRyaWVzID0gemlwcGVkLmluZm9saXN0KCkKICAgIGlmIGxlbihlbnRyaWVzKSA+IE1BWF9GSUxFUyArIDE6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignWklQIGV4Y2VkZSBvIGxpbWl0ZSBkZSBlbnRyYWRhcy4nKQogICAgbmFtZXMgPSBzZXQoKQogICAgZmlsZXMgPSB7fQogICAgdG90YWwgPSAwCiAgICBmb3IgZW50cnkgaW4gZW50cmllczoKICAgICAgICAjIEV4cGxpY2l0IGRpcmVjdG9yeSBlbnRyaWVzIGhhdmUgbm8gcGF5bG9hZCBhbmQgYXJlIHVubmVjZXNzYXJ5LgogICAgICAgIG5hbWUgPSBlbnRyeS5maWxlbmFtZQogICAgICAgIF92YWxpZGF0ZV9uYW1lKG5hbWUucnN0cmlwKCcvJykgaWYgZW50cnkuaXNfZGlyKCkgZWxzZSBuYW1lKQogICAgICAgIGlmIG5hbWUuY2FzZWZvbGQoKS5yc3RyaXAoJy8nKSBpbiBuYW1lczoKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignRW50cmFkYXMgWklQIGR1cGxpY2FkYXMgb3UgYWxpYXNlcyBkZSBjYWl4YS4nKQogICAgICAgIG5hbWVzLmFkZChuYW1lLmNhc2Vmb2xkKCkucnN0cmlwKCcvJykpCiAgICAgICAgbW9kZSA9IGVudHJ5LmV4dGVybmFsX2F0dHIgPj4gMTYKICAgICAgICBpZiAoc3RhdC5TX0lGTVQobW9kZSkgbm90IGluICgwLCBzdGF0LlNfSUZSRUcsIHN0YXQuU19JRkRJUikgb3IKICAgICAgICAgICAgICAgIGVudHJ5LmZsYWdfYml0cyAmIDEgb3IgZW50cnkuZXh0ZXJuYWxfYXR0ciAmIDB4NDAwKToKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignWklQIGNvbnTDqW0gbGluaywgcmVwYXJzZSBwb2ludCBvdSBlbnRyYWRhIGNyaXB0b2dyYWZhZGEuJykKICAgICAgICBpZiAoZW50cnkuZmlsZV9zaXplID4gTUFYX0ZJTEVfU0laRSBvcgogICAgICAgICAgICAgICAgZW50cnkuZmlsZV9zaXplID4gbWF4KGVudHJ5LmNvbXByZXNzX3NpemUsIDEpICogTUFYX0NPTVBSRVNTSU9OX1JBVElPKToKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignWklQIGV4Y2VkZSBvIGxpbWl0ZSBkZSB0YW1hbmhvL2NvbXByZXNzw6NvIHNlZ3VyYS4nKQogICAgICAgIHRvdGFsICs9IGVudHJ5LmZpbGVfc2l6ZQogICAgICAgIGlmIHRvdGFsID4gTUFYX1RPVEFMX1NJWkU6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1pJUCBleGNlZGUgbyBsaW1pdGUgdG90YWwgZGUgZXh0cmHDp8Ojby4nKQogICAgICAgIGlmIG5vdCBlbnRyeS5pc19kaXIoKToKICAgICAgICAgICAgZmlsZXNbbmFtZV0gPSBlbnRyeQogICAgaWYgJ3JlbGVhc2UtbWFuaWZlc3QuanNvbicgbm90IGluIGZpbGVzIG9yIGZpbGVzWydyZWxlYXNlLW1hbmlmZXN0Lmpzb24nXS5maWxlX3NpemUgPiBNQVhfTUFOSUZFU1Q6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignWklQIG7Do28gY29udMOpbSByZWxlYXNlLW1hbmlmZXN0Lmpzb24gdsOhbGlkby4nKQogICAgZGF0YSA9IGpzb24ubG9hZHMoemlwcGVkLnJlYWQoJ3JlbGVhc2UtbWFuaWZlc3QuanNvbicpLmRlY29kZSgndXRmLTgnKSkKICAgIGNvbXBvbmVudHMsIHNpemUgPSBfbWFuaWZlc3Rfc2hhcGUoZGF0YSkKICAgIHJlY29yZHMgPSB7cmVjb3JkWydwYXRoJ106IHJlY29yZCBmb3IgcmVjb3JkIGluIGRhdGFbJ2ZpbGVzJ119CiAgICBpZiBhbnkobmFtZSAhPSAncmVsZWFzZS1tYW5pZmVzdC5qc29uJyBhbmQgbmFtZSBub3QgaW4gcmVjb3JkcyBmb3IgbmFtZSBpbiBmaWxlcyk6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignWklQIGNvbnTDqW0gYXJxdWl2byBuw6NvIGZpeGFkbyBubyBtYW5pZmVzdG8uJykKICAgIGZvciBuYW1lLCBlbnRyeSBpbiBmaWxlcy5pdGVtcygpOgogICAgICAgIGlmIG5hbWUgIT0gJ3JlbGVhc2UtbWFuaWZlc3QuanNvbicgYW5kIGVudHJ5LmZpbGVfc2l6ZSAhPSByZWNvcmRzW25hbWVdWydzaXplJ106CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1RhbWFuaG8gWklQIGRpZmVyZSBkbyBpbnZlbnTDoXJpby4nKQogICAgZm9yIG5hbWUgaW4gcmVjb3JkczoKICAgICAgICBpZiBuYW1lLnN0YXJ0c3dpdGgoJ2NvZGUvJykgYW5kIG5hbWUgbm90IGluIGZpbGVzOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdDw7NkaWdvIHByZWNpc2EgZXN0YXIgY29tcGxldG8gZGVudHJvIGRvIFpJUC4nKQogICAgcmV0dXJuIGRhdGEsIGNvbXBvbmVudHMsIHNpemUsIGZpbGVzCgoKZGVmIF92ZXJpZnlfY29tcG9uZW50KGJhc2UsIHByZWZpeCwgZGF0YSwgZXhhY3Q9VHJ1ZSk6CiAgICByZWNvcmRzID0gW3IgZm9yIHIgaW4gZGF0YVsnZmlsZXMnXSBpZiByWydwYXRoJ10uc3RhcnRzd2l0aChwcmVmaXggKyAnLycpXQogICAgZXhwZWN0ZWQgPSBzZXQoKQogICAgZm9yIHJlY29yZCBpbiByZWNvcmRzOgogICAgICAgIHJlbGF0aXZlID0gcmVjb3JkWydwYXRoJ11bbGVuKHByZWZpeCkgKyAxOl0KICAgICAgICBleHBlY3RlZC5hZGQocmVsYXRpdmUpCiAgICAgICAgX3ZlcmlmeV9maWxlKF9wYXRoKGJhc2UsIHJlbGF0aXZlKSwgcmVjb3JkKQogICAgaWYgZXhhY3Q6CiAgICAgICAgYWN0dWFsID0gc2V0KCkKICAgICAgICBmb3IgcGF0aCBpbiBQYXRoKGJhc2UpLnJnbG9iKCcqJyk6CiAgICAgICAgICAgIF9wbGFpbihwYXRoKQogICAgICAgICAgICBpZiBwYXRoLmlzX2ZpbGUoKToKICAgICAgICAgICAgICAgIGFjdHVhbC5hZGQocGF0aC5yZWxhdGl2ZV90byhiYXNlKS5hc19wb3NpeCgpKQogICAgICAgICMgUmVjZWlwdHMgYXJlIGdlbmVyYXRlZCBieSB0aGlzIGluc3RhbGxlciwgbmV2ZXIgc3VwcGxpZWQgaW4gY29kZSBwYXlsb2FkLgogICAgICAgIGlmIHByZWZpeCA9PSAnY29kZSc6CiAgICAgICAgICAgIGFjdHVhbCAtPSB7J3JlbGVhc2UtbWFuaWZlc3QuanNvbicsICdpbnN0YWxsLXJlY2VpcHQuanNvbid9CiAgICAgICAgaWYgYWN0dWFsICE9IGV4cGVjdGVkOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdDb21wb25lbnRlIGNvbnTDqW0gYXJxdWl2b3MgbsOjbyBpbnZlbnRhcmlhZG9zLicpCgoKZGVmIF92ZXJpZnlfY2F0YWxvZyhjb2RlLCBkYXRhKToKICAgIG1hbmlmZXN0ID0gcmVhZF9tYW5pZmVzdChjb2RlIC8gJ21vZHVsZS5qc29uJykKICAgIGlmIG1hbmlmZXN0LnZlcnNpb24gIT0gZGF0YVsndmVyc2lvbiddOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1ZlcnPDo28gZG8gcGx1Z2luIGRpZmVyZSBkYSByZWxlYXNlLicpCiAgICBuYW1lcyA9IHtyWydwYXRoJ106IHIgZm9yIHIgaW4gZGF0YVsnZmlsZXMnXX0KICAgIGlmICdjb2RlLycgKyBtYW5pZmVzdC5jYXRhbG9nIG5vdCBpbiBuYW1lcyBvciAnY29kZS8nICsgbWFuaWZlc3QuYWRhcHRlci5zcGxpdCgnOicpWzBdIG5vdCBpbiBuYW1lczoKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdDYXTDoWxvZ28vYWRhcHRhZG9yIG7Do28gZXN0w6EgZml4YWRvIG5vIHBheWxvYWQuJykKICAgIHJ1bnRpbWVzID0ge3JbJ2lkJ106IHIgZm9yIHIgaW4gZGF0YVsncnVudGltZXMnXX0KICAgIGlmIHNldChtYW5pZmVzdC5ydW50aW1lcykgIT0gc2V0KHJ1bnRpbWVzKToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdSdW50aW1lcyBkbyBwbHVnaW4gZSByZWxlYXNlIGRpZmVyZW0uJykKICAgIGZvciBydW50aW1lX2lkLCBydW50aW1lIGluIG1hbmlmZXN0LnJ1bnRpbWVzLml0ZW1zKCk6CiAgICAgICAgaWYgcnVudGltZVsncHl0aG9uJ10gIT0gcnVudGltZXNbcnVudGltZV9pZF1bJ3B5dGhvbiddOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdFbnRyeXBvaW50IFB5dGhvbiBkaWZlcmUgZG8gcnVudGltZSBmaXhhZG8uJykKICAgIGZvciBtb2RlbCBpbiBsb2FkX2NhdGFsb2coX3BhdGgoY29kZSwgbWFuaWZlc3QuY2F0YWxvZykpOgogICAgICAgIGlmIG1vZGVsWydjYXRhbG9nX3N0YXRlJ10gPT0gJ2NhbmRpZGF0ZSc6CiAgICAgICAgICAgIGNvbnRpbnVlCiAgICAgICAgaWYgbW9kZWwuZ2V0KCdob3N0X21hbmFnZWQnKSBpcyBUcnVlOgogICAgICAgICAgICBpZiAobW9kZWxbJ2lkJ10gIT0gJ2NyYW5pb19idXRpJyBvciBtb2RlbC5nZXQoJ3J1bnRpbWVfaWQnKSAhPSAnaG9zdC1ubnVuZXQnCiAgICAgICAgICAgICAgICAgICAgb3IgbW9kZWwuZ2V0KCdhZGFwdGVyX2lkJykgIT0gJ2J1dGlfaG9zdCcpOgogICAgICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignQ29tcG9uZW50ZSBnZXJlbmNpYWRvIHBlbG8gaG9zdCBmb3JhIGRvIGNvbnRyYXRvIGF1dG9yaXphZG8uJykKICAgICAgICAgICAgIyBPcHRpb25hbCBob3N0IGNhcGFiaWxpdHk6IG5vIE5ldXJvLW93bmVkIHdlaWdodHMvcnVudGltZSBhcmUgY2xhaW1lZC4KICAgICAgICAgICAgY29udGludWUKICAgICAgICBrZXkgPSAobW9kZWxbJ2lkJ10sIG1vZGVsWydyZXZpc2lvbiddKQogICAgICAgIGlmIG5vdCBhbnkoKG1bJ2lkJ10sIG1bJ3JldmlzaW9uJ10pID09IGtleSBmb3IgbSBpbiBkYXRhWydtb2RlbHMnXSk6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ01vZGVsbyBkaXN0cmlidcOtZG8gc2VtIHBlc29zIGNvbXBsZXRvcyBuYSByZWxlYXNlLicpCiAgICAgICAgaWYgbW9kZWwuZ2V0KCdydW50aW1lX2lkJykgbm90IGluIHJ1bnRpbWVzOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdNb2RlbG8gZGlzdHJpYnXDrWRvIHNlbSBydW50aW1lIGNvbXBsZXRvIG5hIHJlbGVhc2UuJykKICAgICAgICBmb3IgYXJ0aWZhY3QgaW4gbW9kZWxbJ2FydGlmYWN0cyddOgogICAgICAgICAgICBfdmFsaWRhdGVfbmFtZShhcnRpZmFjdC5nZXQoJ3BhdGgnKSkKICAgICAgICAgICAgcmVjb3JkID0gbmFtZXMuZ2V0KGYnbW9kZWxzL3trZXlbMF19L3trZXlbMV19LycgKyBhcnRpZmFjdFsncGF0aCddKQogICAgICAgICAgICBpZiByZWNvcmQgaXMgTm9uZSBvciByZWNvcmRbJ3NoYTI1NiddICE9IGFydGlmYWN0LmdldCgnc2hhMjU2Jykgb3IgKAogICAgICAgICAgICAgICAgICAgIGFydGlmYWN0LmdldCgnc2l6ZScpIGlzIG5vdCBOb25lIGFuZCBhcnRpZmFjdFsnc2l6ZSddICE9IHJlY29yZFsnc2l6ZSddKToKICAgICAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0FydGVmYXRvIGRpc3RyaWJ1w61kbyBuw6NvIGNvcnJlc3BvbmRlIGFvIFNIQTI1NiBkbyBjYXTDoWxvZ28uJykKCgpkZWYgX2luc3RhbGxlZF9yZWxlYXNlKHJvb3QsIHZlcnNpb24pOgogICAgX251bWVyaWNfdmVyc2lvbih2ZXJzaW9uKQogICAgY29kZSA9IF9wYXRoKHJvb3QsIGYndmVyc2lvbnMve3ZlcnNpb259JykKICAgIGRhdGEgPSBfcmVhZF9qc29uKF9wYXRoKGNvZGUsICdyZWxlYXNlLW1hbmlmZXN0Lmpzb24nKSkKICAgIGNvbXBvbmVudHMsIF8gPSBfbWFuaWZlc3Rfc2hhcGUoZGF0YSkKICAgIGlmIGRhdGFbJ3ZlcnNpb24nXSAhPSB2ZXJzaW9uOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1ZlcnPDo28gaW5zdGFsYWRhIGRpdmVyZ2UgZG8gaW52ZW50w6FyaW8uJykKICAgIGZvciBwcmVmaXgsIF8gaW4gY29tcG9uZW50czoKICAgICAgICBfdmVyaWZ5X2NvbXBvbmVudChjb2RlIGlmIHByZWZpeCA9PSAnY29kZScgZWxzZSBfcGF0aChyb290LCBwcmVmaXgpLCBwcmVmaXgsIGRhdGEpCiAgICBfdmVyaWZ5X2NhdGFsb2coY29kZSwgZGF0YSkKICAgIHJldHVybiBkYXRhCgoKZGVmIHJlYWRfaW5zdGFsbF9zdGF0dXMocGx1Z2luX3Jvb3QpIC0+IEluc3RhbGxTdGF0dXM6CiAgICByb290ID0gX3BsYWluKHBsdWdpbl9yb290KQogICAgaWYgbm90IHJvb3QuZXhpc3RzKCk6CiAgICAgICAgcmV0dXJuIEluc3RhbGxTdGF0dXMoKQogICAgc3RhdHVzX2ZpbGUgPSBfcGF0aChyb290LCAnaW5zdGFsbC1zdGF0dXMuanNvbicpCiAgICBzdGF0ZV9maWxlID0gX3BhdGgocm9vdCwgJ2luc3RhbGxhdGlvbi5qc29uJykKICAgIHZhbHVlID0gX3JlYWRfanNvbihzdGF0dXNfZmlsZSkgaWYgc3RhdHVzX2ZpbGUuZXhpc3RzKCkgZWxzZSBhc2RpY3QoSW5zdGFsbFN0YXR1cygpKQogICAgaWYgc3RhdGVfZmlsZS5leGlzdHMoKToKICAgICAgICBpbnN0YWxsYXRpb24gPSBfcmVhZF9qc29uKHN0YXRlX2ZpbGUpCiAgICAgICAgIyBBIGZhaWxlZCB1cGRhdGUgaXMgcmVwb3J0ZWQgYnkgc3RhdHVzIHdoaWxlIHRoZSBvbGQgYWN0aXZlIHBvaW50ZXIgc3Vydml2ZXMuCiAgICAgICAgaWYgdmFsdWVbJ3N0YXRlJ10gbm90IGluICgnaW5zdGFsbGluZycsICd1cGRhdGluZycsICdjaGVja2luZycsICdmYWlsZWQnKToKICAgICAgICAgICAgdmFsdWVbJ3N0YXRlJ10gPSBpbnN0YWxsYXRpb25bJ3N0YXRlJ10KICAgICAgICBpZiB2YWx1ZVsnc3RhdGUnXSA9PSAncmVhZHknOgogICAgICAgICAgICB0cnk6CiAgICAgICAgICAgICAgICBfaW5zdGFsbGVkX3JlbGVhc2Uocm9vdCwgaW5zdGFsbGF0aW9uLmdldCgnYWN0aXZlX3ZlcnNpb24nKSkKICAgICAgICAgICAgZXhjZXB0IChWYWx1ZUVycm9yLCBPU0Vycm9yLCBLZXlFcnJvciwgVHlwZUVycm9yKToKICAgICAgICAgICAgICAgIHZhbHVlLnVwZGF0ZShzdGF0ZT0nZmFpbGVkJywgc3RhZ2U9J2ludGVncml0eScsIHJlYXNvbj0nSW5zdGFsYcOnw6NvIGF0aXZhIGluY29tcGxldGEgb3UgY29ycm9tcGlkYS4nKQogICAgZWxpZiB2YWx1ZVsnc3RhdGUnXSA9PSAncmVhZHknOgogICAgICAgIHZhbHVlLnVwZGF0ZShzdGF0ZT0nZmFpbGVkJywgc3RhZ2U9J2ludGVncml0eScsIHJlYXNvbj0nUmVjaWJvIGRhIGluc3RhbGHDp8OjbyBhdGl2YSBhdXNlbnRlLicpCiAgICByZXR1cm4gSW5zdGFsbFN0YXR1cygqKntrZXk6IHZhbHVlLmdldChrZXksIGRlZmF1bHQpIGZvciBrZXksIGRlZmF1bHQgaW4gYXNkaWN0KEluc3RhbGxTdGF0dXMoKSkuaXRlbXMoKX0pCgoKZGVmIGJlZ2luX2luc3RhbGwoaG9zdF9yb290LCBwYWNrYWdlLCB0cmFuc2FjdGlvbl9pZCkgLT4gSW5zdGFsbFJlY2VpcHQ6CiAgICAiIiJJbnN0YWxsIGEgbG9jYWwgeydwYXRoJzogWklQLCAnc2hhMjU2JzogZXh0ZXJuYWwgZGlnZXN0fSB3aXRob3V0IGFjdGl2YXRpb24uCgogICAgQSBzaW11bHRhbmVvdXMgY2FsbGVyIHJlY2VpdmVzIGZvbGxvd2luZz1UcnVlIGFuZCBwb2xscyByZWFkX2luc3RhbGxfc3RhdHVzLgogICAgUmVwZWF0aW5nIGEgc3VjY2Vzc2Z1bCB0cmFuc2FjdGlvbiByZXR1cm5zIGl0cyBvcmlnaW5hbCBkdXJhYmxlIHJlY2VpcHQuCiAgICBGYWlsZWQvaW50ZXJydXB0ZWQgSURzIG1heSByZXRyeSBvbmx5IHRoZSBzYW1lIHBhY2thZ2UgaWRlbnRpdHkuCiAgICAiIiIKICAgIHRyYW5zYWN0aW9uX2lkID0gX2lkZW50aWZpZXIodHJhbnNhY3Rpb25faWQpCiAgICBpZiBub3QgaXNpbnN0YW5jZShwYWNrYWdlLCBkaWN0KSBvciBub3QgaXNpbnN0YW5jZShwYWNrYWdlLmdldCgncGF0aCcpLCAoc3RyLCBvcy5QYXRoTGlrZSkpOgogICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1BhY290ZSBvZmZsaW5lIHJlcXVlciBwYXRoIGUgU0hBMjU2IGV4dGVybm8gb2JyaWdhdMOzcmlvLicpCiAgICBleHBlY3RlZCA9IF9zaGEocGFja2FnZS5nZXQoJ3NoYTI1NicpKQogICAgaG9zdCA9IHZhbGlkYXRlX2hvc3Rfcm9vdChob3N0X3Jvb3QpCiAgICByb290ID0gX3BsdWdpbihob3N0KQogICAgc291cmNlID0gX3BsYWluKHBhY2thZ2VbJ3BhdGgnXSkucmVzb2x2ZSgpCiAgICBpZiBub3Qgc291cmNlLmlzX2ZpbGUoKToKICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdQYWNvdGUgb2ZmbGluZSBuw6NvIGVuY29udHJhZG8uJykKICAgIHdpdGggX2luc3RhbGxhdGlvbl9sb2NrKHJvb3QpIGFzIGFjcXVpcmVkOgogICAgICAgIGlmIG5vdCBhY3F1aXJlZDoKICAgICAgICAgICAgY3VycmVudCA9IHJlYWRfaW5zdGFsbF9zdGF0dXMocm9vdCkKICAgICAgICAgICAgcmV0dXJuIEluc3RhbGxSZWNlaXB0KGN1cnJlbnQudHJhbnNhY3Rpb25faWQsIE5vbmUsICgpLCBGYWxzZSwgVHJ1ZSkKICAgICAgICB0cmFuc2FjdGlvbiA9IF9wYXRoKHJvb3QsIGYndHJhbnNhY3Rpb25zL3t0cmFuc2FjdGlvbl9pZH0nKQogICAgICAgIGlkZW50aXR5ID0gX3BhdGgodHJhbnNhY3Rpb24sICdpZGVudGl0eS5qc29uJykKICAgICAgICByZWNlaXB0X2ZpbGUgPSBfcGF0aCh0cmFuc2FjdGlvbiwgJ3JlY2VpcHQuanNvbicpCiAgICAgICAgaWYgaWRlbnRpdHkuZXhpc3RzKCkgYW5kIF9yZWFkX2pzb24oaWRlbnRpdHkpLmdldCgnc2hhMjU2JykgIT0gZXhwZWN0ZWQ6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0lEIGRlIHRyYW5zYcOnw6NvIGrDoSBwZXJ0ZW5jZSBhIG91dHJvIHBhY290ZS4nKQogICAgICAgIGlmIHJlY2VpcHRfZmlsZS5leGlzdHMoKToKICAgICAgICAgICAgdmFsdWVzID0gX3JlYWRfanNvbihyZWNlaXB0X2ZpbGUpCiAgICAgICAgICAgIF9pbnN0YWxsZWRfcmVsZWFzZShyb290LCB2YWx1ZXNbJ3ZlcnNpb24nXSkKICAgICAgICAgICAgdmFsdWVzWyd2ZXJpZmllZF9hcnRpZmFjdHMnXSA9IHR1cGxlKHZhbHVlc1sndmVyaWZpZWRfYXJ0aWZhY3RzJ10pCiAgICAgICAgICAgIHJldHVybiBJbnN0YWxsUmVjZWlwdCgqKnZhbHVlcykKICAgICAgICBfYXRvbWljX2pzb24oaWRlbnRpdHksIHsnc2hhMjU2JzogZXhwZWN0ZWR9KQogICAgICAgIHN0YXRlX2ZpbGUgPSBfcGF0aChyb290LCAnaW5zdGFsbGF0aW9uLmpzb24nKQogICAgICAgIHByZXZpb3VzID0gX3JlYWRfanNvbihzdGF0ZV9maWxlKSBpZiBzdGF0ZV9maWxlLmV4aXN0cygpIGVsc2UgewogICAgICAgICAgICAnc2NoZW1hJzogJ25ldXJvLXJ0L2luc3RhbGxhdGlvbi8xJywgJ3N0YXRlJzogJ2Fic2VudCcsICdhY3RpdmVfdmVyc2lvbic6IE5vbmUsCiAgICAgICAgICAgICdwcmV2aW91c192ZXJzaW9uJzogTm9uZSwgJ3BlbmRpbmdfdmVyc2lvbic6IE5vbmUsICdydW50aW1lJzogTm9uZX0KICAgICAgICBzdGF0ZSA9ICd1cGRhdGluZycgaWYgcHJldmlvdXMuZ2V0KCdhY3RpdmVfdmVyc2lvbicpIGVsc2UgJ2luc3RhbGxpbmcnCiAgICAgICAgcHJvbW90ZWQgPSBbXQogICAgICAgIHN0YWdlID0gX3BhdGgocm9vdCwgZidzdGFnaW5nL3t0cmFuc2FjdGlvbl9pZH0nKQogICAgICAgIGNvbW1pdHRlZCA9IEZhbHNlCiAgICAgICAgdG90YWwgPSBzb3VyY2Uuc3RhdCgpLnN0X3NpemUKICAgICAgICB0cnk6CiAgICAgICAgICAgIF9zdGF0dXMocm9vdCwgdHJhbnNhY3Rpb25faWQsIHN0YXRlLCAnY2hlY2tpbmcnLCB0b3RhbCkKICAgICAgICAgICAgaWYgc2h1dGlsLmRpc2tfdXNhZ2Uocm9vdCkuZnJlZSA8IHRvdGFsICsgU1BBQ0VfTUFSR0lOOgogICAgICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignU2VtIGVzcGHDp28gbGl2cmUgc3VmaWNpZW50ZSBwYXJhIHN0YWdpbmcgZG8gcGFjb3RlLicpCiAgICAgICAgICAgICMgVGhlIHRyYW5zYWN0aW9uIG93bnMgb25seSB0aGlzIGRpcmVjdG9yeTsgbmV2ZXIgcmVtb3ZlIHBlcnNpc3RlbnQgZGF0YS4KICAgICAgICAgICAgaWYgc3RhZ2UuZXhpc3RzKCk6CiAgICAgICAgICAgICAgICBfc2FmZV9yZW1vdmVfdHJlZShzdGFnZSwgcm9vdCAvICdzdGFnaW5nJykKICAgICAgICAgICAgc3RhZ2UubWtkaXIocGFyZW50cz1UcnVlKQogICAgICAgICAgICBhcmNoaXZlID0gX3BhdGgoc3RhZ2UsICdwYWNrYWdlLnppcCcpCiAgICAgICAgICAgIHdpdGggc291cmNlLm9wZW4oJ3JiJykgYXMgaW5jb21pbmcsIGFyY2hpdmUub3BlbigneGInKSBhcyBvdXRnb2luZzoKICAgICAgICAgICAgICAgIF9jb3B5X3N0cmVhbShpbmNvbWluZywgb3V0Z29pbmcsIGxhbWJkYSBjb3VudDogX3N0YXR1cygKICAgICAgICAgICAgICAgICAgICByb290LCB0cmFuc2FjdGlvbl9pZCwgc3RhdGUsICdjb3B5aW5nJywgdG90YWwsIGNvdW50KSkKICAgICAgICAgICAgICAgIG91dGdvaW5nLmZsdXNoKCkKICAgICAgICAgICAgICAgIG9zLmZzeW5jKG91dGdvaW5nLmZpbGVubygpKQogICAgICAgICAgICBpZiBhcmNoaXZlLnN0YXQoKS5zdF9zaXplICE9IHRvdGFsIG9yIF9maWxlX2RpZ2VzdChhcmNoaXZlKSAhPSBleHBlY3RlZDoKICAgICAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1NIQTI1NiBkbyBwYWNvdGUgbsOjbyBjb3JyZXNwb25kZSBhbyBoYXNoIGV4dGVybm8gYXV0b3JpemFkby4nKQogICAgICAgICAgICBfc3RhdHVzKHJvb3QsIHRyYW5zYWN0aW9uX2lkLCBzdGF0ZSwgJ3ZlcmlmeWluZycsIHRvdGFsLCB0b3RhbCkKICAgICAgICAgICAgd2l0aCB6aXBmaWxlLlppcEZpbGUoYXJjaGl2ZSkgYXMgemlwcGVkOgogICAgICAgICAgICAgICAgZGF0YSwgY29tcG9uZW50cywgc2l6ZSwgZW50cmllcyA9IF9pbnNwZWN0X3ppcCh6aXBwZWQpCiAgICAgICAgICAgICAgICBpZiBzaHV0aWwuZGlza191c2FnZShyb290KS5mcmVlIDwgc2l6ZSArIFNQQUNFX01BUkdJTjoKICAgICAgICAgICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdTZW0gZXNwYcOnbyBsaXZyZSBwYXJhIGV4dHJhw6fDo28gZSBjb2V4aXN0w6puY2lhIGRhIHZlcnPDo28gYW50ZXJpb3IuJykKICAgICAgICAgICAgICAgIHZlcnNpb24gPSBkYXRhWyd2ZXJzaW9uJ10KICAgICAgICAgICAgICAgIGNvZGVfZGVzdGluYXRpb24gPSBfcGF0aChyb290LCBmJ3ZlcnNpb25zL3t2ZXJzaW9ufScpCiAgICAgICAgICAgICAgICAjIEEgcHVibGlzaGVkIHZlcnNpb24gaXMgaW1tdXRhYmxlIGFuZCBtYXkgb25seSBiZSBpbnN0YWxsZWQgaWRlbnRpY2FsbHkuCiAgICAgICAgICAgICAgICBpZiBjb2RlX2Rlc3RpbmF0aW9uLmV4aXN0cygpOgogICAgICAgICAgICAgICAgICAgIG9sZCA9IF9yZWFkX2pzb24oX3BhdGgoY29kZV9kZXN0aW5hdGlvbiwgJ3JlbGVhc2UtbWFuaWZlc3QuanNvbicpKQogICAgICAgICAgICAgICAgICAgIF9tYW5pZmVzdF9zaGFwZShvbGQpCiAgICAgICAgICAgICAgICAgICAgX3ZlcmlmeV9jb21wb25lbnQoY29kZV9kZXN0aW5hdGlvbiwgJ2NvZGUnLCBvbGQpCiAgICAgICAgICAgICAgICAgICAgaWYgb2xkICE9IGRhdGE6CiAgICAgICAgICAgICAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1ZlcnPDo28gZXhpc3RlbnRlIHBvc3N1aSBvdXRyYSBpZGVudGlkYWRlOyBwdWJsaXF1ZSBub3ZhIHZlcnPDo28uJykKICAgICAgICAgICAgICAgIHBheWxvYWQgPSBfcGF0aChzdGFnZSwgJ3BheWxvYWQnKQogICAgICAgICAgICAgICAgcGF5bG9hZC5ta2RpcigpCiAgICAgICAgICAgICAgICBmb3IgcHJlZml4LCBfIGluIGNvbXBvbmVudHM6CiAgICAgICAgICAgICAgICAgICAgZGVzdGluYXRpb24gPSBjb2RlX2Rlc3RpbmF0aW9uIGlmIHByZWZpeCA9PSAnY29kZScgZWxzZSBfcGF0aChyb290LCBwcmVmaXgpCiAgICAgICAgICAgICAgICAgICAgaWYgZGVzdGluYXRpb24uZXhpc3RzKCk6CiAgICAgICAgICAgICAgICAgICAgICAgIF92ZXJpZnlfY29tcG9uZW50KGRlc3RpbmF0aW9uLCBwcmVmaXgsIGRhdGEpCiAgICAgICAgICAgICAgICAgICAgICAgIGNvbnRpbnVlCiAgICAgICAgICAgICAgICAgICAgZm9yIHJlY29yZCBpbiAociBmb3IgciBpbiBkYXRhWydmaWxlcyddIGlmIHJbJ3BhdGgnXS5zdGFydHN3aXRoKHByZWZpeCArICcvJykpOgogICAgICAgICAgICAgICAgICAgICAgICBpZiByZWNvcmRbJ3BhdGgnXSBub3QgaW4gZW50cmllczoKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1BheWxvYWQgb21pdGlkbyBzZW0gY29tcG9uZW50ZSDDrW50ZWdybyBwYXJhIHJldXRpbGl6YcOnw6NvLicpCiAgICAgICAgICAgICAgICAgICAgICAgIHRhcmdldCA9IF9wYXRoKHBheWxvYWQsIHJlY29yZFsncGF0aCddKQogICAgICAgICAgICAgICAgICAgICAgICB0YXJnZXQucGFyZW50Lm1rZGlyKHBhcmVudHM9VHJ1ZSwgZXhpc3Rfb2s9VHJ1ZSkKICAgICAgICAgICAgICAgICAgICAgICAgd2l0aCB6aXBwZWQub3BlbihlbnRyaWVzW3JlY29yZFsncGF0aCddXSkgYXMgaW5jb21pbmcsIHRhcmdldC5vcGVuKCd4YicpIGFzIG91dGdvaW5nOgogICAgICAgICAgICAgICAgICAgICAgICAgICAgX2NvcHlfc3RyZWFtKGluY29taW5nLCBvdXRnb2luZykKICAgICAgICAgICAgICAgICAgICAgICAgX3ZlcmlmeV9maWxlKHRhcmdldCwgcmVjb3JkKQogICAgICAgICAgICAgICAgY29kZSA9IGNvZGVfZGVzdGluYXRpb24gaWYgY29kZV9kZXN0aW5hdGlvbi5leGlzdHMoKSBlbHNlIHBheWxvYWQgLyAnY29kZScKICAgICAgICAgICAgICAgIF92ZXJpZnlfY2F0YWxvZyhjb2RlLCBkYXRhKQogICAgICAgICAgICAgICAgcmVjZWlwdCA9IEluc3RhbGxSZWNlaXB0KHRyYW5zYWN0aW9uX2lkLCB2ZXJzaW9uLAogICAgICAgICAgICAgICAgICAgIHR1cGxlKHJbJ3BhdGgnXSBmb3IgciBpbiBkYXRhWydmaWxlcyddKSwgVHJ1ZSkKICAgICAgICAgICAgICAgIGlmIG5vdCBjb2RlX2Rlc3RpbmF0aW9uLmV4aXN0cygpOgogICAgICAgICAgICAgICAgICAgIF9hdG9taWNfanNvbihjb2RlIC8gJ3JlbGVhc2UtbWFuaWZlc3QuanNvbicsIGRhdGEpCiAgICAgICAgICAgICAgICAgICAgX2F0b21pY19qc29uKGNvZGUgLyAnaW5zdGFsbC1yZWNlaXB0Lmpzb24nLCBkaWN0KGFzZGljdChyZWNlaXB0KSwgcGFja2FnZV9zaGEyNTY9ZXhwZWN0ZWQsCiAgICAgICAgICAgICAgICAgICAgICAgIGxpY2Vuc2VzPXsnY29kZSc6IGRhdGFbJ2NvZGVfbGljZW5zZV9wYXRocyddLCAncnVudGltZXMnOiBkYXRhWydydW50aW1lcyddLCAnbW9kZWxzJzogZGF0YVsnbW9kZWxzJ119KSkKICAgICAgICAgICAgICAgIF9zdGF0dXMocm9vdCwgdHJhbnNhY3Rpb25faWQsIHN0YXRlLCAncHVibGlzaGluZycsIHRvdGFsLCB0b3RhbCkKICAgICAgICAgICAgICAgIGZvciBwcmVmaXgsIF8gaW4gY29tcG9uZW50czoKICAgICAgICAgICAgICAgICAgICBkZXN0aW5hdGlvbiA9IGNvZGVfZGVzdGluYXRpb24gaWYgcHJlZml4ID09ICdjb2RlJyBlbHNlIF9wYXRoKHJvb3QsIHByZWZpeCkKICAgICAgICAgICAgICAgICAgICBpZiBkZXN0aW5hdGlvbi5leGlzdHMoKToKICAgICAgICAgICAgICAgICAgICAgICAgY29udGludWUKICAgICAgICAgICAgICAgICAgICBkZXN0aW5hdGlvbi5wYXJlbnQubWtkaXIocGFyZW50cz1UcnVlLCBleGlzdF9vaz1UcnVlKQogICAgICAgICAgICAgICAgICAgIF9wbGFpbihkZXN0aW5hdGlvbikKICAgICAgICAgICAgICAgICAgICBfcmVwbGFjZShfcGF0aChwYXlsb2FkLCBwcmVmaXgpLCBkZXN0aW5hdGlvbikKICAgICAgICAgICAgICAgICAgICBwcm9tb3RlZC5hcHBlbmQoZGVzdGluYXRpb24pCiAgICAgICAgICAgICAgICBfaW5zdGFsbGVkX3JlbGVhc2Uocm9vdCwgdmVyc2lvbikKICAgICAgICAgICAgICAgIGZvciBuYW1lIGluICgnZGF0YScsICdjb25maWcnKToKICAgICAgICAgICAgICAgICAgICBfcGF0aChyb290LCBuYW1lKS5ta2RpcihleGlzdF9vaz1UcnVlKQogICAgICAgICAgICAgICAgdXBkYXRlZCA9IGRpY3QocHJldmlvdXMsIHN0YXRlPSdpbnN0YWxsZWRfcGVuZGluZ19yZXN0YXJ0JywgcGVuZGluZ192ZXJzaW9uPXZlcnNpb24sCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB0cmFuc2FjdGlvbl9pZD10cmFuc2FjdGlvbl9pZCwgcGVuZGluZ19ydW50aW1lPWRhdGFbJ3J1bnRpbWUnXSwgcGFja2FnZV9zaGEyNTY9ZXhwZWN0ZWQpCiAgICAgICAgICAgICAgICBfYXRvbWljX2pzb24oc3RhdGVfZmlsZSwgdXBkYXRlZCkKICAgICAgICAgICAgICAgIGNvbW1pdHRlZCA9IFRydWUKICAgICAgICAgICAgICAgIF9hdG9taWNfanNvbihyZWNlaXB0X2ZpbGUsIGFzZGljdChyZWNlaXB0KSkKICAgICAgICAgICAgICAgIF9zdGF0dXMocm9vdCwgdHJhbnNhY3Rpb25faWQsICdpbnN0YWxsZWRfcGVuZGluZ19yZXN0YXJ0JywgJ2NvbXBsZXRlJywgdG90YWwsIHRvdGFsKQogICAgICAgICAgICBfc2FmZV9yZW1vdmVfdHJlZShzdGFnZSwgcm9vdCAvICdzdGFnaW5nJykKICAgICAgICAgICAgcmV0dXJuIHJlY2VpcHQKICAgICAgICBleGNlcHQgQmFzZUV4Y2VwdGlvbiBhcyBlcnJvcjoKICAgICAgICAgICAgaWYgbm90IGNvbW1pdHRlZDoKICAgICAgICAgICAgICAgIGZvciBkZXN0aW5hdGlvbiBpbiByZXZlcnNlZChwcm9tb3RlZCk6CiAgICAgICAgICAgICAgICAgICAgX3NhZmVfcmVtb3ZlX3RyZWUoZGVzdGluYXRpb24sIHJvb3QpCiAgICAgICAgICAgICMgQXZvaWQgZXhwb3Npbmcgc291cmNlIHBhdGhzLCBleGNlcHRpb24gdGV4dCwgUEhJIG9yIGZpbGVzeXN0ZW0gZGV0YWlscy4KICAgICAgICAgICAgdHJ5OgogICAgICAgICAgICAgICAgX3N0YXR1cyhyb290LCB0cmFuc2FjdGlvbl9pZCwgJ2ZhaWxlZCcsICdjYW5jZWxsZWQnIGlmIGlzaW5zdGFuY2UoZXJyb3IsIEtleWJvYXJkSW50ZXJydXB0KSBlbHNlICdmYWlsZWQnLAogICAgICAgICAgICAgICAgICAgICAgICB0b3RhbCwgcmVhc29uPSdJbnN0YWxhw6fDo28gY2FuY2VsYWRhLicgaWYgaXNpbnN0YW5jZShlcnJvciwgS2V5Ym9hcmRJbnRlcnJ1cHQpIGVsc2UKICAgICAgICAgICAgICAgICAgICAgICAgJ0luc3RhbGHDp8OjbyBpbnRlcnJvbXBpZGE7IHZlcnPDo28gYXRpdmEgZSBkYWRvcyBwcmVzZXJ2YWRvcy4nKQogICAgICAgICAgICBleGNlcHQgT1NFcnJvcjoKICAgICAgICAgICAgICAgIHBhc3MKICAgICAgICAgICAgcmFpc2UKCgpkZWYgX3NhZmVfcmVtb3ZlX3RyZWUocGF0aCwgYm91bmRhcnkpOgogICAgcGF0aCwgYm91bmRhcnkgPSBfcGxhaW4ocGF0aCkucmVzb2x2ZSgpLCBfcGxhaW4oYm91bmRhcnkpLnJlc29sdmUoKQogICAgaWYgcGF0aCA9PSBib3VuZGFyeSBvciBub3QgcGF0aC5pc19yZWxhdGl2ZV90byhib3VuZGFyeSk6CiAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignTGltcGV6YSBmb3JhIGRvIHN0YWdpbmcvY29tcG9uZW50ZSBhdXRvcml6YWRvLicpCiAgICBmb3IgaXRlbSBpbiBwYXRoLnJnbG9iKCcqJyk6CiAgICAgICAgX3BsYWluKGl0ZW0pCiAgICBzaHV0aWwucm10cmVlKHBhdGgpCgoKZGVmIGFjdGl2YXRlX3JlbGVhc2UocGx1Z2luX3Jvb3QsIHZlcnNpb24pIC0+IEFjdGl2YXRpb25SZWNlaXB0OgogICAgIiIiQXRvbWljYWxseSBzZWxlY3QgYW4gaW5zdGFsbGVkIHJlbGVhc2UgYWZ0ZXIgaG9zdCBjb29yZGluYXRpb24vcmVvcGVuLgoKICAgIFByZXZpb3VzIHZlcmlmaWVkIHZlcnNpb25zIHJlbWFpbiBhdmFpbGFibGUgZm9yIGV4cGxpY2l0IHJvbGxiYWNrLiBDYWxsIGJlZm9yZQogICAgbW91bnRpbmcgYSBzZXJ2aWNlOyByZXN0YXJ0X3JlcXVpcmVkPUZhbHNlIG1lYW5zIHRoZSBjb29yZGluYXRlZCBzdGFydHVwIG1heQogICAgY29udGludWUsIG5ldmVyIHRoYXQgaW1wb3J0ZWQgbW9kdWxlcyB3ZXJlIGhvdCBzd2FwcGVkLgogICAgIiIiCiAgICBfbnVtZXJpY192ZXJzaW9uKHZlcnNpb24pCiAgICByb290ID0gX3BsYWluKHBsdWdpbl9yb290KS5yZXNvbHZlKCkKICAgIHdpdGggX2luc3RhbGxhdGlvbl9sb2NrKHJvb3QpIGFzIGFjcXVpcmVkOgogICAgICAgIGlmIG5vdCBhY3F1aXJlZDoKICAgICAgICAgICAgcmFpc2UgVmFsdWVFcnJvcignSW5zdGFsYcOnw6NvIG9jdXBhZGE7IGFjb21wYW5oZSBvIHN0YXR1cyBkYSB0cmFuc2HDp8Ojby4nKQogICAgICAgIGRhdGEgPSBfaW5zdGFsbGVkX3JlbGVhc2Uocm9vdCwgdmVyc2lvbikKICAgICAgICBzdGF0ZV9maWxlID0gX3BhdGgocm9vdCwgJ2luc3RhbGxhdGlvbi5qc29uJykKICAgICAgICBwcmV2aW91cyA9IF9yZWFkX2pzb24oc3RhdGVfZmlsZSkKICAgICAgICBvbGQgPSBwcmV2aW91cy5nZXQoJ2FjdGl2ZV92ZXJzaW9uJykKICAgICAgICByZWNlaXB0ID0gQWN0aXZhdGlvblJlY2VpcHQob2xkIGlmIG9sZCAhPSB2ZXJzaW9uIGVsc2UgcHJldmlvdXMuZ2V0KCdwcmV2aW91c192ZXJzaW9uJyksIHZlcnNpb24sIEZhbHNlLCAncmVhZHknKQogICAgICAgIHVwZGF0ZWQgPSBkaWN0KHByZXZpb3VzLCBzdGF0ZT0ncmVhZHknLCBhY3RpdmVfdmVyc2lvbj12ZXJzaW9uLAogICAgICAgICAgICAgICAgICAgICAgIHByZXZpb3VzX3ZlcnNpb249cmVjZWlwdC5wcmV2aW91c192ZXJzaW9uLCBwZW5kaW5nX3ZlcnNpb249Tm9uZSwKICAgICAgICAgICAgICAgICAgICAgICBwZW5kaW5nX3J1bnRpbWU9Tm9uZSwgcnVudGltZT1kYXRhWydydW50aW1lJ10pCiAgICAgICAgX2F0b21pY19qc29uKHN0YXRlX2ZpbGUsIHVwZGF0ZWQpCiAgICAgICAgdHJhbnNhY3Rpb24gPSBwcmV2aW91cy5nZXQoJ3RyYW5zYWN0aW9uX2lkJywgJ2FjdGl2YXRpb24nKQogICAgICAgIF9zdGF0dXMocm9vdCwgdHJhbnNhY3Rpb24sICdyZWFkeScsICdhY3RpdmUnKQogICAgICAgIHJldHVybiByZWNlaXB0CgoKZGVmIG1haW4oYXJndj1Ob25lKToKICAgIHBhcnNlciA9IGFyZ3BhcnNlLkFyZ3VtZW50UGFyc2VyKGRlc2NyaXB0aW9uPV9fZG9jX18pCiAgICBwYXJzZXIuYWRkX2FyZ3VtZW50KCctLXN1aXRlLXJvb3QnLCByZXF1aXJlZD1UcnVlKQogICAgcGFyc2VyLmFkZF9hcmd1bWVudCgnLS1wYWNrYWdlLXBhdGgnLCByZXF1aXJlZD1UcnVlKQogICAgcGFyc2VyLmFkZF9hcmd1bWVudCgnLS1wYWNrYWdlLXNoYTI1NicsIHJlcXVpcmVkPVRydWUpCiAgICBwYXJzZXIuYWRkX2FyZ3VtZW50KCctLXRyYW5zYWN0aW9uLWlkJywgcmVxdWlyZWQ9VHJ1ZSkKICAgIGFyZ3MgPSBwYXJzZXIucGFyc2VfYXJncyhhcmd2KQogICAgdHJ5OgogICAgICAgIHJlY2VpcHQgPSBiZWdpbl9pbnN0YWxsKGFyZ3Muc3VpdGVfcm9vdCwgeydwYXRoJzogYXJncy5wYWNrYWdlX3BhdGgsICdzaGEyNTYnOiBhcmdzLnBhY2thZ2Vfc2hhMjU2fSwgYXJncy50cmFuc2FjdGlvbl9pZCkKICAgICAgICBwcmludChqc29uLmR1bXBzKGFzZGljdChyZWNlaXB0KSkpCiAgICAgICAgcmV0dXJuIDAKICAgIGV4Y2VwdCAoVmFsdWVFcnJvciwgT1NFcnJvciwgemlwZmlsZS5CYWRaaXBGaWxlLCBLZXlFcnJvciwgVHlwZUVycm9yKToKICAgICAgICBwcmludChqc29uLmR1bXBzKHsnc3RhdGUnOiAnZmFpbGVkJywgJ3JlYXNvbic6ICdQYWNvdGUgaW52w6FsaWRvIG91IGluc3RhbGHDp8OjbyBuw6NvIHDDtGRlIHNlciBjb25jbHXDrWRhLid9KSkKICAgICAgICByZXR1cm4gMQoKCmlmIF9fbmFtZV9fID09ICdfX21haW5fXyc6CiAgICBzeXMuZXhpdChtYWluKCkpCg=='), 'plugin_update': ('a6ab3f0f57080ec6b639d44753189c3addc550cc88b19922d6e71082b13bb2bc', 'IiIiU3RhbmRhcmQtbGlicmFyeSByZWxlYXNlIGxvb2t1cCBhbmQgc3RhZ2VkIHVwZGF0ZTsgbm8gcGF5bG9hZCBjb2RlIGlzIGV4ZWN1dGVkLiIiIgpmcm9tIGRhdGFjbGFzc2VzIGltcG9ydCBhc2RpY3QKaW1wb3J0IGFyZ3BhcnNlCmltcG9ydCBoYXNobGliCmltcG9ydCBqc29uCmltcG9ydCBvcwpmcm9tIHBhdGhsaWIgaW1wb3J0IFBhdGgKaW1wb3J0IHJlCmltcG9ydCBzeXMKaW1wb3J0IHRocmVhZGluZwppbXBvcnQgdGltZQppbXBvcnQgdXJsbGliLmVycm9yCmltcG9ydCB1cmxsaWIucGFyc2UKaW1wb3J0IHVybGxpYi5yZXF1ZXN0CmltcG9ydCB1dWlkCmltcG9ydCB6aXBmaWxlCgpmcm9tIC4gaW1wb3J0IGluc3RhbGxfc3RhdGUKZnJvbSAucGx1Z2luX21hbmlmZXN0IGltcG9ydCBfbnVtZXJpY192ZXJzaW9uCgpSRVBPU0lUT1JZID0gJ2RyaGVucmlxdWVicmFnYS9uZXVyby1ydCcKCgpjbGFzcyBSZWxlYXNlVW5hdmFpbGFibGUoVmFsdWVFcnJvcik6CiAgICBwYXNzCgoKZGVmIHB5dGhvbl9jb21wYXRpYmxlKHJlcXVpcmVtZW50LCB2ZXJzaW9uPU5vbmUpOgogICAgdmVyc2lvbiA9IHR1cGxlKHZlcnNpb24gb3Igc3lzLnZlcnNpb25faW5mb1s6Ml0pCiAgICBtaW5pbXVtID0gcmUuc2VhcmNoKHInPj0oXGQrKVwuKFxkKyknLCByZXF1aXJlbWVudCBvciAnJykKICAgIG1heGltdW0gPSByZS5zZWFyY2gocic8KFxkKylcLihcZCspJywgcmVxdWlyZW1lbnQgb3IgJycpCiAgICByZXR1cm4gKChub3QgbWluaW11bSBvciB2ZXJzaW9uID49IHR1cGxlKG1hcChpbnQsIG1pbmltdW0uZ3JvdXBzKCkpKSkKICAgICAgICAgICAgYW5kIChub3QgbWF4aW11bSBvciB2ZXJzaW9uIDwgdHVwbGUobWFwKGludCwgbWF4aW11bS5ncm91cHMoKSkpKSkKCgpjbGFzcyBfSFRUUFNSZWRpcmVjdCh1cmxsaWIucmVxdWVzdC5IVFRQUmVkaXJlY3RIYW5kbGVyKToKICAgIGRlZiByZWRpcmVjdF9yZXF1ZXN0KHNlbGYsIHJlcSwgZnAsIGNvZGUsIG1zZywgaGVhZGVycywgbmV3dXJsKToKICAgICAgICBpZiB1cmxsaWIucGFyc2UudXJsc3BsaXQobmV3dXJsKS5zY2hlbWUgIT0gJ2h0dHBzJzoKICAgICAgICAgICAgcmFpc2UgUmVsZWFzZVVuYXZhaWxhYmxlKCdSZWRpcmVjaW9uYW1lbnRvIHNlbSBIVFRQUyByZWN1c2Fkby4nKQogICAgICAgIHJlZGlyZWN0ZWQgPSBzdXBlcigpLnJlZGlyZWN0X3JlcXVlc3QocmVxLCBmcCwgY29kZSwgbXNnLCBoZWFkZXJzLCBuZXd1cmwpCiAgICAgICAgIyBHaXRIdWIgYXNzZXQgcmVkaXJlY3RzIGxlYWQgdG8gc3RvcmFnZSBob3N0czsgY3JlZGVudGlhbHMgc3RheSBhdCBhcGkuZ2l0aHViLmNvbS4KICAgICAgICBpZiB1cmxsaWIucGFyc2UudXJsc3BsaXQobmV3dXJsKS5uZXRsb2MgIT0gdXJsbGliLnBhcnNlLnVybHNwbGl0KHJlcS5mdWxsX3VybCkubmV0bG9jOgogICAgICAgICAgICByZWRpcmVjdGVkLnJlbW92ZV9oZWFkZXIoJ0F1dGhvcml6YXRpb24nKQogICAgICAgIHJldHVybiByZWRpcmVjdGVkCgoKZGVmIF9vcGVuKHVybCwgKiwgYmluYXJ5PUZhbHNlKToKICAgIHBhcnNlZCA9IHVybGxpYi5wYXJzZS51cmxzcGxpdCh1cmwpCiAgICBpZiBwYXJzZWQuc2NoZW1lICE9ICdodHRwcycgb3IgcGFyc2VkLmhvc3RuYW1lICE9ICdhcGkuZ2l0aHViLmNvbScgb3IgcGFyc2VkLnBvcnQgbm90IGluIChOb25lLCA0NDMpOgogICAgICAgIHJhaXNlIFJlbGVhc2VVbmF2YWlsYWJsZSgnT3JpZ2VtIGRlIHJlbGVhc2UgbsOjbyBhdXRvcml6YWRhLicpCiAgICBoZWFkZXJzID0geydBY2NlcHQnOiAnYXBwbGljYXRpb24vb2N0ZXQtc3RyZWFtJyBpZiBiaW5hcnkgZWxzZSAnYXBwbGljYXRpb24vdm5kLmdpdGh1Yitqc29uJywKICAgICAgICAgICAgICAgJ1VzZXItQWdlbnQnOiAnTG9jYWwtU3VpdGUtTmV1cm9SVCcsICdYLUdpdEh1Yi1BcGktVmVyc2lvbic6ICcyMDIyLTExLTI4J30KICAgIHRva2VuID0gb3MuZW52aXJvbi5nZXQoJ0dIX1RPS0VOJykKICAgIGlmIHRva2VuOgogICAgICAgIGhlYWRlcnNbJ0F1dGhvcml6YXRpb24nXSA9ICdCZWFyZXIgJyArIHRva2VuCiAgICB0cnk6CiAgICAgICAgcmV0dXJuIHVybGxpYi5yZXF1ZXN0LmJ1aWxkX29wZW5lcihfSFRUUFNSZWRpcmVjdCgpKS5vcGVuKAogICAgICAgICAgICB1cmxsaWIucmVxdWVzdC5SZXF1ZXN0KHVybCwgaGVhZGVycz1oZWFkZXJzKSwgdGltZW91dD0zMCkKICAgIGV4Y2VwdCB1cmxsaWIuZXJyb3IuSFRUUEVycm9yIGFzIGVycm9yOgogICAgICAgIGlmIGVycm9yLmNvZGUgPT0gNDA0OgogICAgICAgICAgICByYWlzZSBSZWxlYXNlVW5hdmFpbGFibGUoJ0dpdEh1YiA0MDQ6IHJlcG9zaXTDs3JpbyBwcml2YWRvIHNlbSBhY2Vzc28gb3UgcmVsZWFzZSBhaW5kYSBuw6NvIHB1YmxpY2FkYS4nKSBmcm9tIE5vbmUKICAgICAgICByYWlzZSBSZWxlYXNlVW5hdmFpbGFibGUoJ0dpdEh1YiBpbmRpc3BvbsOtdmVsIChIVFRQICVzKS4nICUgZXJyb3IuY29kZSkgZnJvbSBOb25lCiAgICBleGNlcHQgKE9TRXJyb3IsIHVybGxpYi5lcnJvci5VUkxFcnJvcik6CiAgICAgICAgcmFpc2UgUmVsZWFzZVVuYXZhaWxhYmxlKCdOw6NvIGZvaSBwb3Nzw612ZWwgY29uc3VsdGFyIGEgcmVsZWFzZS4gQSB2ZXJzw6NvIGluc3RhbGFkYSBjb250aW51YSBkaXNwb27DrXZlbC4nKSBmcm9tIE5vbmUKCgpkZWYgX2ZldGNoX2pzb24odXJsKToKICAgIHdpdGggX29wZW4odXJsKSBhcyBzdHJlYW06CiAgICAgICAgcmF3ID0gc3RyZWFtLnJlYWQoMiAqIDEwMjQgKiAxMDI0ICsgMSkKICAgIGlmIGxlbihyYXcpID4gMiAqIDEwMjQgKiAxMDI0OgogICAgICAgIHJhaXNlIFJlbGVhc2VVbmF2YWlsYWJsZSgnTWV0YWRhZG9zIGRlIHJlbGVhc2UgZXhjZWRlbSBvIGxpbWl0ZS4nKQogICAgcmV0dXJuIGpzb24ubG9hZHMocmF3KQoKCmRlZiBfZmV0Y2hfYXNzZXRfanNvbih1cmwpOgogICAgd2l0aCBfb3Blbih1cmwsIGJpbmFyeT1UcnVlKSBhcyBzdHJlYW06CiAgICAgICAgcmF3ID0gc3RyZWFtLnJlYWQoaW5zdGFsbF9zdGF0ZS5NQVhfTUFOSUZFU1QgKyAxKQogICAgaWYgbGVuKHJhdykgPiBpbnN0YWxsX3N0YXRlLk1BWF9NQU5JRkVTVDoKICAgICAgICByYWlzZSBSZWxlYXNlVW5hdmFpbGFibGUoJ01hbmlmZXN0byBleHRlcm5vIGV4Y2VkZSBvIGxpbWl0ZS4nKQogICAgcmV0dXJuIGpzb24ubG9hZHMocmF3KQoKCmNsYXNzIFJlbGVhc2VDbGllbnQ6CiAgICBkZWYgX19pbml0X18oc2VsZiwgKiwgZmV0Y2hfanNvbj1Ob25lLCBmZXRjaF9tYW5pZmVzdD1Ob25lLCBob3N0X3ZlcnNpb249Tm9uZSwgdHRsPTYwKToKICAgICAgICBzZWxmLl9mZXRjaCA9IGZldGNoX2pzb24gb3IgX2ZldGNoX2pzb24KICAgICAgICBzZWxmLl9mZXRjaF9tYW5pZmVzdCA9IGZldGNoX21hbmlmZXN0IG9yIF9mZXRjaF9hc3NldF9qc29uCiAgICAgICAgc2VsZi5ob3N0X3ZlcnNpb24gPSBob3N0X3ZlcnNpb24KICAgICAgICBzZWxmLl9sb2NrID0gdGhyZWFkaW5nLkxvY2soKQogICAgICAgIHNlbGYuX2NhY2hlZCA9IE5vbmUKICAgICAgICBzZWxmLl9leHBpcmVzID0gMAogICAgICAgIHNlbGYudHRsID0gdHRsCgogICAgZGVmIGNoZWNrX3BsdWdpbl9yZWxlYXNlKHNlbGYsIHBsdWdpbl9pZCwgaW5zdGFsbGVkX3ZlcnNpb24pOgogICAgICAgIGlmIHBsdWdpbl9pZCAhPSAnbmV1cm8tcnQnOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdQbHVnaW4gbsOjbyBhdXRvcml6YWRvLicpCiAgICAgICAgd2l0aCBzZWxmLl9sb2NrOgogICAgICAgICAgICBpZiBzZWxmLl9jYWNoZWQgaXMgTm9uZSBvciB0aW1lLm1vbm90b25pYygpID49IHNlbGYuX2V4cGlyZXM6CiAgICAgICAgICAgICAgICB0cnk6CiAgICAgICAgICAgICAgICAgICAgcmF3ID0gc2VsZi5fZmV0Y2goJ2h0dHBzOi8vYXBpLmdpdGh1Yi5jb20vcmVwb3MvJyArIFJFUE9TSVRPUlkgKyAnL3JlbGVhc2VzL2xhdGVzdCcpCiAgICAgICAgICAgICAgICAgICAgdmVyc2lvbiA9IHJhd1sndGFnX25hbWUnXS5yZW1vdmVwcmVmaXgoJ3YnKQogICAgICAgICAgICAgICAgICAgIF9udW1lcmljX3ZlcnNpb24odmVyc2lvbikKICAgICAgICAgICAgICAgICAgICBpZiByYXcuZ2V0KCdkcmFmdCcpIG9yIHJhdy5nZXQoJ3ByZXJlbGVhc2UnKToKICAgICAgICAgICAgICAgICAgICAgICAgcmFpc2UgUmVsZWFzZVVuYXZhaWxhYmxlKCdSZWxlYXNlIGFpbmRhIG7Do28gcHVibGljYWRhIGNvbW8gZXN0w6F2ZWwuJykKICAgICAgICAgICAgICAgICAgICBuYW1lID0gJ05FVVJPX1JUX09GRkxJTkVfdicgKyB2ZXJzaW9uICsgJy56aXAnCiAgICAgICAgICAgICAgICAgICAgYXNzZXRzID0gW2EgZm9yIGEgaW4gcmF3Wydhc3NldHMnXSBpZiBhLmdldCgnbmFtZScpID09IG5hbWVdCiAgICAgICAgICAgICAgICAgICAgaWYgbGVuKGFzc2V0cykgIT0gMToKICAgICAgICAgICAgICAgICAgICAgICAgcmFpc2UgUmVsZWFzZVVuYXZhaWxhYmxlKCdQYXlsb2FkIG9mZmxpbmUgY29tcGxldG8gYXVzZW50ZSBuYSByZWxlYXNlLicpCiAgICAgICAgICAgICAgICAgICAgYXNzZXQgPSBhc3NldHNbMF0KICAgICAgICAgICAgICAgICAgICBkaWdlc3QgPSBhc3NldC5nZXQoJ2RpZ2VzdCcsICcnKQogICAgICAgICAgICAgICAgICAgIGlmIG5vdCByZS5mdWxsbWF0Y2gocidzaGEyNTY6WzAtOWEtZl17NjR9JywgZGlnZXN0KToKICAgICAgICAgICAgICAgICAgICAgICAgcmFpc2UgUmVsZWFzZVVuYXZhaWxhYmxlKCdBc3NldCBzZW0gU0hBMjU2IGV4dGVybm8gcHVibGljYWRvOyBpbnN0YWxhw6fDo28gaW5kaXNwb27DrXZlbC4nKQogICAgICAgICAgICAgICAgICAgIHNlbGYuX2NhY2hlZCA9IHsnc3RhdGUnOiAnYXZhaWxhYmxlJywgJ3ZlcnNpb24nOiB2ZXJzaW9uLAogICAgICAgICAgICAgICAgICAgICAgICAncmVsZWFzZV9pZCc6IHJhdy5nZXQoJ2lkJyksICdhc3NldF9pZCc6IGFzc2V0WydpZCddLCAnbmFtZSc6IG5hbWUsCiAgICAgICAgICAgICAgICAgICAgICAgICd1cmwnOiBhc3NldFsndXJsJ10sICdzaGEyNTYnOiBkaWdlc3RbNzpdLCAnc2l6ZSc6IGFzc2V0WydzaXplJ10sICdyZWFzb24nOiAnJ30KICAgICAgICAgICAgICAgICAgICBpZiBzZWxmLmhvc3RfdmVyc2lvbjoKICAgICAgICAgICAgICAgICAgICAgICAgbWFuaWZlc3RzID0gW2EgZm9yIGEgaW4gcmF3Wydhc3NldHMnXSBpZiBhLmdldCgnbmFtZScpID09ICdyZWxlYXNlLW1hbmlmZXN0Lmpzb24nXQogICAgICAgICAgICAgICAgICAgICAgICBpZiBsZW4obWFuaWZlc3RzKSAhPSAxOgogICAgICAgICAgICAgICAgICAgICAgICAgICAgcmFpc2UgUmVsZWFzZVVuYXZhaWxhYmxlKCdNYW5pZmVzdG8gZGUgY29tcGF0aWJpbGlkYWRlIGF1c2VudGUgbmEgcmVsZWFzZS4nKQogICAgICAgICAgICAgICAgICAgICAgICBtZXRhZGF0YSA9IHNlbGYuX2ZldGNoX21hbmlmZXN0KG1hbmlmZXN0c1swXVsndXJsJ10pCiAgICAgICAgICAgICAgICAgICAgICAgIGlmIG1ldGFkYXRhLmdldCgnc2NoZW1hJykgIT0gaW5zdGFsbF9zdGF0ZS5TQ0hFTUEgb3IgbWV0YWRhdGEuZ2V0KCd2ZXJzaW9uJykgIT0gdmVyc2lvbjoKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJhaXNlIFJlbGVhc2VVbmF2YWlsYWJsZSgnTWFuaWZlc3RvIGV4dGVybm8gbsOjbyBjb3JyZXNwb25kZSDDoCByZWxlYXNlIHNlbGVjaW9uYWRhLicpCiAgICAgICAgICAgICAgICAgICAgICAgIG1pbmltdW0gPSBtZXRhZGF0YVsnaG9zdF9taW5fdmVyc2lvbiddCiAgICAgICAgICAgICAgICAgICAgICAgIGlmIF9udW1lcmljX3ZlcnNpb24oc2VsZi5ob3N0X3ZlcnNpb24pIDwgX251bWVyaWNfdmVyc2lvbihtaW5pbXVtKToKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNlbGYuX2NhY2hlZC51cGRhdGUoc3RhdGU9J2luY29tcGF0aWJsZScsIHJlYXNvbj0nQXR1YWxpemUgbyBMb2NhbCBTdWl0ZSBwYXJhICcgKyBtaW5pbXVtICsgJyBhbnRlcyBkbyBORVVSTyBSVC4nKQogICAgICAgICAgICAgICAgICAgICAgICBlbGlmIG5vdCBweXRob25fY29tcGF0aWJsZShtZXRhZGF0YS5nZXQoJ3B5dGhvbicpKToKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNlbGYuX2NhY2hlZC51cGRhdGUoc3RhdGU9J2luY29tcGF0aWJsZScsIHJlYXNvbj0nTyBQeXRob24gZGVzdGEgdmVyc8OjbyBkbyBMb2NhbCBTdWl0ZSBuw6NvIGF0ZW5kZSBhIHJlbGVhc2UgTkVVUk8gUlQuJykKICAgICAgICAgICAgICAgIGV4Y2VwdCAoT1NFcnJvciwgVmFsdWVFcnJvciwgS2V5RXJyb3IsIFR5cGVFcnJvcik6CiAgICAgICAgICAgICAgICAgICAgaW1wb3J0IHN5cyBhcyBfc3lzCiAgICAgICAgICAgICAgICAgICAgZXJyb3IgPSBfc3lzLmV4Y19pbmZvKClbMV0KICAgICAgICAgICAgICAgICAgICBzZWxmLl9jYWNoZWQgPSB7J3N0YXRlJzogJ3VuYXZhaWxhYmxlJywgJ3JlYXNvbic6IHN0cihlcnJvcikgaWYgaXNpbnN0YW5jZShlcnJvciwgUmVsZWFzZVVuYXZhaWxhYmxlKQogICAgICAgICAgICAgICAgICAgICAgICBlbHNlICdOw6NvIGZvaSBwb3Nzw612ZWwgY29uc3VsdGFyIGEgcmVsZWFzZS4gQSB2ZXJzw6NvIGluc3RhbGFkYSBjb250aW51YSBkaXNwb27DrXZlbC4nfQogICAgICAgICAgICAgICAgc2VsZi5fZXhwaXJlcyA9IHRpbWUubW9ub3RvbmljKCkgKyBzZWxmLnR0bAogICAgICAgICAgICByZXN1bHQgPSBkaWN0KHNlbGYuX2NhY2hlZCwgaW5zdGFsbGVkX3ZlcnNpb249aW5zdGFsbGVkX3ZlcnNpb24pCiAgICAgICAgaWYgcmVzdWx0WydzdGF0ZSddID09ICdhdmFpbGFibGUnIGFuZCBpbnN0YWxsZWRfdmVyc2lvbiBhbmQgKAogICAgICAgICAgICAgICAgX251bWVyaWNfdmVyc2lvbihpbnN0YWxsZWRfdmVyc2lvbikgPj0gX251bWVyaWNfdmVyc2lvbihyZXN1bHRbJ3ZlcnNpb24nXSkpOgogICAgICAgICAgICByZXN1bHRbJ3N0YXRlJ10gPSAnY3VycmVudCcKICAgICAgICByZXR1cm4gcmVzdWx0CgogICAgZGVmIGRvd25sb2FkKHNlbGYsIHJlbGVhc2UsIGRlc3RpbmF0aW9uLCBwcm9ncmVzcz1Ob25lKToKICAgICAgICAiIiJVc2VzIG9ubHkgdGhlIGFscmVhZHkgc2VsZWN0ZWQgaW1tdXRhYmxlIEFQSSBhc3NldCwgbmV2ZXIgbG9va3MgdXAgbGF0ZXN0IGFnYWluLiIiIgogICAgICAgIHRhcmdldCA9IFBhdGgoZGVzdGluYXRpb24pCiAgICAgICAgdGFyZ2V0LnBhcmVudC5ta2RpcihwYXJlbnRzPVRydWUsIGV4aXN0X29rPVRydWUpCiAgICAgICAgcGFydGlhbCA9IHRhcmdldC53aXRoX3N1ZmZpeCgnLnBhcnQnKQogICAgICAgIHNpemUgPSAwCiAgICAgICAgZGlnZXN0ID0gaGFzaGxpYi5zaGEyNTYoKQogICAgICAgIGNyZWF0ZWQgPSBGYWxzZQogICAgICAgIHRyeToKICAgICAgICAgICAgd2l0aCBfb3BlbihyZWxlYXNlWyd1cmwnXSwgYmluYXJ5PVRydWUpIGFzIHNvdXJjZSwgcGFydGlhbC5vcGVuKCd4YicpIGFzIG91dHB1dDoKICAgICAgICAgICAgICAgIGNyZWF0ZWQgPSBUcnVlCiAgICAgICAgICAgICAgICBmb3IgYmxvY2sgaW4gaXRlcihsYW1iZGE6IHNvdXJjZS5yZWFkKDEwMjQgKiAxMDI0KSwgYicnKToKICAgICAgICAgICAgICAgICAgICBzaXplICs9IGxlbihibG9jaykKICAgICAgICAgICAgICAgICAgICBpZiBzaXplID4gcmVsZWFzZVsnc2l6ZSddOgogICAgICAgICAgICAgICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdEb3dubG9hZCBleGNlZGUgbyB0YW1hbmhvIGZpeGFkby4nKQogICAgICAgICAgICAgICAgICAgIGRpZ2VzdC51cGRhdGUoYmxvY2spCiAgICAgICAgICAgICAgICAgICAgb3V0cHV0LndyaXRlKGJsb2NrKQogICAgICAgICAgICAgICAgICAgIGlmIHByb2dyZXNzOgogICAgICAgICAgICAgICAgICAgICAgICBwcm9ncmVzcyhzaXplLCByZWxlYXNlWydzaXplJ10pCiAgICAgICAgICAgIGlmIHNpemUgIT0gcmVsZWFzZVsnc2l6ZSddIG9yIGRpZ2VzdC5oZXhkaWdlc3QoKSAhPSByZWxlYXNlWydzaGEyNTYnXToKICAgICAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ0Rvd25sb2FkIGluY29tcGxldG8gb3UgU0hBMjU2IGV4dGVybm8gZGl2ZXJnZW50ZS4nKQogICAgICAgICAgICBvcy5yZXBsYWNlKHBhcnRpYWwsIHRhcmdldCkKICAgICAgICBmaW5hbGx5OgogICAgICAgICAgICBpZiBjcmVhdGVkOgogICAgICAgICAgICAgICAgcGFydGlhbC51bmxpbmsobWlzc2luZ19vaz1UcnVlKQogICAgICAgIHJldHVybiB7J3BhdGgnOiBzdHIodGFyZ2V0KSwgJ3NoYTI1Nic6IHJlbGVhc2VbJ3NoYTI1NiddfQoKCmNsYXNzIFVwZGF0ZUNvb3JkaW5hdG9yOgogICAgZGVmIF9faW5pdF9fKHNlbGYsIGhvc3Rfcm9vdCwgKiwgaG9zdF92ZXJzaW9uLCBob2xkLCBidXN5LCBjYW5jZWwsIHJlc3RhcnQsIGNsaWVudD1Ob25lLCBwYWNrYWdlPU5vbmUpOgogICAgICAgIHNlbGYuaG9zdF9yb290ID0gUGF0aChob3N0X3Jvb3QpCiAgICAgICAgc2VsZi5wbHVnaW5fcm9vdCA9IHNlbGYuaG9zdF9yb290IC8gJ1BsdWdpbnMvTkVVUk8gUlQnCiAgICAgICAgc2VsZi5ob3N0X3ZlcnNpb24gPSBob3N0X3ZlcnNpb24KICAgICAgICBzZWxmLmhvbGQsIHNlbGYuYnVzeSwgc2VsZi5jYW5jZWwsIHNlbGYucmVzdGFydCA9IGhvbGQsIGJ1c3ksIGNhbmNlbCwgcmVzdGFydAogICAgICAgIHNlbGYuY2xpZW50ID0gY2xpZW50IG9yIFJlbGVhc2VDbGllbnQoaG9zdF92ZXJzaW9uPWhvc3RfdmVyc2lvbikKICAgICAgICBzZWxmLm9mZmxpbmVfcGFja2FnZSA9IGRpY3QocGFja2FnZSkgaWYgcGFja2FnZSBpcyBub3QgTm9uZSBlbHNlIE5vbmUKICAgICAgICBzZWxmLl9sb2NrID0gdGhyZWFkaW5nLlJMb2NrKCkKICAgICAgICBzZWxmLl93b3JrZXIgPSBOb25lCiAgICAgICAgc2VsZi5fc3RhdHVzID0geydzdGF0ZSc6ICdpZGxlJywgJ3JlYXNvbic6ICcnfQogICAgICAgIHNlbGYuX3NlbGVjdGVkID0gTm9uZQoKICAgIGRlZiBzdGF0dXMoc2VsZik6CiAgICAgICAgd2l0aCBzZWxmLl9sb2NrOgogICAgICAgICAgICByZXR1cm4gZGljdChzZWxmLl9zdGF0dXMpCgogICAgZGVmIHByZXBhcmUoc2VsZiwgcGFja2FnZSk6CiAgICAgICAgIyBBdXRoZW50aWNhdGUgYnl0ZXMgYmVmb3JlIHJlYWRpbmcgbWV0YWRhdGEsIGJlZm9yZSBpbnZva2luZyB0aGUgaW5zdGFsbGVyLgogICAgICAgIGlmIGluc3RhbGxfc3RhdGUuX2ZpbGVfZGlnZXN0KHBhY2thZ2VbJ3BhdGgnXSkgIT0gcGFja2FnZVsnc2hhMjU2J106CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1NIQTI1NiBleHRlcm5vIGRpdmVyZ2VudGUuJykKICAgICAgICB3aXRoIHppcGZpbGUuWmlwRmlsZShwYWNrYWdlWydwYXRoJ10pIGFzIGFyY2hpdmU6CiAgICAgICAgICAgIG1hbmlmZXN0LCBfLCBfLCBfID0gaW5zdGFsbF9zdGF0ZS5faW5zcGVjdF96aXAoYXJjaGl2ZSkKICAgICAgICAgICAgbW9kdWxlID0ganNvbi5sb2FkcyhhcmNoaXZlLnJlYWQoJ2NvZGUvbW9kdWxlLmpzb24nKSkKICAgICAgICBpZiBfbnVtZXJpY192ZXJzaW9uKHNlbGYuaG9zdF92ZXJzaW9uKSA8IF9udW1lcmljX3ZlcnNpb24obW9kdWxlWydob3N0X21pbl92ZXJzaW9uJ10pOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdBdHVhbGl6ZSBvIExvY2FsIFN1aXRlIGFudGVzIGRlIGluc3RhbGFyIGVzdGEgcmVsZWFzZS4nKQogICAgICAgIGlmIG5vdCBweXRob25fY29tcGF0aWJsZShtb2R1bGUuZ2V0KCdweXRob24nKSk6CiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ08gUHl0aG9uIGRvIExvY2FsIFN1aXRlIG7Do28gYXRlbmRlIGVzdGEgcmVsZWFzZS4nKQogICAgICAgIHJlY2VpcHQgPSBpbnN0YWxsX3N0YXRlLmJlZ2luX2luc3RhbGwoc2VsZi5ob3N0X3Jvb3QsIHBhY2thZ2UsIHV1aWQudXVpZDQoKS5oZXgpCiAgICAgICAgd2l0aCBzZWxmLl9sb2NrOgogICAgICAgICAgICBzZWxmLl9zdGF0dXMgPSB7J3N0YXRlJzogJ2luc3RhbGxlZF9wZW5kaW5nX3Jlc3RhcnQnLCAndmVyc2lvbic6IHJlY2VpcHQudmVyc2lvbiwKICAgICAgICAgICAgICAgICAgICAgICAgICAgICdyZWFzb24nOiAnUmVsZWFzZSB2ZXJpZmljYWRhLiBBZ3VhcmRhIHJlaW7DrWNpbyBkbyBMb2NhbCBTdWl0ZS4nfQogICAgICAgIHJldHVybiBzZWxmLnN0YXR1cygpCgogICAgZGVmIGZpbmlzaF9yZXN0YXJ0KHNlbGYpOgogICAgICAgIHNlbGYuaG9sZChUcnVlKQogICAgICAgIGlmIHNlbGYuYnVzeSgpOgogICAgICAgICAgICB3aXRoIHNlbGYuX2xvY2s6CiAgICAgICAgICAgICAgICBzZWxmLl9zdGF0dXMudXBkYXRlKHN0YXRlPSd3YWl0aW5nJywgcmVhc29uPSdBZ3VhcmRhbmRvIGEgZmlsYSB0ZXJtaW5hciBwYXJhIGF0dWFsaXphci4nKQogICAgICAgICAgICByZXR1cm4gc2VsZi5zdGF0dXMoKQogICAgICAgIGlmIG5vdCBjYWxsYWJsZShzZWxmLnJlc3RhcnQpOgogICAgICAgICAgICBzZWxmLmhvbGQoRmFsc2UpCiAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ1JlaW7DrWNpbyBjb250cm9sYWRvIGRvIExvY2FsIFN1aXRlIGluZGlzcG9uw612ZWwuJykKICAgICAgICBzdGF0ZSA9IGpzb24ubG9hZHMoKHNlbGYucGx1Z2luX3Jvb3QgLyAnaW5zdGFsbGF0aW9uLmpzb24nKS5yZWFkX3RleHQoZW5jb2Rpbmc9J3V0Zi04JykpCiAgICAgICAgdmVyc2lvbiA9IHN0YXRlLmdldCgncGVuZGluZ192ZXJzaW9uJykKICAgICAgICBpZiB2ZXJzaW9uOgogICAgICAgICAgICBpbnN0YWxsX3N0YXRlLmFjdGl2YXRlX3JlbGVhc2Uoc2VsZi5wbHVnaW5fcm9vdCwgdmVyc2lvbikKICAgICAgICAjIEtlZXAgcXVldWUgaGVsZCB1bnRpbCBwcm9jZXNzIGV4aXRzOyBuZXZlciBtb3VudCBuZXcgY29kZSBpbiB0aGlzIHByb2Nlc3MuCiAgICAgICAgdHJ5OgogICAgICAgICAgICByZXN1bHQgPSBzZWxmLnJlc3RhcnQoKQogICAgICAgICAgICBpZiBpc2luc3RhbmNlKHJlc3VsdCwgZGljdCkgYW5kIChyZXN1bHQuZ2V0KCdvaycpIGlzIEZhbHNlIG9yIHJlc3VsdC5nZXQoJ2Vycm8nKSk6CiAgICAgICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdPIExvY2FsIFN1aXRlIG7Do28gY29uZmlybW91IG8gcmVpbsOtY2lvOyByZWxlYXNlIGFudGVyaW9yIHByZXNlcnZhZGEuJykKICAgICAgICBleGNlcHQgQmFzZUV4Y2VwdGlvbjoKICAgICAgICAgICAgaWYgc3RhdGUuZ2V0KCdhY3RpdmVfdmVyc2lvbicpOgogICAgICAgICAgICAgICAgaW5zdGFsbF9zdGF0ZS5hY3RpdmF0ZV9yZWxlYXNlKHNlbGYucGx1Z2luX3Jvb3QsIHN0YXRlWydhY3RpdmVfdmVyc2lvbiddKQogICAgICAgICAgICBlbHNlOgogICAgICAgICAgICAgICAgd2l0aCBpbnN0YWxsX3N0YXRlLl9pbnN0YWxsYXRpb25fbG9jayhzZWxmLnBsdWdpbl9yb290KSBhcyBhY3F1aXJlZDoKICAgICAgICAgICAgICAgICAgICBpZiBub3QgYWNxdWlyZWQ6CiAgICAgICAgICAgICAgICAgICAgICAgIHJhaXNlIFZhbHVlRXJyb3IoJ07Do28gZm9pIHBvc3PDrXZlbCByZXN0YXVyYXIgYSBwZW5kw6puY2lhOyBhY29tcGFuaGUgYSBpbnN0YWxhw6fDo28uJykKICAgICAgICAgICAgICAgICAgICBpbnN0YWxsX3N0YXRlLl9hdG9taWNfanNvbihzZWxmLnBsdWdpbl9yb290IC8gJ2luc3RhbGxhdGlvbi5qc29uJywgc3RhdGUpCiAgICAgICAgICAgIHNlbGYuaG9sZChGYWxzZSkKICAgICAgICAgICAgcmFpc2UKICAgICAgICB3aXRoIHNlbGYuX2xvY2s6CiAgICAgICAgICAgIHNlbGYuX3N0YXR1cy51cGRhdGUoc3RhdGU9J3Jlc3RhcnRpbmcnLCByZWFzb249J1JlYWJyaW5kbyBvIExvY2FsIFN1aXRlIHBhcmEgYXRpdmFyIGEgcmVsZWFzZS4nKQogICAgICAgIHJldHVybiBzZWxmLnN0YXR1cygpCgogICAgZGVmIHJlcXVlc3RfcGx1Z2luX3VwZGF0ZShzZWxmLCBwbHVnaW5faWQsIGFjdGlvbik6CiAgICAgICAgaWYgcGx1Z2luX2lkICE9ICduZXVyby1ydCcgb3IgYWN0aW9uIG5vdCBpbiAoJ2NvbWVjYXInLCAnZXNwZXJhcicsICdpbnRlcnJvbXBlcicpOgogICAgICAgICAgICByYWlzZSBWYWx1ZUVycm9yKCdBw6fDo28gZGUgYXR1YWxpemHDp8OjbyBpbnbDoWxpZGEuJykKICAgICAgICB3aXRoIHNlbGYuX2xvY2s6CiAgICAgICAgICAgIGlmIHNlbGYuX3dvcmtlciBhbmQgc2VsZi5fd29ya2VyLmlzX2FsaXZlKCk6CiAgICAgICAgICAgICAgICByZXR1cm4gc2VsZi5zdGF0dXMoKQogICAgICAgICAgICBpZiBhY3Rpb24gPT0gJ2NvbWVjYXInIGFuZCBzZWxmLmJ1c3koKToKICAgICAgICAgICAgICAgIHNlbGYuX3N0YXR1cy51cGRhdGUoc3RhdGU9J2J1c3knLCByZWFzb249J0EgYXR1YWxpemHDp8OjbyBwb2RlIGVzcGVyYXIgdGVybWluYXIsIG91IGludGVycm9tcGVyIGFnb3JhLicpCiAgICAgICAgICAgICAgICByZXR1cm4gc2VsZi5zdGF0dXMoKQogICAgICAgICAgICBzZWxmLmhvbGQoVHJ1ZSkKICAgICAgICAgICAgaWYgYWN0aW9uID09ICdpbnRlcnJvbXBlcic6CiAgICAgICAgICAgICAgICBzZWxmLmNhbmNlbCgpCiAgICAgICAgICAgIHNlbGYuX3N0YXR1cy51cGRhdGUoc3RhdGU9J3dhaXRpbmcnIGlmIHNlbGYuYnVzeSgpIGVsc2UgJ3ByZXBhcmluZycpCiAgICAgICAgICAgIG9mZmxpbmVfcGFja2FnZSA9IGRpY3Qoc2VsZi5vZmZsaW5lX3BhY2thZ2UpIGlmIHNlbGYub2ZmbGluZV9wYWNrYWdlIGlzIG5vdCBOb25lIGVsc2UgTm9uZQogICAgICAgICAgICBkZWYgd29yaygpOgogICAgICAgICAgICAgICAgdHJ5OgogICAgICAgICAgICAgICAgICAgIHdoaWxlIHNlbGYuYnVzeSgpOgogICAgICAgICAgICAgICAgICAgICAgICB0aW1lLnNsZWVwKC4yKQogICAgICAgICAgICAgICAgICAgIHN0YXRlX3BhdGggPSBzZWxmLnBsdWdpbl9yb290IC8gJ2luc3RhbGxhdGlvbi5qc29uJwogICAgICAgICAgICAgICAgICAgIHN0YXRlID0ganNvbi5sb2FkcyhzdGF0ZV9wYXRoLnJlYWRfdGV4dChlbmNvZGluZz0ndXRmLTgnKSkgaWYgc3RhdGVfcGF0aC5leGlzdHMoKSBlbHNlIHt9CiAgICAgICAgICAgICAgICAgICAgaWYgbm90IHN0YXRlLmdldCgncGVuZGluZ192ZXJzaW9uJyk6CiAgICAgICAgICAgICAgICAgICAgICAgIGlmIG9mZmxpbmVfcGFja2FnZSBpcyBub3QgTm9uZToKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHBhY2thZ2UgPSBvZmZsaW5lX3BhY2thZ2UKICAgICAgICAgICAgICAgICAgICAgICAgZWxzZToKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNlbGVjdGVkID0gc2VsZi5jbGllbnQuY2hlY2tfcGx1Z2luX3JlbGVhc2UocGx1Z2luX2lkLCBzdGF0ZS5nZXQoJ2FjdGl2ZV92ZXJzaW9uJykpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBpZiBzZWxlY3RlZFsnc3RhdGUnXSAhPSAnYXZhaWxhYmxlJzoKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICByYWlzZSBSZWxlYXNlVW5hdmFpbGFibGUoc2VsZWN0ZWQuZ2V0KCdyZWFzb24nKSBvciAnTsOjbyBow6EgdmVyc8OjbyBub3ZhIGRpc3BvbsOtdmVsLicpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBzZWxmLl9zZWxlY3RlZCA9IGRpY3Qoc2VsZWN0ZWQpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBwbHVnaW4gPSBpbnN0YWxsX3N0YXRlLl9wbHVnaW4oaW5zdGFsbF9zdGF0ZS52YWxpZGF0ZV9ob3N0X3Jvb3Qoc2VsZi5ob3N0X3Jvb3QpKQogICAgICAgICAgICAgICAgICAgICAgICAgICAgZGVzdGluYXRpb24gPSBpbnN0YWxsX3N0YXRlLl9wYXRoKHBsdWdpbiwgJ3N0YWdpbmcvZG93bmxvYWRzLycgKyB1dWlkLnV1aWQ0KCkuaGV4ICsgJy56aXAnKQogICAgICAgICAgICAgICAgICAgICAgICAgICAgd2l0aCBzZWxmLl9sb2NrOgogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNlbGYuX3N0YXR1cy51cGRhdGUoc3RhdGU9J2Rvd25sb2FkaW5nJywgdG90YWxfYnl0ZXM9c2VsZWN0ZWRbJ3NpemUnXSwgZG93bmxvYWRlZF9ieXRlcz0wLAogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICByZWFzb249J0JhaXhhbmRvIGEgcmVsZWFzZSB2ZXJpZmljYWRhIGRvIE5FVVJPIFJULicpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBkZWYgcHJvZ3Jlc3MoY29waWVkLCB0b3RhbCk6CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgd2l0aCBzZWxmLl9sb2NrOgogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzZWxmLl9zdGF0dXMudXBkYXRlKGRvd25sb2FkZWRfYnl0ZXM9Y29waWVkLCB0b3RhbF9ieXRlcz10b3RhbCkKICAgICAgICAgICAgICAgICAgICAgICAgICAgIHBhY2thZ2UgPSBzZWxmLmNsaWVudC5kb3dubG9hZChzZWxmLl9zZWxlY3RlZCwgZGVzdGluYXRpb24sIHByb2dyZXNzPXByb2dyZXNzKQogICAgICAgICAgICAgICAgICAgICAgICB3aXRoIHNlbGYuX2xvY2s6CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBzZWxmLl9zdGF0dXMudXBkYXRlKHN0YXRlPSdwcmVwYXJpbmcnLCByZWFzb249J1ZlcmlmaWNhbmRvIGUgcHJlcGFyYW5kbyBvcyBjb21wb25lbnRlcyBkYSByZWxlYXNlLicpCiAgICAgICAgICAgICAgICAgICAgICAgIHNlbGYucHJlcGFyZShwYWNrYWdlKQogICAgICAgICAgICAgICAgICAgIHNlbGYuZmluaXNoX3Jlc3RhcnQoKQogICAgICAgICAgICAgICAgZXhjZXB0IEV4Y2VwdGlvbiBhcyBlcnJvcjoKICAgICAgICAgICAgICAgICAgICBzZWxmLmhvbGQoRmFsc2UpCiAgICAgICAgICAgICAgICAgICAgd2l0aCBzZWxmLl9sb2NrOgogICAgICAgICAgICAgICAgICAgICAgICBzZWxmLl9zdGF0dXMudXBkYXRlKHN0YXRlPSdmYWlsZWQnLCByZWFzb249c3RyKGVycm9yKSBpZiBpc2luc3RhbmNlKGVycm9yLCBSZWxlYXNlVW5hdmFpbGFibGUpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBlbHNlICdBdHVhbGl6YcOnw6NvIGludGVycm9tcGlkYTsgaW5zdGFsYcOnw6NvIGUgZGFkb3MgcHJlc2VydmFkb3MuJykKICAgICAgICAgICAgc2VsZi5fd29ya2VyID0gdGhyZWFkaW5nLlRocmVhZCh0YXJnZXQ9d29yaywgbmFtZT0nbmV1cm8tdXBkYXRlJywgZGFlbW9uPVRydWUpCiAgICAgICAgICAgIHNlbGYuX3dvcmtlci5zdGFydCgpCiAgICAgICAgICAgIHJldHVybiBzZWxmLnN0YXR1cygpCgoKZGVmIG1haW4oYXJndj1Ob25lKToKICAgICIiIlRydXN0ZWQgbGlnaHR3ZWlnaHQgc2V0dXAgcHJlcGFyZXMgYSByZWxlYXNlOyB0aGUgaG9zdCBvd25zIGFjdGl2YXRpb24uIiIiCiAgICBwYXJzZXIgPSBhcmdwYXJzZS5Bcmd1bWVudFBhcnNlcihkZXNjcmlwdGlvbj1fX2RvY19fKQogICAgcGFyc2VyLmFkZF9hcmd1bWVudCgnLS1zdWl0ZS1yb290JywgcmVxdWlyZWQ9VHJ1ZSkKICAgIHBhcnNlci5hZGRfYXJndW1lbnQoJy0taG9zdC12ZXJzaW9uJywgcmVxdWlyZWQ9VHJ1ZSkKICAgIHBhcnNlci5hZGRfYXJndW1lbnQoJy0tcGFja2FnZS1wYXRoJykKICAgIHBhcnNlci5hZGRfYXJndW1lbnQoJy0tcGFja2FnZS1zaGEyNTYnKQogICAgYXJncyA9IHBhcnNlci5wYXJzZV9hcmdzKGFyZ3YpCiAgICBjb29yZGluYXRvciA9IFVwZGF0ZUNvb3JkaW5hdG9yKGFyZ3Muc3VpdGVfcm9vdCwgaG9zdF92ZXJzaW9uPWFyZ3MuaG9zdF92ZXJzaW9uLAogICAgICAgIGhvbGQ9bGFtYmRhIF86IE5vbmUsIGJ1c3k9bGFtYmRhOiBGYWxzZSwgY2FuY2VsPWxhbWJkYTogTm9uZSwgcmVzdGFydD1Ob25lKQogICAgdHJ5OgogICAgICAgIGlmIGFyZ3MucGFja2FnZV9wYXRoOgogICAgICAgICAgICBwYWNrYWdlID0geydwYXRoJzogYXJncy5wYWNrYWdlX3BhdGgsICdzaGEyNTYnOiBhcmdzLnBhY2thZ2Vfc2hhMjU2fQogICAgICAgIGVsc2U6CiAgICAgICAgICAgIHN0YXRlX2ZpbGUgPSBjb29yZGluYXRvci5wbHVnaW5fcm9vdCAvICdpbnN0YWxsYXRpb24uanNvbicKICAgICAgICAgICAgc3RhdGUgPSBqc29uLmxvYWRzKHN0YXRlX2ZpbGUucmVhZF90ZXh0KGVuY29kaW5nPSd1dGYtOCcpKSBpZiBzdGF0ZV9maWxlLmV4aXN0cygpIGVsc2Uge30KICAgICAgICAgICAgc2VsZWN0ZWQgPSBjb29yZGluYXRvci5jbGllbnQuY2hlY2tfcGx1Z2luX3JlbGVhc2UoJ25ldXJvLXJ0Jywgc3RhdGUuZ2V0KCdhY3RpdmVfdmVyc2lvbicpKQogICAgICAgICAgICBpZiBzZWxlY3RlZFsnc3RhdGUnXSAhPSAnYXZhaWxhYmxlJzoKICAgICAgICAgICAgICAgIHJhaXNlIFJlbGVhc2VVbmF2YWlsYWJsZShzZWxlY3RlZC5nZXQoJ3JlYXNvbicpIG9yICdOw6NvIGjDoSByZWxlYXNlIG5vdmEgZGlzcG9uw612ZWwuJykKICAgICAgICAgICAgZGVzdGluYXRpb24gPSBjb29yZGluYXRvci5wbHVnaW5fcm9vdCAvICdzdGFnaW5nL2Rvd25sb2FkcycgLyAodXVpZC51dWlkNCgpLmhleCArICcuemlwJykKICAgICAgICAgICAgcGFja2FnZSA9IGNvb3JkaW5hdG9yLmNsaWVudC5kb3dubG9hZChzZWxlY3RlZCwgZGVzdGluYXRpb24pCiAgICAgICAgcHJpbnQoanNvbi5kdW1wcyhjb29yZGluYXRvci5wcmVwYXJlKHBhY2thZ2UpLCBlbnN1cmVfYXNjaWk9VHJ1ZSkpCiAgICAgICAgcmV0dXJuIDAKICAgIGV4Y2VwdCAoVmFsdWVFcnJvciwgT1NFcnJvciwgemlwZmlsZS5CYWRaaXBGaWxlKToKICAgICAgICBlcnJvciA9IHN5cy5leGNfaW5mbygpWzFdCiAgICAgICAgcHJpbnQoanNvbi5kdW1wcyh7J3N0YXRlJzogJ2ZhaWxlZCcsICdyZWFzb24nOiBzdHIoZXJyb3IpIGlmIGlzaW5zdGFuY2UoZXJyb3IsIFJlbGVhc2VVbmF2YWlsYWJsZSkKICAgICAgICAgICAgZWxzZSAnSW5zdGFsYcOnw6NvIGludGVycm9tcGlkYTsgdmVyc8OjbyBhdGl2YSBlIGRhZG9zIHByZXNlcnZhZG9zLid9LCBlbnN1cmVfYXNjaWk9VHJ1ZSkpCiAgICAgICAgcmV0dXJuIDEKCgppZiBfX25hbWVfXyA9PSAnX19tYWluX18nOgogICAgc3lzLmV4aXQobWFpbigpKQo=')}
++
++"""Host bootstrap provider. Generated host copy embeds only pinned stdlib sources."""
++import base64
++import hashlib
++import json
++from pathlib import Path
++import sys
++import threading
++import types
++
++_BOOTSTRAP_LOCK = threading.Lock()
++
++
++def _load_private_installer():
++    with _BOOTSTRAP_LOCK:
++        package = '_radai_neuro_bootstrap'
++        if package + '.plugin_update' in sys.modules:
++            return sys.modules[package + '.plugin_update']
++        # SOURCES is generated from the reviewed files in the pinned host release.
++        decoded = {}
++        for name, (expected, encoded) in SOURCES.items():
++            raw = base64.b64decode(encoded, validate=True)
++            if hashlib.sha256(raw).hexdigest() != expected:
++                raise ValueError('Bootstrap NeuroRT não corresponde à fonte fixada no host.')
++            decoded[name] = raw
++        parent = types.ModuleType(package)
++        parent.__path__ = []
++        sys.modules[package] = parent
++        try:
++            for name in ('plugin_manifest', 'model_paths', 'model_registry', 'install_state', 'plugin_update'):
++                key = package + '.' + name
++                module = types.ModuleType(key)
++                module.__package__ = package
++                module.__file__ = '<host-pinned-neuro-bootstrap/' + name + '.py>'
++                sys.modules[key] = module
++                exec(compile(decoded[name], module.__file__, 'exec'), module.__dict__)
++                setattr(parent, name, module)
++        except BaseException:
++            for key in list(sys.modules):
++                if key == package or key.startswith(package + '.'):
++                    sys.modules.pop(key, None)
++            raise
++        return sys.modules[package + '.plugin_update']
++
++
++def build_provider(suite_root, host_info, cfg):
++    root = Path(suite_root)
++    held = False
++    coordinator = None
++    coordinator_lock = threading.Lock()
++    def busy():
++        import radai_queue_state as queue
++        import radai_atualizar as updater
++        if updater.etapa() in updater.EM_ANDAMENTO:
++            return True
++        return bool(queue.quem_tem_a_vez().get('dono') or updater.o_que_segura(updater._status()))
++    def hold(value):
++        nonlocal held
++        import radai_queue_state as queue
++        if value and not held and queue.fechando_ao_fim():
++            raise ValueError('A fila já aguarda outra atualização ou encerramento.')
++        if not value and not held:
++            return
++        queue.pedir_fechar_ao_fim(value)
++        held = bool(value)
++    def cancel():
++        import radai_queue_state as queue
++        import radai_atualizar as updater
++        owner = queue.quem_tem_a_vez().get('dono')
++        status = updater._status()
++        turn_open = bool(status.get('turno_agendado') or status.get('overnight'))
++        if turn_open:
++            import radai_watcher
++            radai_watcher.overnight_interromper()
++        if owner == 'neuro':
++            queue.cancelar_neuro_ativo()
++        elif owner == 'lote' or (isinstance(status.get('ocupado'), dict) and status['ocupado'].get('quem') == 'lote'):
++            import radai_batch
++            radai_batch.cancelar()
++        elif not turn_open and (owner == 'vigia' or status.get('current') or status.get('ocupado')):
++            import radai_watcher
++            radai_watcher.cancelar_serie_do_vigia(pausar=True)
++    def get_coordinator():
++        nonlocal coordinator
++        with coordinator_lock:
++            if coordinator is None:
++                update = _load_private_installer()
++                coordinator = update.UpdateCoordinator(root, host_version=host_info['version'],
++                    hold=hold, busy=busy, cancel=cancel, restart=cfg.get('recarregar'),
++                    client=cfg.get('neuro_release_client'), package=cfg.get('neuro_package'))
++            return coordinator
++    class Provider:
++        def check_plugin_release(self, plugin_id, installed_version):
++            return get_coordinator().client.check_plugin_release(plugin_id, installed_version)
++        def request_plugin_update(self, plugin_id, action):
++            return get_coordinator().request_plugin_update(plugin_id, action)
++        def install(self):
++            return get_coordinator().request_plugin_update('neuro-rt', 'comecar')
++        def status(self):
++            return get_coordinator().status()
++    return Provider()
++
++
++INSTALL_UI_SCRIPT = "/* Independent plugin update, using the host's existing action vocabulary. */\n(function () {\n  'use strict';\n  const panel = document.getElementById('neuro-update');\n  if (!panel) return;\n  const installing = panel.dataset.neuroInstall === '1';\n  const message = document.getElementById('neuro-update-message');\n  const actions = document.getElementById('neuro-update-actions');\n  const progress = document.getElementById('neuro-update-progress');\n  const state = {last: null, timer: null, confirm: false, posting: false, initial: '', restarting: false, view: ''};\n  const installWords = {\n    'Atualizar NEURO RT': 'Instalar NEURO RT',\n    'Uma nova versão do NEURO RT está disponível.': 'O plugin NEURO RT ainda não está instalado.',\n    'Baixando a atualização do NEURO RT…': 'Baixando o NEURO RT…',\n    'Preparando a atualização do NEURO RT…': 'Preparando a instalação do NEURO RT…',\n    'Não foi possível concluir a atualização. A instalação anterior foi preservada.': 'A instalação não pôde ser concluída. A suíte continua disponível.',\n    'Não foi possível verificar a atualização. A versão instalada continua disponível.': 'Não foi possível consultar a instalação. A suíte continua disponível.',\n    'Atualizar quando terminar': 'Instalar quando terminar',\n    'Interromper e atualizar agora': 'Interromper e instalar agora',\n    'Interromper e atualizar': 'Interromper e instalar'\n  };\n  const T = original => {\n    const text = installing && installWords[original] || original;\n    const code = document.documentElement.lang || localStorage.getItem('radai_idioma') || 'pt-BR';\n    const extra = window.NEURO_INSTALL_CATALOG && window.NEURO_INSTALL_CATALOG[code];\n    return extra && extra[text] || (window.radaiFrase ? window.radaiFrase(text) : text);\n  };\n\n  function view(kind, text, buttons, percent) {\n    panel.hidden = kind === 'hidden';\n    message.textContent = T(text);\n    progress.hidden = percent === undefined;\n    if (percent === null) progress.removeAttribute('value');\n    else if (percent !== undefined) progress.value = Math.max(0, Math.min(100, percent));\n    const key = kind + ':' + (document.documentElement.lang || '') + ':' + buttons.map(b => b[0]).join(',');\n    if (state.view !== key) {\n      state.view = key;\n      actions.replaceChildren();\n      buttons.forEach(([action, label, style]) => {\n        const button = document.createElement('button');\n        button.type = 'button'; button.className = 'ui-bt ' + (style || '');\n        button.dataset.neuroAction = action; button.textContent = T(label);\n        button.addEventListener('click', () => {\n          if (action === 'confirm-interrupt') { state.confirm = true; render(state.last); }\n          else if (action === 'back') { state.confirm = false; render(state.last); }\n          else if (action === 'read') read();\n          else request(action);\n        });\n        actions.appendChild(button);\n      });\n    }\n    actions.querySelectorAll('button').forEach(button => { button.disabled = state.posting; });\n  }\n\n  function render(data) {\n    if (!data) return;\n    state.last = data;\n    if (installing && data.mounted) { location.replace('/neuro/'); return; }\n    if (!state.initial && data.active_version) state.initial = data.active_version;\n    const update = data.update || {}, release = data.release_check || {};\n    if (update.state === 'restarting') state.restarting = true;\n    if (state.restarting && data.mounted && data.active_version && data.active_version !== state.initial) {\n      location.replace('/neuro/'); return;\n    }\n    if (data.state === 'checking' || data.state === 'loading') {\n      view('checking', 'Verificando a instalação do NEURO RT.', [], null); return;\n    }\n    if (update.state === 'busy') {\n      if (state.confirm) {\n        view('confirm', 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.',\n          [['interromper', 'Interromper e atualizar', 'perigo'], ['back', 'Voltar']]);\n      } else {\n        view('busy', 'Atualizar agora interromperia isso. A atualização pode esperar terminar, ou interromper agora.',\n          [['esperar', 'Atualizar quando terminar', 'pri'], ['confirm-interrupt', 'Interromper e atualizar agora', 'perigo']]);\n      }\n      return;\n    }\n    state.confirm = false;\n    if (update.state === 'waiting') { view('waiting', 'Esperando terminar para atualizar…', [], null); return; }\n    if (update.state === 'downloading') {\n      const pct = update.total_bytes ? 100 * (update.downloaded_bytes || 0) / update.total_bytes : null;\n      view('downloading', 'Baixando a atualização do NEURO RT…', [], pct); return;\n    }\n    if (update.state === 'preparing' || update.state === 'installed_pending_restart') {\n      view('preparing', 'Preparando a atualização do NEURO RT…', [], null); return;\n    }\n    if (update.state === 'restarting' || state.restarting) {\n      view('restarting', 'Reabrindo o Local Suite para ativar o NEURO RT…', [], null); return;\n    }\n    if (update.state === 'failed') {\n      view('failed', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.',\n        installing || release.state === 'available' ? [['comecar', 'Atualizar NEURO RT', 'pri']] : []);\n      if (update.reason) message.textContent += ' ' + T(update.reason);\n      return;\n    }\n    if (installing && data.state === 'installed_pending_restart') {\n      view('pending', 'Preparando a atualização do NEURO RT…', [['esperar', 'Reiniciar agora', 'pri']]); return;\n    }\n    if (installing) {\n      view('install', 'Uma nova versão do NEURO RT está disponível.', [['comecar', 'Atualizar NEURO RT', 'pri']]);\n      if (release.state === 'unavailable' && release.reason) message.textContent += ' ' + T(release.reason);\n      return;\n    }\n    if (release.state === 'available') {\n      view('available', 'Uma nova versão do NEURO RT está disponível.', [['comecar', 'Atualizar NEURO RT', 'pri']]);\n      message.textContent += ' ' + release.version; return;\n    }\n    if (release.state === 'incompatible') {\n      view('incompatible', 'Atualize o Local Suite para usar a nova versão do NEURO RT.', []); return;\n    }\n    if (release.state === 'unavailable') {\n      view('unavailable', 'Não foi possível verificar a atualização. A versão instalada continua disponível.', []); return;\n    }\n    view('hidden', '', []);\n  }\n\n  async function status() {\n    const response = await fetch('/api/plugins/neuro-rt', {cache: 'no-store'});\n    if (!response.ok) throw Error('status');\n    return response.json();\n  }\n  function follow() { clearTimeout(state.timer); state.timer = setTimeout(read, 1000); }\n  async function read() {\n    try { render(await status()); }\n    catch (_) { if (!state.restarting) view('unavailable', 'Não foi possível verificar a atualização. A versão instalada continua disponível.', []); }\n    finally { follow(); }\n  }\n  async function request(action) {\n    if (state.posting) return;\n    state.posting = true; clearTimeout(state.timer);\n    actions.querySelectorAll('button').forEach(button => { button.disabled = true; });\n    try {\n      const current = await status();\n      const firstInstall = installing && action === 'comecar';\n      const response = await fetch(firstInstall ? '/api/plugins/neuro-rt/install' : '/api/plugins/neuro-rt/update', {method: 'POST',\n        headers: {'Content-Type': 'application/json', 'X-Neuro-Plugin-Token': current.token},\n        body: JSON.stringify(firstInstall ? {confirm: true} : {action})});\n      if (!response.ok) throw Error('update');\n      state.posting = false;\n      render(Object.assign({}, current, {update: await response.json()}));\n    } catch (_) {\n      state.posting = false;\n      view('failed', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.', []);\n    } finally { follow(); }\n  }\n  window.addEventListener('pagehide', () => clearTimeout(state.timer));\n  window.NeuroPluginUpdate = {read, request, state};\n  read();\n})();\n"
++INSTALL_UI_CATALOG = {'pt-BR': {'Atualização do NEURO RT': 'Atualização do NEURO RT', 'Uma nova versão do NEURO RT está disponível.': 'Uma nova versão do NEURO RT está disponível.', 'Atualizar NEURO RT': 'Atualizar NEURO RT', 'Baixando a atualização do NEURO RT…': 'Baixando a atualização do NEURO RT…', 'Preparando a atualização do NEURO RT…': 'Preparando a atualização do NEURO RT…', 'Reabrindo o Local Suite para ativar o NEURO RT…': 'Reabrindo o Local Suite para ativar o NEURO RT…', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.': 'Não foi possível concluir a atualização. A instalação anterior foi preservada.', 'Não foi possível verificar a atualização. A versão instalada continua disponível.': 'Não foi possível verificar a atualização. A versão instalada continua disponível.', 'Verificando a instalação do NEURO RT.': 'Verificando a instalação do NEURO RT.', 'Atualize o Local Suite para usar a nova versão do NEURO RT.': 'Atualize o Local Suite para usar a nova versão do NEURO RT.', 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.': 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.', 'Instalar NEURO RT': 'Instalar NEURO RT', 'O plugin NEURO RT ainda não está instalado.': 'O plugin NEURO RT ainda não está instalado.', 'Baixando o NEURO RT…': 'Baixando o NEURO RT…', 'Preparando a instalação do NEURO RT…': 'Preparando a instalação do NEURO RT…', 'A instalação não pôde ser concluída. A suíte continua disponível.': 'A instalação não pôde ser concluída. A suíte continua disponível.', 'Não foi possível consultar a instalação. A suíte continua disponível.': 'Não foi possível consultar a instalação. A suíte continua disponível.', 'Instalar quando terminar': 'Instalar quando terminar', 'Interromper e instalar agora': 'Interromper e instalar agora', 'Interromper e instalar': 'Interromper e instalar'}, 'en': {'Atualização do NEURO RT': 'NEURO RT update', 'Uma nova versão do NEURO RT está disponível.': 'A new version of NEURO RT is available.', 'Atualizar NEURO RT': 'Update NEURO RT', 'Baixando a atualização do NEURO RT…': 'Downloading the NEURO RT update…', 'Preparando a atualização do NEURO RT…': 'Preparing the NEURO RT update…', 'Reabrindo o Local Suite para ativar o NEURO RT…': 'Reopening Local Suite to activate NEURO RT…', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.': 'The update could not be completed. The previous installation was preserved.', 'Não foi possível verificar a atualização. A versão instalada continua disponível.': 'The update could not be checked. The installed version remains available.', 'Verificando a instalação do NEURO RT.': 'Checking the NEURO RT installation.', 'Atualize o Local Suite para usar a nova versão do NEURO RT.': 'Update Local Suite to use the new version of NEURO RT.', 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.': 'Work in progress will be interrupted and the overnight run will end. Request cancelled NEURO RT items again.', 'Instalar NEURO RT': 'Install NEURO RT', 'O plugin NEURO RT ainda não está instalado.': 'The NEURO RT plugin is not installed yet.', 'Baixando o NEURO RT…': 'Downloading NEURO RT…', 'Preparando a instalação do NEURO RT…': 'Preparing the NEURO RT installation…', 'A instalação não pôde ser concluída. A suíte continua disponível.': 'The installation could not be completed. The suite remains available.', 'Não foi possível consultar a instalação. A suíte continua disponível.': 'The installation status could not be checked. The suite remains available.', 'Instalar quando terminar': 'Install when finished', 'Interromper e instalar agora': 'Interrupt and install now', 'Interromper e instalar': 'Interrupt and install'}, 'es': {'Atualização do NEURO RT': 'Actualización de NEURO RT', 'Uma nova versão do NEURO RT está disponível.': 'Hay una nueva versión de NEURO RT disponible.', 'Atualizar NEURO RT': 'Actualizar NEURO RT', 'Baixando a atualização do NEURO RT…': 'Descargando la actualización de NEURO RT…', 'Preparando a atualização do NEURO RT…': 'Preparando la actualización de NEURO RT…', 'Reabrindo o Local Suite para ativar o NEURO RT…': 'Reabriendo Local Suite para activar NEURO RT…', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.': 'No se pudo completar la actualización. Se conservó la instalación anterior.', 'Não foi possível verificar a atualização. A versão instalada continua disponível.': 'No se pudo comprobar la actualización. La versión instalada sigue disponible.', 'Verificando a instalação do NEURO RT.': 'Verificando la instalación de NEURO RT.', 'Atualize o Local Suite para usar a nova versão do NEURO RT.': 'Actualice Local Suite para usar la nueva versión de NEURO RT.', 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.': 'Se interrumpirá el trabajo en curso y finalizará el turno nocturno. Vuelva a solicitar los elementos cancelados de NEURO RT.', 'Instalar NEURO RT': 'Instalar NEURO RT', 'O plugin NEURO RT ainda não está instalado.': 'El complemento NEURO RT aún no está instalado.', 'Baixando o NEURO RT…': 'Descargando NEURO RT…', 'Preparando a instalação do NEURO RT…': 'Preparando la instalación de NEURO RT…', 'A instalação não pôde ser concluída. A suíte continua disponível.': 'No se pudo completar la instalación. La suite sigue disponible.', 'Não foi possível consultar a instalação. A suíte continua disponível.': 'No se pudo consultar la instalación. La suite sigue disponible.', 'Instalar quando terminar': 'Instalar al finalizar', 'Interromper e instalar agora': 'Interrumpir e instalar ahora', 'Interromper e instalar': 'Interrumpir e instalar'}, 'de': {'Atualização do NEURO RT': 'NEURO RT aktualisieren', 'Uma nova versão do NEURO RT está disponível.': 'Eine neue Version von NEURO RT ist verfügbar.', 'Atualizar NEURO RT': 'NEURO RT aktualisieren', 'Baixando a atualização do NEURO RT…': 'NEURO RT-Aktualisierung wird heruntergeladen…', 'Preparando a atualização do NEURO RT…': 'NEURO RT-Aktualisierung wird vorbereitet…', 'Reabrindo o Local Suite para ativar o NEURO RT…': 'Local Suite wird zur Aktivierung von NEURO RT neu geöffnet…', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.': 'Die Aktualisierung konnte nicht abgeschlossen werden. Die bisherige Installation blieb erhalten.', 'Não foi possível verificar a atualização. A versão instalada continua disponível.': 'Die Aktualisierung konnte nicht geprüft werden. Die installierte Version bleibt verfügbar.', 'Verificando a instalação do NEURO RT.': 'NEURO RT-Installation wird geprüft.', 'Atualize o Local Suite para usar a nova versão do NEURO RT.': 'Aktualisieren Sie Local Suite, um die neue Version von NEURO RT zu verwenden.', 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.': 'Die laufende Arbeit wird unterbrochen und der Nachtlauf beendet. Fordern Sie abgebrochene NEURO RT-Aufträge erneut an.', 'Instalar NEURO RT': 'NEURO RT installieren', 'O plugin NEURO RT ainda não está instalado.': 'Das NEURO RT-Plugin ist noch nicht installiert.', 'Baixando o NEURO RT…': 'NEURO RT wird heruntergeladen…', 'Preparando a instalação do NEURO RT…': 'NEURO RT-Installation wird vorbereitet…', 'A instalação não pôde ser concluída. A suíte continua disponível.': 'Die Installation konnte nicht abgeschlossen werden. Die Suite bleibt verfügbar.', 'Não foi possível consultar a instalação. A suíte continua disponível.': 'Der Installationsstatus konnte nicht geprüft werden. Die Suite bleibt verfügbar.', 'Instalar quando terminar': 'Nach Abschluss installieren', 'Interromper e instalar agora': 'Unterbrechen und jetzt installieren', 'Interromper e instalar': 'Unterbrechen und installieren'}, 'fr': {'Atualização do NEURO RT': 'Mise à jour de NEURO RT', 'Uma nova versão do NEURO RT está disponível.': 'Une nouvelle version de NEURO RT est disponible.', 'Atualizar NEURO RT': 'Mettre à jour NEURO RT', 'Baixando a atualização do NEURO RT…': 'Téléchargement de la mise à jour de NEURO RT…', 'Preparando a atualização do NEURO RT…': 'Préparation de la mise à jour de NEURO RT…', 'Reabrindo o Local Suite para ativar o NEURO RT…': 'Réouverture de Local Suite pour activer NEURO RT…', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.': 'La mise à jour a échoué. L’installation précédente a été conservée.', 'Não foi possível verificar a atualização. A versão instalada continua disponível.': 'La mise à jour n’a pas pu être vérifiée. La version installée reste disponible.', 'Verificando a instalação do NEURO RT.': 'Vérification de l’installation de NEURO RT.', 'Atualize o Local Suite para usar a nova versão do NEURO RT.': 'Mettez à jour Local Suite pour utiliser la nouvelle version de NEURO RT.', 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.': 'Le travail en cours sera interrompu et la session de nuit sera fermée. Relancez les éléments NEURO RT annulés.', 'Instalar NEURO RT': 'Installer NEURO RT', 'O plugin NEURO RT ainda não está instalado.': 'Le plugin NEURO RT n’est pas encore installé.', 'Baixando o NEURO RT…': 'Téléchargement de NEURO RT…', 'Preparando a instalação do NEURO RT…': 'Préparation de l’installation de NEURO RT…', 'A instalação não pôde ser concluída. A suíte continua disponível.': 'L’installation a échoué. La suite reste disponible.', 'Não foi possível consultar a instalação. A suíte continua disponível.': 'Le statut d’installation n’a pas pu être vérifié. La suite reste disponible.', 'Instalar quando terminar': 'Installer à la fin', 'Interromper e instalar agora': 'Interrompre et installer maintenant', 'Interromper e instalar': 'Interrompre et installer'}, 'it': {'Atualização do NEURO RT': 'Aggiornamento di NEURO RT', 'Uma nova versão do NEURO RT está disponível.': 'È disponibile una nuova versione di NEURO RT.', 'Atualizar NEURO RT': 'Aggiorna NEURO RT', 'Baixando a atualização do NEURO RT…': 'Download dell’aggiornamento di NEURO RT…', 'Preparando a atualização do NEURO RT…': 'Preparazione dell’aggiornamento di NEURO RT…', 'Reabrindo o Local Suite para ativar o NEURO RT…': 'Riapertura di Local Suite per attivare NEURO RT…', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.': 'Impossibile completare l’aggiornamento. L’installazione precedente è stata conservata.', 'Não foi possível verificar a atualização. A versão instalada continua disponível.': 'Impossibile verificare l’aggiornamento. La versione installata resta disponibile.', 'Verificando a instalação do NEURO RT.': 'Verifica dell’installazione di NEURO RT.', 'Atualize o Local Suite para usar a nova versão do NEURO RT.': 'Aggiorna Local Suite per usare la nuova versione di NEURO RT.', 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.': 'Il lavoro in corso verrà interrotto e il turno notturno terminerà. Richiedi nuovamente gli elementi NEURO RT annullati.', 'Instalar NEURO RT': 'Installa NEURO RT', 'O plugin NEURO RT ainda não está instalado.': 'Il plugin NEURO RT non è ancora installato.', 'Baixando o NEURO RT…': 'Download di NEURO RT…', 'Preparando a instalação do NEURO RT…': 'Preparazione dell’installazione di NEURO RT…', 'A instalação não pôde ser concluída. A suíte continua disponível.': 'Impossibile completare l’installazione. La suite resta disponibile.', 'Não foi possível consultar a instalação. A suíte continua disponível.': 'Impossibile verificare lo stato dell’installazione. La suite resta disponibile.', 'Instalar quando terminar': 'Installa al termine', 'Interromper e instalar agora': 'Interrompi e installa ora', 'Interromper e instalar': 'Interrompi e installa'}, 'pl': {'Atualização do NEURO RT': 'Aktualizacja NEURO RT', 'Uma nova versão do NEURO RT está disponível.': 'Dostępna jest nowa wersja NEURO RT.', 'Atualizar NEURO RT': 'Aktualizuj NEURO RT', 'Baixando a atualização do NEURO RT…': 'Pobieranie aktualizacji NEURO RT…', 'Preparando a atualização do NEURO RT…': 'Przygotowywanie aktualizacji NEURO RT…', 'Reabrindo o Local Suite para ativar o NEURO RT…': 'Ponowne otwieranie Local Suite w celu aktywacji NEURO RT…', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.': 'Nie udało się ukończyć aktualizacji. Poprzednia instalacja została zachowana.', 'Não foi possível verificar a atualização. A versão instalada continua disponível.': 'Nie udało się sprawdzić aktualizacji. Zainstalowana wersja pozostaje dostępna.', 'Verificando a instalação do NEURO RT.': 'Sprawdzanie instalacji NEURO RT.', 'Atualize o Local Suite para usar a nova versão do NEURO RT.': 'Zaktualizuj Local Suite, aby używać nowej wersji NEURO RT.', 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.': 'Bieżąca praca zostanie przerwana, a sesja nocna zakończona. Ponownie zleć anulowane zadania NEURO RT.', 'Instalar NEURO RT': 'Zainstaluj NEURO RT', 'O plugin NEURO RT ainda não está instalado.': 'Wtyczka NEURO RT nie jest jeszcze zainstalowana.', 'Baixando o NEURO RT…': 'Pobieranie NEURO RT…', 'Preparando a instalação do NEURO RT…': 'Przygotowywanie instalacji NEURO RT…', 'A instalação não pôde ser concluída. A suíte continua disponível.': 'Nie udało się ukończyć instalacji. Pakiet pozostaje dostępny.', 'Não foi possível consultar a instalação. A suíte continua disponível.': 'Nie udało się sprawdzić stanu instalacji. Pakiet pozostaje dostępny.', 'Instalar quando terminar': 'Zainstaluj po zakończeniu', 'Interromper e instalar agora': 'Przerwij i zainstaluj teraz', 'Interromper e instalar': 'Przerwij i zainstaluj'}, 'ar': {'Atualização do NEURO RT': 'تحديث NEURO RT', 'Uma nova versão do NEURO RT está disponível.': 'يتوفر إصدار جديد من NEURO RT.', 'Atualizar NEURO RT': 'تحديث NEURO RT', 'Baixando a atualização do NEURO RT…': 'جارٍ تنزيل تحديث NEURO RT…', 'Preparando a atualização do NEURO RT…': 'جارٍ إعداد تحديث NEURO RT…', 'Reabrindo o Local Suite para ativar o NEURO RT…': 'جارٍ إعادة فتح Local Suite لتفعيل NEURO RT…', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.': 'تعذر إكمال التحديث. تم الاحتفاظ بالتثبيت السابق.', 'Não foi possível verificar a atualização. A versão instalada continua disponível.': 'تعذر التحقق من التحديث. يظل الإصدار المثبت متاحًا.', 'Verificando a instalação do NEURO RT.': 'جارٍ التحقق من تثبيت NEURO RT.', 'Atualize o Local Suite para usar a nova versão do NEURO RT.': 'حدّث Local Suite لاستخدام الإصدار الجديد من NEURO RT.', 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.': 'سيتوقف العمل الجاري وتنتهي الجلسة الليلية. اطلب عناصر NEURO RT الملغاة مجددًا.', 'Instalar NEURO RT': 'تثبيت NEURO RT', 'O plugin NEURO RT ainda não está instalado.': 'لم يتم تثبيت إضافة NEURO RT بعد.', 'Baixando o NEURO RT…': 'جارٍ تنزيل NEURO RT…', 'Preparando a instalação do NEURO RT…': 'جارٍ إعداد تثبيت NEURO RT…', 'A instalação não pôde ser concluída. A suíte continua disponível.': 'تعذر إكمال التثبيت. تظل المجموعة متاحة.', 'Não foi possível consultar a instalação. A suíte continua disponível.': 'تعذر التحقق من حالة التثبيت. تظل المجموعة متاحة.', 'Instalar quando terminar': 'التثبيت عند الانتهاء', 'Interromper e instalar agora': 'إيقاف العمل والتثبيت الآن', 'Interromper e instalar': 'إيقاف العمل والتثبيت'}, 'bn': {'Atualização do NEURO RT': 'NEURO RT আপডেট', 'Uma nova versão do NEURO RT está disponível.': 'NEURO RT-এর নতুন সংস্করণ উপলব্ধ।', 'Atualizar NEURO RT': 'NEURO RT আপডেট করুন', 'Baixando a atualização do NEURO RT…': 'NEURO RT আপডেট ডাউনলোড হচ্ছে…', 'Preparando a atualização do NEURO RT…': 'NEURO RT আপডেট প্রস্তুত হচ্ছে…', 'Reabrindo o Local Suite para ativar o NEURO RT…': 'NEURO RT সক্রিয় করতে Local Suite আবার খোলা হচ্ছে…', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.': 'আপডেট সম্পূর্ণ করা যায়নি। আগের ইনস্টলেশন সংরক্ষিত আছে।', 'Não foi possível verificar a atualização. A versão instalada continua disponível.': 'আপডেট পরীক্ষা করা যায়নি। ইনস্টল করা সংস্করণ ব্যবহার করা যাবে।', 'Verificando a instalação do NEURO RT.': 'NEURO RT ইনস্টলেশন পরীক্ষা করা হচ্ছে।', 'Atualize o Local Suite para usar a nova versão do NEURO RT.': 'NEURO RT-এর নতুন সংস্করণ ব্যবহার করতে Local Suite আপডেট করুন।', 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.': 'চলমান কাজ থামবে এবং রাতের সেশন শেষ হবে। বাতিল NEURO RT কাজগুলো আবার অনুরোধ করুন।', 'Instalar NEURO RT': 'NEURO RT ইনস্টল করুন', 'O plugin NEURO RT ainda não está instalado.': 'NEURO RT প্লাগইন এখনও ইনস্টল হয়নি।', 'Baixando o NEURO RT…': 'NEURO RT ডাউনলোড হচ্ছে…', 'Preparando a instalação do NEURO RT…': 'NEURO RT ইনস্টলেশন প্রস্তুত হচ্ছে…', 'A instalação não pôde ser concluída. A suíte continua disponível.': 'ইনস্টলেশন সম্পূর্ণ করা যায়নি। স্যুট ব্যবহার করা যাবে।', 'Não foi possível consultar a instalação. A suíte continua disponível.': 'ইনস্টলেশনের অবস্থা পরীক্ষা করা যায়নি। স্যুট ব্যবহার করা যাবে।', 'Instalar quando terminar': 'শেষ হলে ইনস্টল করুন', 'Interromper e instalar agora': 'থামিয়ে এখন ইনস্টল করুন', 'Interromper e instalar': 'থামিয়ে ইনস্টল করুন'}, 'ko': {'Atualização do NEURO RT': 'NEURO RT 업데이트', 'Uma nova versão do NEURO RT está disponível.': 'NEURO RT의 새 버전을 사용할 수 있습니다.', 'Atualizar NEURO RT': 'NEURO RT 업데이트', 'Baixando a atualização do NEURO RT…': 'NEURO RT 업데이트 다운로드 중…', 'Preparando a atualização do NEURO RT…': 'NEURO RT 업데이트 준비 중…', 'Reabrindo o Local Suite para ativar o NEURO RT…': 'NEURO RT를 활성화하기 위해 Local Suite를 다시 여는 중…', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.': '업데이트를 완료하지 못했습니다. 이전 설치가 유지되었습니다.', 'Não foi possível verificar a atualização. A versão instalada continua disponível.': '업데이트를 확인하지 못했습니다. 설치된 버전은 계속 사용할 수 있습니다.', 'Verificando a instalação do NEURO RT.': 'NEURO RT 설치 확인 중.', 'Atualize o Local Suite para usar a nova versão do NEURO RT.': '새 NEURO RT 버전을 사용하려면 Local Suite를 업데이트하세요.', 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.': '진행 중인 작업과 야간 실행을 중단합니다. 취소된 NEURO RT 항목은 다시 요청하세요.', 'Instalar NEURO RT': 'NEURO RT 설치', 'O plugin NEURO RT ainda não está instalado.': 'NEURO RT 플러그인이 아직 설치되지 않았습니다.', 'Baixando o NEURO RT…': 'NEURO RT 다운로드 중…', 'Preparando a instalação do NEURO RT…': 'NEURO RT 설치 준비 중…', 'A instalação não pôde ser concluída. A suíte continua disponível.': '설치를 완료하지 못했습니다. 제품군은 계속 사용할 수 있습니다.', 'Não foi possível consultar a instalação. A suíte continua disponível.': '설치 상태를 확인하지 못했습니다. 제품군은 계속 사용할 수 있습니다.', 'Instalar quando terminar': '완료 후 설치', 'Interromper e instalar agora': '중단하고 지금 설치', 'Interromper e instalar': '중단하고 설치'}, 'zh-CN': {'Atualização do NEURO RT': 'NEURO RT 更新', 'Uma nova versão do NEURO RT está disponível.': 'NEURO RT 有新版本可用。', 'Atualizar NEURO RT': '更新 NEURO RT', 'Baixando a atualização do NEURO RT…': '正在下载 NEURO RT 更新…', 'Preparando a atualização do NEURO RT…': '正在准备 NEURO RT 更新…', 'Reabrindo o Local Suite para ativar o NEURO RT…': '正在重新打开 Local Suite 以启用 NEURO RT…', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.': '无法完成更新。已保留原有安装。', 'Não foi possível verificar a atualização. A versão instalada continua disponível.': '无法检查更新。已安装版本仍可使用。', 'Verificando a instalação do NEURO RT.': '正在检查 NEURO RT 安装。', 'Atualize o Local Suite para usar a nova versão do NEURO RT.': '请更新 Local Suite 以使用新版 NEURO RT。', 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.': '将中断当前工作并结束夜间运行。请重新提交已取消的 NEURO RT 项目。', 'Instalar NEURO RT': '安装 NEURO RT', 'O plugin NEURO RT ainda não está instalado.': '尚未安装 NEURO RT 插件。', 'Baixando o NEURO RT…': '正在下载 NEURO RT…', 'Preparando a instalação do NEURO RT…': '正在准备安装 NEURO RT…', 'A instalação não pôde ser concluída. A suíte continua disponível.': '无法完成安装。套件仍可使用。', 'Não foi possível consultar a instalação. A suíte continua disponível.': '无法查询安装状态。套件仍可使用。', 'Instalar quando terminar': '完成后安装', 'Interromper e instalar agora': '中断并立即安装', 'Interromper e instalar': '中断并安装'}, 'ja': {'Atualização do NEURO RT': 'NEURO RT の更新', 'Uma nova versão do NEURO RT está disponível.': 'NEURO RT の新しいバージョンを利用できます。', 'Atualizar NEURO RT': 'NEURO RT を更新', 'Baixando a atualização do NEURO RT…': 'NEURO RT の更新をダウンロード中…', 'Preparando a atualização do NEURO RT…': 'NEURO RT の更新を準備中…', 'Reabrindo o Local Suite para ativar o NEURO RT…': 'NEURO RT を有効にするため Local Suite を再起動中…', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.': '更新を完了できませんでした。以前のインストールは保持されています。', 'Não foi possível verificar a atualização. A versão instalada continua disponível.': '更新を確認できませんでした。インストール済みのバージョンは引き続き利用できます。', 'Verificando a instalação do NEURO RT.': 'NEURO RT のインストールを確認中。', 'Atualize o Local Suite para usar a nova versão do NEURO RT.': '新しい NEURO RT を使用するには Local Suite を更新してください。', 'O trabalho em andamento será interrompido e o turno da noite será encerrado. Solicite novamente os itens cancelados do NEURO RT.': '実行中の作業を中断し、夜間セッションを終了します。キャンセルされた NEURO RT の項目を再度依頼してください。', 'Instalar NEURO RT': 'NEURO RT をインストール', 'O plugin NEURO RT ainda não está instalado.': 'NEURO RT プラグインはまだインストールされていません。', 'Baixando o NEURO RT…': 'NEURO RT をダウンロード中…', 'Preparando a instalação do NEURO RT…': 'NEURO RT のインストールを準備中…', 'A instalação não pôde ser concluída. A suíte continua disponível.': 'インストールを完了できませんでした。スイートは引き続き利用できます。', 'Não foi possível consultar a instalação. A suíte continua disponível.': 'インストール状況を確認できませんでした。スイートは引き続き利用できます。', 'Instalar quando terminar': '完了後にインストール', 'Interromper e instalar agora': '中断して今すぐインストール', 'Interromper e instalar': '中断してインストール'}}
+diff --git a/app/radai_panel.py b/app/radai_panel.py
+index 9be199da1465ff420267af4d5c7a48a13409f116..86239873d4a979225c8cb2552338cd20fe7a2f0a 100644
+--- a/app/radai_panel.py
++++ b/app/radai_panel.py
+@@ -1909,7 +1909,6 @@ def montar(app, ler_vigia=None, config=None):
+                  "radai_viewseg", "radai_view", "radai_bibliography",
+                  "radai_router",
+                  "radai_bridge", "radai_recon3d_screen",
+-                 "radai_nidus_screen",
+                  "radai_elastic_screen",
+                  "radai_bolus_screen",
+                  "radai_provenance_screen",
+@@ -1937,6 +1936,12 @@ def montar(app, ler_vigia=None, config=None):
+         except Exception as e:
+             _MONTAGEM[nome] = "%s: %s" % (type(e).__name__, str(e)[:200])
+ 
++    try:
++        import radai_plugins
++        radai_plugins.montar(app, cfg)
++    except Exception as e:
++        _MONTAGEM["radai_plugins"] = "%s: %s" % (type(e).__name__, str(e)[:200])
++
+     @app.get("/config", response_class=HTMLResponse)
+     def _tela_config():
+         p = PAGINA_CONFIG
+diff --git a/app/radai_plugins.py b/app/radai_plugins.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..a1b82c21a6880613a9fca0eab58b9a03f29bde64
+--- /dev/null
++++ b/app/radai_plugins.py
+@@ -0,0 +1,492 @@
++"""Standard-library bootstrap, also shipped with the Local Suite host.
++
++This module must work when no Neuro runtime or package is installed. The host
++copy is radai_plugins.py; installation and inference remain plugin-owned.
++"""
++import hashlib
++import importlib.util
++import json
++import re
++import sys
++import threading
++import time
++from pathlib import Path, PureWindowsPath
++
++PLUGIN_ID = 'neuro-rt'
++HOST_CONTRACT = 'local-suite/plugins/1'
++_MOUNT_LOCK = threading.RLock()
++_UPDATE_PROVIDER = None
++
++
++def check_plugin_release(plugin_id, installed_version):
++    if _UPDATE_PROVIDER is None:
++        raise RuntimeError("Conector NeuroRT ainda não montado.")
++    return _UPDATE_PROVIDER.check_plugin_release(plugin_id, installed_version)
++
++
++def request_plugin_update(plugin_id, action):
++    if _UPDATE_PROVIDER is None:
++        raise RuntimeError("Conector NeuroRT ainda não montado.")
++    return _UPDATE_PROVIDER.request_plugin_update(plugin_id, action)
++
++
++def _inside(root, relative):
++    if not isinstance(relative, str) or not relative:
++        raise ValueError('Caminho relativo inválido.')
++    win = PureWindowsPath(relative)
++    parts = relative.replace('\\', '/').split('/')
++    reserved = {'CON', 'PRN', 'AUX', 'NUL'} | {p + str(n) for p in ('COM', 'LPT') for n in range(1, 10)}
++    if (win.drive or win.root or any(p in ('', '.', '..') or p.endswith((' ', '.'))
++            or p.split('.')[0].upper() in reserved for p in parts)
++            or any(ord(c) < 32 or c in '<>:"|?*' for c in relative)):
++        raise ValueError('Caminho fora do contrato de instalação.')
++    root = Path(root).resolve()
++    path = root.joinpath(*parts).resolve()
++    if not path.is_relative_to(root):
++        raise ValueError('Caminho escapa da instalação.')
++    return path
++
++
++def _version(value):
++    if not isinstance(value, str) or not re.fullmatch(r'\d+(?:\.\d+)*', value):
++        raise ValueError('Versão inválida.')
++    parts = [int(n) for n in value.split('.')]
++    while len(parts) > 1 and parts[-1] == 0:
++        parts.pop()
++    return tuple(parts)
++
++
++def _json(path):
++    value = json.loads(path.read_text(encoding='utf-8'))
++    if not isinstance(value, dict):
++        raise ValueError('Metadados de instalação inválidos.')
++    return value
++
++
++def discover_plugin(suite_root, plugin_id=PLUGIN_ID, host_info=None, *, cancelled=None):
++    result = {'plugin_id': PLUGIN_ID, 'state': 'absent', 'reason': '', 'active_version': None}
++    try:
++        if plugin_id != PLUGIN_ID:
++            raise ValueError('Plugin não autorizado.')
++        plugin = _inside(suite_root, 'Plugins/NEURO RT')
++        result['plugin_root'] = str(plugin)
++        state_file = plugin / 'installation.json'
++        if not state_file.is_file():
++            return result
++        state = _json(state_file)
++        if state.get('schema') != 'neuro-rt/installation/1':
++            raise ValueError('Schema de instalação inválido.')
++        result['state'] = state.get('state', 'failed')
++        result['installation_state'] = state
++        if result['state'] == 'installed_pending_restart' and state.get('active_version'):
++            result['pending_version'] = state.get('pending_version')
++            result['state'] = 'ready'
++        if result['state'] != 'ready':
++            result['reason'] = 'Instalação aguardando preparo ou ativação.'
++            return result
++        version = state.get('active_version')
++        _version(version)
++        code = _inside(plugin, 'versions/' + version)
++        manifest = _json(code / 'module.json')
++        if (manifest.get('schema') != 'neuro-rt/plugin-manifest/1'
++                or manifest.get('id') != PLUGIN_ID or manifest.get('version') != version
++                or manifest.get('host_contract') != HOST_CONTRACT):
++            raise ValueError('Manifesto não corresponde à instalação.')
++        minimum = manifest.get('host_min_version')
++        host_info = host_info or {}
++        if (minimum is None or host_info.get('contract') != HOST_CONTRACT
++                or _version(host_info.get('version')) < _version(minimum)):
++            result.update(state='incompatible', reason='Atualize o Local Suite para a versão exigida pelo plugin.')
++            return result
++        python_rule = manifest.get('python', '')
++        python_minimum = re.search(r'>=(\d+)\.(\d+)', python_rule)
++        python_maximum = re.search(r'<(\d+)\.(\d+)', python_rule)
++        if ((python_minimum and sys.version_info[:2] < tuple(map(int, python_minimum.groups()))) or
++                (python_maximum and sys.version_info[:2] >= tuple(map(int, python_maximum.groups())))):
++            result.update(state='incompatible', reason='O Python desta versão do Local Suite não atende o plugin.')
++            return result
++        inventory = _json(code / 'release-manifest.json')
++        if (inventory.get('schema') != 'neuro-rt/release-package/1'
++                or inventory.get('plugin_id') != PLUGIN_ID or inventory.get('version') != version):
++            raise ValueError('Inventário da release não corresponde ao plugin.')
++        files = inventory.get('files')
++        if not isinstance(files, list) or not files:
++            raise ValueError('Inventário de código ausente.')
++        covered = set()
++        for entry in files:
++            if cancelled and cancelled():
++                result.update(state='checking', reason='Verificação interrompida pelo encerramento do Local Suite.')
++                return result
++            name = entry.get('path')
++            if not isinstance(name, str):
++                raise ValueError('Entrada de inventário inválida.')
++            if name.startswith('code/'):
++                relative = name[5:]
++                file = _inside(code, relative)
++                if relative in covered:
++                    raise ValueError('Inventário repete arquivo.')
++                covered.add(relative)
++            elif name.startswith(('models/', 'runtimes/')):
++                file = _inside(plugin, name)
++            else:
++                raise ValueError('Artefato fora das áreas do plugin.')
++            digest = entry.get('sha256')
++            if (not isinstance(digest, str) or not re.fullmatch('[0-9a-f]{64}', digest)
++                    or type(entry.get('size')) is not int or not file.is_file()
++                    or file.stat().st_size != entry['size']):
++                raise ValueError('Artefato da instalação incompleto ou inválido.')
++            sha = hashlib.sha256()
++            with file.open('rb') as handle:
++                for block in iter(lambda: handle.read(1024 * 1024), b''):
++                    if cancelled and cancelled():
++                        result.update(state='checking', reason='Verificação interrompida pelo encerramento do Local Suite.')
++                        return result
++                    sha.update(block)
++            if sha.hexdigest() != digest:
++                raise ValueError('Integridade de artefato não confirmada.')
++        adapter = manifest.get('adapter', '')
++        if not isinstance(adapter, str) or adapter.count(':') != 1:
++            raise ValueError('Adaptador inválido.')
++        adapter_file, function = adapter.split(':')
++        _inside(code, adapter_file)
++        if (adapter_file not in covered or 'module.json' not in covered
++                or not re.fullmatch('[A-Za-z_]\\w*', function)):
++            raise ValueError('Adaptador não protegido pelo inventário.')
++        for file in code.rglob('*.py'):
++            if file.relative_to(code).as_posix() not in covered:
++                raise ValueError('Código Python não previsto na release.')
++        result.update(state='ready', reason='', active_version=version,
++                      code_dir=str(code), manifest=manifest, adapter_file=adapter_file,
++                      adapter_function=function)
++    except (OSError, ValueError, TypeError, AttributeError, KeyError) as error:
++        result.update(state='failed', reason=str(error))
++    return result
++
++
++def mount_plugin(app, installation, host_services):
++    with _MOUNT_LOCK:
++        return _mount_plugin(app, installation, host_services)
++
++
++def _mount_plugin(app, installation, host_services):
++    if installation.get('state') != 'ready':
++        return {'mounted': False, 'reason': installation.get('reason', 'Plugin indisponível.')}
++    previous = getattr(app.state, 'neuro_plugin_mount', None)
++    if previous is not None:
++        if previous['version'] != installation['active_version']:
++            raise RuntimeError('Reabra o Local Suite para ativar a nova versão do plugin.')
++        return previous
++    if host_services is None:
++        raise RuntimeError('Serviços compartilhados do host não foram fornecidos.')
++    # Releases are immutable, including after lazy imports from route handlers.
++    sys.dont_write_bytecode = True
++    code = Path(installation['code_dir']).resolve()
++    path = _inside(code, installation['adapter_file'])
++    if str(code) not in sys.path:
++        sys.path.insert(0, str(code))
++    spec = importlib.util.spec_from_file_location('_radai_neuro_adapter', path)
++    adapter = importlib.util.module_from_spec(spec)
++    spec.loader.exec_module(adapter)
++    service = getattr(adapter, installation['adapter_function'])(app, code, host_services=host_services)
++    receipt = {'mounted': True, 'version': installation['active_version'], 'service': service}
++    app.state.neuro_plugin_mount = receipt
++    return receipt
++
++
++def _support(installation, name):
++    sys.dont_write_bytecode = True
++    path = _inside(installation['code_dir'], 'integration/' + name + '.py')
++    key = '_local_suite_neuro_' + name
++    spec = importlib.util.spec_from_file_location(key, path)
++    module = importlib.util.module_from_spec(spec)
++    sys.modules[key] = module
++    spec.loader.exec_module(module)
++    return module
++
++
++def build_host_services(installation, host_info, cfg=None):
++    cfg = cfg or {}
++    provided = cfg.get('neuro_host_services')
++    if provided is not None and not isinstance(provided, dict):
++        return provided(host_info) if callable(provided) else provided
++    bindings = _support(installation, 'default_host_services').bindings_for_host(host_info, cfg)
++    bindings.update(dict(provided or {}))
++
++    def queue_factory():
++        import radai_queue_state
++        required = ('enqueue_neuro', 'try_neuro_turn', 'report_neuro',
++                    'finish_neuro', 'cancel_neuro')
++        if not all(callable(getattr(radai_queue_state, n, None)) for n in required):
++            raise RuntimeError('A fila compartilhada do host precisa ser atualizada.')
++        return _support(installation, 'queue_bridge').QueueBridge(radai_queue_state)
++
++    return _support(installation, 'host_services').build_host_services(
++        host_info, bindings, queue_bridge_factory=queue_factory)
++
++
++def _host_info(suite_root, cfg):
++    version = cfg.get('neuro_host_version')
++    if version is None:
++        import radai_version
++        version = radai_version._entrega_txt()
++    return {'contract': HOST_CONTRACT, 'version': str(version),
++            'suite_root': str(suite_root)}
++
++
++def _installation_hint(suite_root):
++    """Small host-owned pointer only. No release inventory or payload imports."""
++    result = {'plugin_id': PLUGIN_ID, 'state': 'absent', 'reason': '', 'active_version': None}
++    try:
++        plugin = _inside(suite_root, 'Plugins/NEURO RT')
++        result['plugin_root'] = str(plugin)
++        pointer = _inside(plugin, 'installation.json')
++        if not pointer.is_file():
++            return result
++        if pointer.stat().st_size > 64 * 1024:
++            raise ValueError('Estado da instalação excede o limite permitido.')
++        state = _json(pointer)
++        if state.get('schema') != 'neuro-rt/installation/1':
++            raise ValueError('Estado da instalação inválido.')
++        if state.get('active_version'):
++            _version(state['active_version'])
++        result.update(state='checking', reason='Verificando a instalação do NEURO RT em segundo plano.')
++    except (OSError, ValueError, TypeError, KeyError):
++        result.update(state='failed', reason='Não foi possível ler o estado da instalação do NEURO RT.')
++    return result
++
++
++def montar(app, cfg=None):
++    global _UPDATE_PROVIDER
++    import secrets
++    from fastapi import HTTPException, Request
++    from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
++    from starlette.concurrency import run_in_threadpool
++
++    previous = getattr(app.state, 'neuro_plugin_entry', None)
++    if previous is not None:
++        return previous
++    cfg = dict(cfg or {})
++    base = Path(__file__).resolve().parent
++    if base.name == 'app' and (base.parent / 'tools').is_dir():
++        base = base.parent
++    suite_root = Path(cfg.get('suite_root') or base).resolve()
++    info = _host_info(suite_root, cfg)
++    installation = _installation_hint(suite_root)
++    entry = {'installation': installation, 'receipt': None,
++             'token': secrets.token_urlsafe(32), 'host_services': None}
++    entry.update(load_lock=threading.RLock(), load_complete=threading.Event(),
++                 closed=threading.Event(), load_thread=None, release_thread=None,
++                 load_started=False, release_checked_at=0.0,
++                 release_check={'state': 'checking', 'reason': 'Consultando a versão disponível.'})
++    app.state.neuro_plugin_entry = entry
++    import radai_neuro_install
++    provider = radai_neuro_install.build_provider(suite_root, info, cfg)
++    entry['update_provider'] = provider
++    _UPDATE_PROVIDER = provider
++    cfg.setdefault('neuro_install', provider.install)
++
++    def load_installation():
++        try:
++            import radai_queue_state as queue
++            if queue.quem_tem_a_vez().get('dono') or queue.fechando_ao_fim():
++                entry['installation'] = dict(entry['installation'],
++                    reason='Aguardando a fila terminar para verificar o NEURO RT.')
++            while queue.quem_tem_a_vez().get('dono') or queue.fechando_ao_fim():
++                if entry['closed'].wait(.1):
++                    return
++            if entry['closed'].is_set():
++                return
++            entry['installation'] = dict(entry['installation'], reason='Verificando a instalação do NEURO RT.')
++            verified = discover_plugin(suite_root, host_info=info, cancelled=entry['closed'].is_set)
++            if entry['closed'].is_set():
++                return
++            if verified['state'] != 'ready':
++                entry['installation'] = verified
++                return
++            entry['installation'] = dict(verified, state='loading', reason='Conectando o NEURO RT à fila da suíte.')
++            while queue.quem_tem_a_vez().get('dono') or queue.fechando_ao_fim():
++                if entry['closed'].wait(.1):
++                    return
++            if entry['closed'].is_set():
++                return
++            services = build_host_services(verified, info, cfg)
++            if entry['closed'].is_set():
++                return
++            receipt = mount_plugin(app, verified, services)
++            app.openapi_schema = None
++            if entry['closed'].is_set():
++                close = getattr(receipt.get('service'), 'close', None)
++                if callable(close):
++                    close()
++                return
++            entry.update(installation=verified, host_services=services, receipt=receipt)
++        except Exception:
++            import logging
++            logging.getLogger(__name__).exception('Falha na montagem em segundo plano do plugin NEURO RT')
++            if not entry['closed'].is_set():
++                entry['installation'] = dict(entry['installation'], state='failed',
++                    reason='Não foi possível conectar o plugin. Reabra ou repare a instalação.')
++        finally:
++            entry['load_complete'].set()
++
++    def check_release():
++        try:
++            result = provider.check_plugin_release(PLUGIN_ID, entry['installation'].get('active_version'))
++        except Exception:
++            result = {'state': 'unavailable', 'reason': 'Não foi possível consultar a versão disponível.'}
++        if not entry['closed'].is_set():
++            entry['release_check'] = result
++            entry['release_checked_at'] = time.monotonic()
++
++    def ensure_background_work():
++        with entry['load_lock']:
++            if entry['closed'].is_set():
++                return
++            if entry['installation']['state'] == 'checking' and not entry['load_started']:
++                entry['load_started'] = True
++                entry['load_thread'] = threading.Thread(target=load_installation, name='neuro-verify-mount', daemon=True)
++                entry['load_thread'].start()
++            release_thread = entry['release_thread']
++            if ((release_thread is None or not release_thread.is_alive()) and
++                    (not entry['release_checked_at'] or time.monotonic() - entry['release_checked_at'] >= 60)):
++                entry['release_thread'] = threading.Thread(target=check_release, name='neuro-release-check', daemon=True)
++                entry['release_thread'].start()
++
++    async def close_background_work():
++        entry['closed'].set()
++        for worker in (entry['load_thread'], entry['release_thread']):
++            if worker is not None and worker.is_alive():
++                await run_in_threadpool(worker.join, .5)
++
++    app.router.add_event_handler('shutdown', close_background_work)
++
++    def local(request):
++        client = request.client.host if request.client else ''
++        allowed = ('127.0.0.1', '::1', 'localhost')
++        if client == 'testclient':
++            allowed += ('testserver',)
++        if client not in allowed + ('testclient',) or request.url.hostname not in allowed:
++            raise HTTPException(403, 'Acesso local obrigatório.')
++        if request.headers.get('sec-fetch-site') == 'cross-site':
++            raise HTTPException(403, 'Origem não permitida.')
++
++    def public_status():
++        current = entry['installation']
++        return {'plugin_id': PLUGIN_ID, 'state': current['state'],
++                'reason': current.get('reason', ''),
++                'active_version': current.get('active_version'),
++                'mounted': bool((entry['receipt'] or {}).get('mounted')),
++                'install_available': callable(cfg.get('neuro_install')),
++                'token': entry['token'],
++                'release_check': entry.get('release_check'),
++                'update': provider.status()}
++
++    def landing():
++        import html
++        import radai_menu
++        import radai_modules
++        status = public_status()
++        states = {'absent': 'O plugin NEURO RT ainda não está instalado.',
++                  'failed': 'O plugin não pôde ser carregado.',
++                  'incompatible': 'Esta versão requer outro Local Suite.',
++                  'checking': 'Verificando a instalação do NEURO RT.',
++                  'loading': 'Conectando o NEURO RT à suíte.',
++                  'downloading': 'Baixando os arquivos do plugin.',
++                  'preparing': 'Preparando o plugin.',
++                  'activating': 'Ativando o plugin.'}
++        message = states.get(status['state'], 'O plugin aguarda ativação.')
++        content = ('<section class="md-pg"><h1>NEURO RT</h1><p role="status">' +
++                   html.escape(message) + '</p><p>' + html.escape(status['reason']) + '</p>')
++        # This controller belongs to the trusted host base. No downloaded code is
++        # read until full discovery verification and mounting have succeeded.
++        content += ('<section id="neuro-update" data-neuro-install="1">'
++                    '<p id="neuro-update-message" role="status"></p>'
++                    '<progress id="neuro-update-progress" max="100" hidden></progress>'
++                    '<div id="neuro-update-actions"></div></section>'
++                    '<p>O preparo baixa código, ambiente e modelos licenciados. Confirme para iniciar.</p>'
++                    '<p><a href="/">Voltar à suíte</a></p></section>')
++        script = ('<script>window.NEURO_INSTALL_CATALOG=' +
++                  json.dumps(radai_neuro_install.INSTALL_UI_CATALOG, ensure_ascii=True).replace('<', '\\u003c') +
++                  ';' + radai_neuro_install.INSTALL_UI_SCRIPT + '</script>')
++        page = ('<!doctype html><html><head><meta charset="utf-8">'
++                '<meta name="viewport" content="width=device-width,initial-scale=1">'
++                '<title>NEURO RT · Local Suite</title><style>' + radai_modules.CSS +
++                '</style></head><body>' + content + script + '</body></html>')
++        return radai_menu.aplicar(page, 'neuro')
++
++    @app.get('/api/plugins/neuro-rt')
++    def status(request: Request):
++        local(request)
++        ensure_background_work()
++        return JSONResponse(public_status(), headers={'Cache-Control': 'no-store'})
++
++    @app.post('/api/plugins/neuro-rt/install')
++    async def install(request: Request):
++        local(request)
++        origin = request.headers.get('origin')
++        if (origin not in (None, str(request.base_url).rstrip('/')) or
++                not secrets.compare_digest(request.headers.get('x-neuro-plugin-token', ''), entry['token'])):
++            raise HTTPException(403, 'Origem ou token inválido.')
++        body = await request.body()
++        if not 0 < len(body) <= 4096:
++            raise HTTPException(400, 'Pedido inválido.')
++        try:
++            payload = json.loads(body)
++        except (ValueError, UnicodeError):
++            raise HTTPException(400, 'Pedido inválido.')
++        if (not isinstance(payload, dict) or set(payload) != {'confirm'}
++                or payload['confirm'] is not True):
++            raise HTTPException(400, 'Confirmação explícita obrigatória.')
++        callback = cfg.get('neuro_install')
++        if not callable(callback):
++            raise HTTPException(501, 'Instalação ainda não conectada nesta versão do Local Suite.')
++        result = await run_in_threadpool(callback)
++        if not isinstance(result, dict):
++            raise HTTPException(500, 'O instalador não devolveu um estado válido.')
++        return JSONResponse(result, status_code=202, headers={'Cache-Control': 'no-store'})
++
++    @app.post('/api/plugins/neuro-rt/update')
++    async def update(request: Request):
++        local(request)
++        if (request.headers.get('origin') not in (None, str(request.base_url).rstrip('/')) or
++                not secrets.compare_digest(request.headers.get('x-neuro-plugin-token', ''), entry['token'])):
++            raise HTTPException(403, 'Origem ou token inválido.')
++        body = await request.body()
++        if not 0 < len(body) <= 4096:
++            raise HTTPException(400, 'Pedido inválido.')
++        try:
++            payload = json.loads(body)
++            if not isinstance(payload, dict) or set(payload) != {'action'}:
++                raise ValueError()
++            result = await run_in_threadpool(provider.request_plugin_update, PLUGIN_ID, payload['action'])
++        except (ValueError, TypeError, UnicodeError):
++            raise HTTPException(400, 'Ação de atualização inválida.')
++        return JSONResponse(result, status_code=202, headers={'Cache-Control': 'no-store'})
++
++    @app.get('/neuro')
++    def neuro(request: Request):
++        local(request)
++        ensure_background_work()
++        if (entry['receipt'] or {}).get('mounted'):
++            return RedirectResponse('/neuro/', status_code=307)
++        return HTMLResponse(landing(), headers={'Cache-Control': 'no-store'})
++
++    @app.get('/neuro/nidus')
++    def nidus(request: Request):
++        local(request)
++        if not (entry['receipt'] or {}).get('mounted'):
++            return RedirectResponse('/neuro', status_code=307)
++        return RedirectResponse('/nidus/projecao', status_code=307)
++
++    def study_route(category):
++        def study(request: Request):
++            local(request)
++            if not (entry['receipt'] or {}).get('mounted'):
++                return RedirectResponse('/neuro', status_code=307)
++            return RedirectResponse('/neuro/?category=' + category, status_code=307)
++        return study
++
++    for category in ('glioma', 'metastasis', 'meningioma', 'anatomia'):
++        app.get('/neuro/' + category)(study_route(category))
++
++    return entry
+diff --git a/app/radai_porta.py b/app/radai_porta.py
+index 95939f9d700faf0b90443267fff98137a36d23ba..c625631eb79ddc06c550b2de7938669f1c8314ba 100644
+--- a/app/radai_porta.py
++++ b/app/radai_porta.py
+@@ -97,7 +97,7 @@ ICONES = {
+     u"recon3d": (u"", u"1.15", u"",
+                  u'<path d="m42 5 29 17v37L42 78 13 59V22Z M13 22l29 18 29-18M42 40v38M42 5v35M13 59l29-19 29 19"/>'
+                  u'<path d="m13 40 29 19 29-19M27 13v55m30-54v54m-30-5 30-36m-30-4 30 36" opacity=".23"/>'),
+-    u"nidus": (u" ls-vasos", u"1.35", u' stroke-linecap="round"',
++    u"neuro": (u" ls-vasos", u"1.35", u' stroke-linecap="round"',
+                u'<path d="M31 78c2-19 7-27 13-36s2-16-1-27M40 60c-5-12-14-14-23-19S8 30 7 18M43 43c12-7 21-10 25-25M41 52c15 1 20 11 29 22M44 30C33 26 31 21 29 10M37 66C25 61 21 65 10 70M56 52c4-12 11-13 22-12M21 43c2-10-1-16-4-22M55 36c-4-8 3-15 5-27"/>'
+                u'<path d="m43 16 6-8m-20 5 4-8M8 29l8-6m6 33-7-4m-2 17-7-6m61-39 9 1m-5 27 7 7m-12 10 10-3m-21-50-6-7" opacity=".7"/>'),
+     u"elastic": (u"", u".85", u"", _malha_do_elastic()),
+@@ -178,7 +178,7 @@ def ordem():
+         import radai_menu
+         return tuple(radai_menu.MODULOS_HOME)
+     except Exception:
+-        return (u"bridge", u"autocontorno", u"recon3d", u"nidus", u"elastic",
++        return (u"bridge", u"autocontorno", u"recon3d", u"neuro", u"elastic",
+                 u"bolus")
+ 
+ 
+diff --git a/app/radai_queue.py b/app/radai_queue.py
+index 9ef3adf1350fe8a4a46e45847f21af6baefc3366..fc52b3ad91488e05d8c14c38c13e99163701f5c9 100644
+--- a/app/radai_queue.py
++++ b/app/radai_queue.py
+@@ -28,12 +28,13 @@ RODAR_AGORA = "rodar_agora"
+ DICOMBRIDGE = "dicombridge"
+ NIDUS = "nidus"
+ VIGIA = "vigia"
++NEURO = "neuro"
+ 
+-ORIGENS = (RODAR_AGORA, DICOMBRIDGE, NIDUS, VIGIA)
+-MANUAIS = (RODAR_AGORA, DICOMBRIDGE, NIDUS)
++ORIGENS = (RODAR_AGORA, DICOMBRIDGE, NIDUS, NEURO, VIGIA)
++MANUAIS = (RODAR_AGORA, DICOMBRIDGE, NIDUS, NEURO)
+ 
+ LOTE = "lote"
+-EXECUTORES = (LOTE, VIGIA)
++EXECUTORES = (LOTE, VIGIA, NEURO)
+ 
+ FAIXA_RODANDO = 0
+ FAIXA_MANUAL = 1
+@@ -58,7 +59,7 @@ def novo_card(tipo, rotulo=u"", uid=u"", pasta=u"", extra=None,
+               origem=RODAR_AGORA):
+     origem = origem if origem in ORIGENS else RODAR_AGORA
+     d = {"id": novo_id(), "tipo": tipo, "origem": origem,
+-         "executor": VIGIA if origem == VIGIA else LOTE,
++         "executor": origem if origem in (VIGIA, NEURO) else LOTE,
+          "rotulo": rotulo or u"", "uid": uid or u"", "pasta": pasta or u"",
+          "estado": ESPERANDO, "dono": u"", "segundos": None,
+          "mensagem": u"", "fim": 0}
+@@ -72,7 +73,7 @@ def executor(c):
+     e = c.get("executor")
+     if e in EXECUTORES:
+         return e
+-    return VIGIA if c.get("origem") == VIGIA else LOTE
++    return c.get("origem") if c.get("origem") in (VIGIA, NEURO) else LOTE
+ 
+ 
+ def e_do_vigia(c):
+@@ -130,7 +131,7 @@ def acrescentar(cards, novos):
+ 
+ 
+ def pode_mover(c):
+-    return e_do_lote(c) and (c or {}).get("estado") in NA_ESPERA
++    return e_manual(c) and (c or {}).get("estado") in NA_ESPERA
+ 
+ 
+ def mover(cards, indice, direcao):
+@@ -164,7 +165,7 @@ def pode_tirar(c):
+ 
+ def pode_repor(c):
+     c = c or {}
+-    return (c.get("tipo") == SERIE and c.get("estado") in SEM_SUCESSO
++    return (executor(c) != NEURO and c.get("tipo") == SERIE and c.get("estado") in SEM_SUCESSO
+             and bool(c.get("uid")))
+ 
+ 
+@@ -259,7 +260,7 @@ def resumo(cards):
+     for c in cards:
+         e = c.get("estado") or ESPERANDO
+         por[e] = por.get(e, 0) + 1
+-    manuais = [c for c in cards if e_do_lote(c)]
++    manuais = [c for c in cards if e_manual(c)]
+     return {"total": len(cards),
+             "esperando": por.get(ESPERANDO, 0),
+             "pulado": por.get(PULADO, 0),
+@@ -290,3 +291,8 @@ def conferir_ordem(cards):
+                    c.get("origem")))
+         ultima = f
+     return True
++
++
++def e_manual(c):
++    return ((c or {}).get("tipo") == SERIE
++            and executor(c) in (LOTE, NEURO))
+diff --git a/app/radai_queue_state.py b/app/radai_queue_state.py
+index 847988492dd9abea048b0a9785cf5b76cf664d4b..f2cb98e5147713563e69dc504a66402ad43984f5 100644
+--- a/app/radai_queue_state.py
++++ b/app/radai_queue_state.py
+@@ -383,6 +383,8 @@ def _item_do_contrato(item, origem_padrao):
+         return None, u"faltou o uid da série"
+     origem = (u"%s" % (item.get("origem") or origem_padrao or
+                        Q.RODAR_AGORA)).strip().lower()
++    if origem == Q.NEURO:
++        return None, u"use o contrato de estudo do NEURO RT"
+     if origem == Q.VIGIA:
+         return None, (u"o vigia põe as séries dele pela varredura, e não "
+                       u"por esta rota")
+@@ -499,7 +501,7 @@ def turno_na_vez():
+         if (not turno or turno[0].get("estado") != Q.ESPERANDO
+                 or not turno[0].get("iniciar_pedido")):
+             return False
+-        return not any(Q.e_do_lote(c)
++        return not any(Q.e_manual(c)
+                        and c.get("estado") in (Q.ESPERANDO, Q.RODANDO)
+                        for c in _CARDS)
+ 
+@@ -584,7 +586,7 @@ def series_esperando():
+ 
+ def ha_manual_esperando():
+     with _TRAVA:
+-        return any(Q.e_do_lote(c) and c.get("estado") == Q.ESPERANDO
++        return any(Q.e_manual(c) and c.get("estado") == Q.ESPERANDO
+                    for c in _CARDS)
+ 
+ 
+@@ -649,6 +651,10 @@ def cancelar(visivel):
+ 
+ 
+ def tirar(cid):
++    c = cartao(cid)
++    if (c and Q.executor(c) == Q.NEURO
++            and c.get("estado") not in Q.TERMINAIS):
++        return cancel_neuro(cid)
+     with _TRAVA:
+         k = _pelo_id(cid)
+         if k < 0 or not Q.pode_tirar(_CARDS[k]):
+@@ -1071,11 +1077,13 @@ _VEZ = {"dono": None, "lote_quer": False, "desde": 0.0}
+ def quem_tem_a_vez():
+     with _VEZ_COND:
+         return {"dono": _VEZ["dono"], "lote_quer": bool(_VEZ["lote_quer"]),
+-                "desde": _VEZ["desde"]}
++                "desde": _VEZ["desde"], "ticket": _VEZ.get("ticket")}
+ 
+ 
+ def tentar_a_vez(quem):
+     with _VEZ_COND:
++        if not _pode_conceder(quem):
++            return False
+         if _VEZ["dono"] not in (None, quem):
+             return False
+         if quem == Q.VIGIA and _VEZ["lote_quer"]:
+@@ -1096,7 +1104,7 @@ def esperar_a_vez(quem=Q.LOTE, parar=None, passo_s=0.5, ao_esperar=None):
+     with _VEZ_COND:
+         if quem == Q.LOTE:
+             _VEZ["lote_quer"] = True
+-        while _VEZ["dono"] not in (None, quem):
++        while not _pode_conceder(quem):
+             if parar is not None:
+                 try:
+                     if parar():
+@@ -1118,12 +1126,18 @@ def esperar_a_vez(quem=Q.LOTE, parar=None, passo_s=0.5, ao_esperar=None):
+                     _VEZ_COND.acquire()
+                 continue
+             _VEZ_COND.wait(passo_s)
++        if parar is not None and parar():
++            if quem == Q.LOTE:
++                _VEZ["lote_quer"] = False
++            return False
+         _VEZ["dono"] = quem
+         _VEZ["desde"] = _agora()
+         return True
+ 
+ 
+ def soltar_a_vez(quem):
++    if quem == Q.NEURO:
++        return False
+     with _VEZ_COND:
+         if _VEZ["dono"] == quem:
+             _VEZ["dono"] = None
+@@ -1329,7 +1343,9 @@ ESCOLHA_PERSISTIDA = ("modo", "tasks", "protocolos", "protocolos_3d",
+ CAMPOS_DO_ARQUIVO = ("id", "tipo", "origem", "executor", "estado", "uid",
+                      "fim", "criado", "dono", "pendentes_por_memoria",
+                      "tentativa_complemento", "ja_concluida",
+-                     "complemento", "trava_solta", "iniciar_pedido")
++                     "complemento", "trava_solta", "iniciar_pedido",
++                     "neuro_key", "neuro_fingerprint", "neuro_cancel",
++                     "neuro_progress")
+ CAMPOS_DO_INDICE = ("pasta", "rotulo", "copiar_rs_para", "mensagem", "motivo",
+                     "faltou", "sem_estrutura", "nao_contornavel")
+ 
+@@ -1347,6 +1363,8 @@ def _ao_arquivo(c):
+ 
+ 
+ def _ao_indice(c):
++    if Q.executor(c) == Q.NEURO:
++        return {}
+     d = dict((k, c.get(k)) for k in CAMPOS_DO_INDICE if c.get(k))
+     carga = dict(c.get("carga") or {})
+     for k in ESCOLHA_PERSISTIDA:
+@@ -1491,7 +1509,8 @@ def carregar(log=None):
+             c["executor"] = Q.executor(c)
+             falharam += 1
+             soltar.append(c)
+-        if c.get("tipo") == Q.SERIE and not _existe(carga):
++        if (c.get("tipo") == Q.SERIE and Q.executor(c) != Q.NEURO
++                and not _existe(carga)):
+             achada = _achar_pasta(c.get("uid"))
+             if achada:
+                 carga["pasta"] = achada
+@@ -1501,6 +1520,9 @@ def carregar(log=None):
+                 c["mensagem"] = FRASE_NAO_ENCONTRADA
+                 c.pop("pendentes_por_memoria", None)
+                 sumidas += 1
++        if Q.executor(c) == Q.NEURO and estado in Q.NA_ESPERA:
++            c = Q.terminar(c, Q.FALHOU)
++            c["mensagem"] = FRASE_FECHOU_NO_MEIO
+         voltaram.append(c)
+     with _TRAVA:
+         presentes = set(c.get("id") for c in _CARDS)
+@@ -1608,6 +1630,22 @@ def montar(app):
+         except Exception as e:
+             return _erro(e)
+ 
++    @app.post("/api/fila/neuro/cancelar")
++    def _cancelar_neuro_atual():
++        pausar_neuro(True)
++        cancelar_neuro_ativo()
++        return _pacote()
++
++    @app.post("/api/fila/neuro/pausar")
++    def _pausar_neuro():
++        pausar_neuro(True)
++        return _pacote()
++
++    @app.post("/api/fila/neuro/iniciar")
++    def _iniciar_neuro():
++        pausar_neuro(False)
++        return _pacote()
++
+     @app.post("/api/fila/cancelar")
+     async def _cancelar(request: Request):
+         try:
+@@ -1694,3 +1732,151 @@ def botoes_do_lote(lote):
+     return {"rodando": bool(lote.get("rodando")),
+             "pausa_pedida": bool(lote.get("pausar")),
+             "cancelando": bool(lote.get("cancelar"))}
++
++
++_NEURO_CANCEL = {}
++_NEURO_PAUSA = False
++
++
++def _primeiro_manual():
++    with _TRAVA:
++        return next((c for c in _visiveis()
++                     if Q.e_manual(c) and c.get("estado") == Q.ESPERANDO), None)
++
++
++def _pode_conceder(quem):
++    if quem not in (Q.LOTE, Q.VIGIA):
++        return False
++    if _FECHAR_AO_FIM["pedido"] or _NEURO_PAUSA:
++        return False
++    if _VEZ["dono"] not in (None, quem):
++        return False
++    if _VEZ["dono"] == quem:
++        return True
++    primeiro = _primeiro_manual()
++    if quem == Q.VIGIA and (primeiro or _VEZ["lote_quer"]):
++        return False
++    if quem == Q.LOTE and primeiro and Q.executor(primeiro) == Q.NEURO:
++        return False
++    return quem in (Q.LOTE, Q.VIGIA)
++
++
++def bind_neuro_cancel(cid, callback):
++    with _TRAVA:
++        if callback is None:
++            _NEURO_CANCEL.pop(cid, None)
++        elif callable(callback):
++            _NEURO_CANCEL[cid] = callback
++
++
++def enqueue_neuro(key, fingerprint):
++    import re
++    if not all(re.fullmatch(r"[0-9a-f]{64}", str(v)) for v in (key, fingerprint)):
++        raise ValueError("identificador opaco Neuro inválido")
++    with _TRAVA:
++        for c in _CARDS:
++            if Q.executor(c) == Q.NEURO and c.get("neuro_key") == key:
++                if c.get("neuro_fingerprint") != fingerprint:
++                    raise ValueError("pedido Neuro repetido com conteúdo diferente")
++                return dict(c)
++        c = Q.novo_card(Q.SERIE, rotulo=u"NEURO RT", origem=Q.NEURO,
++                        extra={"neuro_key": key, "neuro_fingerprint": fingerprint,
++                               "criado": _agora(), "neuro_cancel": False})
++        _CARDS[:] = Q.acrescentar(_CARDS, [c])
++    _gravar()
++    return dict(c)
++
++
++def try_neuro_turn(cid):
++    with _VEZ_COND:
++        if _FECHAR_AO_FIM["pedido"] or _VEZ["dono"] is not None or _NEURO_PAUSA:
++            return False
++        with _TRAVA:
++            primeiro = _primeiro_manual()
++            if not primeiro or primeiro.get("id") != cid:
++                return False
++            if Q.executor(primeiro) != Q.NEURO or primeiro.get("neuro_cancel"):
++                return False
++            k = _pelo_id(cid)
++            c = dict(_CARDS[k])
++            c.update(estado=Q.RODANDO, comecou=_agora(), fim=0)
++            _CARDS[k] = c
++            _VEZ.update(dono=Q.NEURO, ticket=cid, desde=_agora())
++    _gravar()
++    return True
++
++
++def report_neuro(cid, progress):
++    import math
++    p = progress if isinstance(progress, dict) else {}
++    stage = p.get("stage")
++    safe = {}
++    if stage in ("queued", "preparing", "running", "restoring", "exporting", "visualizing"):
++        safe["stage"] = stage
++    fraction = p.get("fraction")
++    if isinstance(fraction, (float, int)) and math.isfinite(fraction):
++        safe["fraction"] = max(0.0, min(1.0, float(fraction)))
++    with _TRAVA:
++        k = _pelo_id(cid)
++        if k < 0 or Q.executor(_CARDS[k]) != Q.NEURO or _CARDS[k]["estado"] != Q.RODANDO:
++            return False
++        _CARDS[k] = dict(_CARDS[k], neuro_progress=safe)
++    _gravar()
++    return True
++
++
++def finish_neuro(cid, outcome):
++    status = outcome.get("status") if isinstance(outcome, dict) else outcome
++    states = {"completed": Q.PRONTO, "empty": Q.PRONTO, "partial": Q.PARCIAL,
++              "failed": Q.FALHOU, "interrupted": Q.FALHOU, "cancelled": Q.CANCELADO}
++    if status not in states:
++        raise ValueError("desfecho Neuro desconhecido")
++    with _VEZ_COND:
++        with _TRAVA:
++            k = _pelo_id(cid)
++            if k < 0 or Q.executor(_CARDS[k]) != Q.NEURO:
++                return False
++            c = _CARDS[k]
++            if c.get("estado") in Q.TERMINAIS:
++                return False
++            state = Q.CANCELADO if c.get("neuro_cancel") else states[status]
++            _CARDS[k] = Q.terminar(c, state)
++            _NEURO_CANCEL.pop(cid, None)
++        if _VEZ["dono"] == Q.NEURO and _VEZ.get("ticket") == cid:
++            _VEZ.update(dono=None, ticket=None, desde=0.0)
++        _VEZ_COND.notify_all()
++    _gravar()
++    return True
++
++
++def cancel_neuro(cid):
++    with _TRAVA:
++        k = _pelo_id(cid)
++        if k < 0 or Q.executor(_CARDS[k]) != Q.NEURO:
++            return False
++        c = _CARDS[k]
++        if c.get("estado") in Q.TERMINAIS:
++            return False
++        c = dict(c, neuro_cancel=True)
++        if c.get("estado") != Q.RODANDO:
++            c = Q.terminar(c, Q.CANCELADO)
++        _CARDS[k] = c
++        callback = _NEURO_CANCEL.get(cid)
++    _gravar()
++    if callback:
++        callback()
++    return True
++
++
++def cancelar_neuro_ativo():
++    with _VEZ_COND:
++        cid = _VEZ.get("ticket") if _VEZ["dono"] == Q.NEURO else None
++    return cancel_neuro(cid) if cid else False
++
++
++def pausar_neuro(sim=True):
++    global _NEURO_PAUSA
++    with _VEZ_COND:
++        _NEURO_PAUSA = bool(sim)
++        _VEZ_COND.notify_all()
++    return _NEURO_PAUSA
+diff --git a/app/radai_router.py b/app/radai_router.py
+index 464c5843e219a2f73058cccfc3c4911425a5ba78..be0f69fc8840cc1e8cbf128b8fce81549eb65e3e 100644
+--- a/app/radai_router.py
++++ b/app/radai_router.py
+@@ -195,7 +195,7 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
+ 
+ 
+ MINI_PAGINAS = (("bridge", "/bridge"), ("recon3d", "/recon3d"),
+-                ("nidus", "/nidus"), ("elastic", "/elastic"),
++                ("elastic", "/elastic"),
+                 ("bolus", "/bolus"))
+ 
+ 
+@@ -217,6 +217,11 @@ def montar(app):
+             return mini_pagina(chave)
+         app.get(_rota, response_class=HTMLResponse)(_mod)
+ 
++    @app.get("/nidus")
++    def _nidus_compatibilidade():
++        from fastapi.responses import RedirectResponse
++        return RedirectResponse("/neuro", status_code=307)
++
+     @app.get("/torax", response_class=HTMLResponse)
+     def _torax_saiu():
+         from fastapi.responses import HTMLResponse as _H
+diff --git a/app/radai_todo.py b/app/radai_todo.py
+index 807a43f43ebc89f79ebf2b05654114596e214292..776c43a9b8c10f99cbc2736dba163d4fcab15f40 100644
+--- a/app/radai_todo.py
++++ b/app/radai_todo.py
+@@ -441,7 +441,7 @@ var RADAI_FILA_TIPO = {
+  serie:     {icone:'\u25A6', tag:'',                      cls:''}
+ };
+ var RADAI_FILA_ORIGEM = {vigia: 'Vigia', dicombridge: 'DicomBridge',
+-                         nidus: 'Nidus RT'};
++                         nidus: 'Nidus RT', neuro: 'NEURO RT'};
+ var RADAI_FILA_TAG_DO_ESTADO = {pronto: 'feito', falhou: 'falhou',
+                                 cancelado: 'cancelado'};
+ 
+@@ -687,7 +687,8 @@ function radaiPipePintar(d){
+  var lote = (d && d.lote) || null;
+  var vez = (d && d.vez) || {};
+  var vigia = (vez.dono === 'vigia');
+- var rodando = lote ? !!lote.rodando : ((r.rodando || 0) > 0);
++ var neuro = (vez.dono === 'neuro');
++ var rodando = neuro || (lote ? !!lote.rodando : ((r.rodando || 0) > 0));
+  var espera  = (r.manuais_esperando != null) ? r.manuais_esperando
+                                              : (r.esperando || 0);
+  var cards   = (r.total || 0);
+@@ -768,7 +769,12 @@ function radaiPipeMandar(acao){
+  var bts = ['radai_pipe_ini','radai_pipe_pau','radai_pipe_lim','radai_pipe_can'];
+  bts.forEach(function(id){ var b = document.getElementById(id);
+                            if(b) b.disabled = true });
+- var rota = (acao === 'iniciar') ? '/api/pipeline/iniciar'
++ var D = window.RADAI_FILA_D || {};
++ var neuro = ((D.vez || {}).dono === 'neuro');
++ if(acao === 'iniciar') fetch('/api/fila/neuro/iniciar', {method:'POST'});
++ var rota = (neuro && acao === 'cancelar') ? '/api/fila/neuro/cancelar'
++          : (neuro && acao === 'pausar') ? '/api/fila/neuro/pausar'
++          : (acao === 'iniciar') ? '/api/pipeline/iniciar'
+           : (acao === 'cancelar') ? '/api/pipeline/cancelar'
+           : (acao === 'limpar') ? '/api/fila/limpar'
+           : '/api/pipeline/pausar';
+diff --git a/build/componentes.lock.json b/build/componentes.lock.json
+index 8f851ead89ae9342f6a1205224c98bd9f423ebee..3b856f1d8be8564f6073ceb161993b8fbaf587c2 100644
+--- a/build/componentes.lock.json
++++ b/build/componentes.lock.json
+@@ -4,7 +4,6 @@
+     {"nome": "CONTOURLAB", "repositorio": "drhenriquebraga/contourlab", "tag": "v8.9", "arvore_sha256": "98ce96ffa10368fe932543385df515cc10aa0f2731ab0f53071737566699f213"},
+     {"nome": "DICOM_BRIDGE", "repositorio": "drhenriquebraga/dicom-bridge", "tag": "v8.9", "arvore_sha256": "0b34b5029000ce6a22222dee47e2a47144bb1b82fe184f213c15fe7e6ba385e9"},
+     {"nome": "RECON_3D", "repositorio": "drhenriquebraga/recon-3d", "tag": "v8.9", "arvore_sha256": "cd6634e1f2870883ce6a68520b1aa4bc5cac83552c0a403d55ae988e43bb3475"},
+-    {"nome": "NIDUS_RT", "repositorio": "drhenriquebraga/nidus-rt", "tag": "v8.9", "arvore_sha256": "38c8ab986da5f3b54427d1211ce08eb9097974032939710de4e4c8d4d3d9893c"},
+     {"nome": "ELASTIC_RT", "repositorio": "drhenriquebraga/elastic-rt", "tag": "v8.9", "arvore_sha256": "4880a76f7f9601e646774f5cee271ec20249134480486484b49a7b8806d61cd6"},
+     {"nome": "3D_PRINTED_BOLUS", "repositorio": "drhenriquebraga/3d-printed-bolus", "tag": "v8.9", "arvore_sha256": "74507366dd605896ef2960d767cf81313d97afeaf147370b376203d8fc2a2b95"}
+   ]
+diff --git a/build/configurar_ambiente.py b/build/configurar_ambiente.py
+index 60684aa3389914debe8b74088c19612243365eff..dedb7651181a58ce03fa88dc8981210afbf3b86d 100644
+--- a/build/configurar_ambiente.py
++++ b/build/configurar_ambiente.py
+@@ -82,7 +82,7 @@ URL_PIP = ("https://files.pythonhosted.org/packages/f3/6e/"
+ def _pastas_do_app():
+     sys.path.insert(0, str(RAIZ / "tools"))
+     import _componentes
+-    return [RAIZ / "app", RAIZ] + [Path(p) for p in _componentes.pastas("app", str(RAIZ))[1:]]
++    return [RAIZ / "app", RAIZ] + [Path(p) for p in _componentes.pastas_base("app", str(RAIZ))[1:]]
+ 
+ 
+ def _ligar_caminho():
+@@ -1749,7 +1749,7 @@ def etapa_app(ctx):
+     sys.path.insert(0, str(RAIZ / "tools"))
+     import _componentes
+     origens = {}
+-    for pasta_app in _componentes.pastas("app", str(RAIZ)):
++    for pasta_app in _componentes.pastas_base("app", str(RAIZ)):
+         for padrao in ("radai_*.py", "*.cmd"):
+             for p in Path(pasta_app).glob(padrao):
+                 if p.name in origens:
+@@ -1758,7 +1758,7 @@ def etapa_app(ctx):
+                 origens[p.name] = p
+     for nome in obrigatorios:
+         if nome not in origens:
+-            for pasta_app in _componentes.pastas("app", str(RAIZ)):
++            for pasta_app in _componentes.pastas_base("app", str(RAIZ)):
+                 if (Path(pasta_app) / nome).is_file():
+                     origens[nome] = Path(pasta_app) / nome
+                     break
+diff --git a/build/empacotar_instalador.py b/build/empacotar_instalador.py
+index f321da33946656d27eac6c72823fa9d5cf4fe496..662868ca39bd9457636fdba631c96a2908d1ed6a 100644
+--- a/build/empacotar_instalador.py
++++ b/build/empacotar_instalador.py
+@@ -231,6 +231,16 @@ def coletar_componentes(ja, suite=None, trava=None):
+     itens = []
+     achados = []
+     for pasta, dados in _componentes.componentes(str(suite or RAIZ)):
++        if dados.get("nome") == "RECON_3D":
++            ausentes_recon = [nome for nome in ("radai_projection.py", "radai_projection_bone.py")
++                              if not (Path(pasta) / "app" / nome).is_file()]
++            if ausentes_recon:
++                raise SystemExit(
++                    u"PAREI: RECON_3D incompativel com a base 8.10 sem Nidus: "
++                    u"faltam %s. O pin publico v8.9 ainda nao contem esses helpers. "
++                    u"Use a arvore adaptada pelos patches privados do Neuro RT "
++                    u"antes de empacotar; nao altere tag/hash publico por inferencia."
++                    % u", ".join("app/" + nome for nome in ausentes_recon))
+         achados.append(dados.get("nome"))
+         deste = []
+         for sub in ("app", "tools"):
+@@ -263,7 +273,7 @@ def coletar_componentes(ja, suite=None, trava=None):
+     if faltam:
+         raise SystemExit(
+             u"PAREI: o instalador sairia sem %s. Clone os repositorios dos "
+-            u"seis apps como pastas irmas do local-suite (ou aponte "
++            u"apps da base como pastas irmas do local-suite (ou aponte "
+             u"RADAI_COMPONENTES_DIR para a pasta que os tem), ou monte com "
+             u"--dos-repositorios." % u", ".join(faltam))
+     return itens
+diff --git a/entrega.txt b/entrega.txt
+index 74e1909b69bf5d46f48f39d7eaca9bfd5ee7399b..cbe504c2a0a650c2dafc402d0b42361cc4455257 100644
+--- a/entrega.txt
++++ b/entrega.txt
+@@ -5,7 +5,7 @@
+ # GUARDA: sem PRODUTO, ele vale o PROJETO.
+ PRODUTO=RADIOTERAPIA_AI_LOCAL_SUITE
+ PROJETO=LOCAL_SUITE
+-VERSAO=8.9
++VERSAO=8.10
+ 
+ # GUARDA: BUNDLE_MINIMO e a versao mais antiga de pacote de transferencia que o modo 3 aceita: abaixo dela recusa sem extrair; entre ela e a VERSAO, instala o pacote e aplica o codigo desta versao por cima.
+ # GUARDA: um pacote serve se a impressao de requisitos da versao dele (build/requisitos.py) e igual a desta e se ele foi montado pelo pipeline unico; mudou a impressao, o BUNDLE_MINIMO sobe para a VERSAO. tools/test_packager.py compara a impressao da tag v<BUNDLE_MINIMO> com a da arvore atual.
+diff --git a/installer/INSTALL.ps1 b/installer/INSTALL.ps1
+index 2b0481e61c949759cf4fe20e5ffcd12a96a9c96e..fc12a4f38d4a9cee8d03c946992b1d3e31e922b0 100644
+--- a/installer/INSTALL.ps1
++++ b/installer/INSTALL.ps1
+@@ -643,7 +643,7 @@ if ($NO_LUGAR) {
+ Diga "   sao varios GB. Pode demorar. NAO feche esta janela."
+ if (-not (Test-Path -LiteralPath $DESTINO)) { New-Item -ItemType Directory -Path $DESTINO -Force | Out-Null }
+ $rcLog = Join-Path $AQUI "INSTALAR_COPIA_LOG.txt"
+-$rcArgs = @($CARGA, $DESTINO, "/E", "/R:2", "/W:2", "/NFL", "/NDL", "/NP")
++$rcArgs = @($CARGA, $DESTINO, "/E", "/R:2", "/W:2", "/NFL", "/NDL", "/NP", "/XD", (Join-Path $CARGA "Plugins"), (Join-Path $DESTINO "Plugins"))
+ $proc = Start-Process -FilePath "robocopy.exe" -ArgumentList $rcArgs `
+         -RedirectStandardOutput $rcLog -NoNewWindow -PassThru
+ try { $null = $proc.Handle } catch { }
+@@ -680,11 +680,42 @@ else { Diga ("   copia concluida (robocopy " + $rc + ")") }
+ Anote ("robocopy=" + $rc)
+ }
+ 
++$raizCachesBase = [IO.Path]::GetFullPath($DESTINO).TrimEnd('\') + '\'
++$raizPluginsPreservados = [IO.Path]::GetFullPath((Join-Path $DESTINO 'Plugins')).TrimEnd('\') + '\'
+ foreach ($pc in (Get-ChildItem -LiteralPath $DESTINO -Recurse -Directory -Filter "__pycache__" -ErrorAction SilentlyContinue)) {
+-    try { Remove-Item -LiteralPath $pc.FullName -Recurse -Force } catch { }
++    $cacheBaseAtual = [IO.Path]::GetFullPath($pc.FullName)
++    if (-not $cacheBaseAtual.StartsWith($raizCachesBase, [StringComparison]::OrdinalIgnoreCase)) { throw 'Cache fora da instalacao base.' }
++    if ($cacheBaseAtual.StartsWith($raizPluginsPreservados, [StringComparison]::OrdinalIgnoreCase)) { continue }
++    try { Remove-Item -LiteralPath $cacheBaseAtual -Recurse -Force } catch { }
++}
++
++# Two retired base modules have migrated into the independently versioned plugin.
++# Keep original code by SHA256 before removing only those explicitly known paths.
++function HashCodigoNeuroLegado([string]$arquivo) {
++    $algoritmo = [Security.Cryptography.SHA256]::Create()
++    $leitor = [IO.File]::OpenRead($arquivo)
++    try { return ([BitConverter]::ToString($algoritmo.ComputeHash($leitor))).Replace('-', '').ToLowerInvariant() }
++    finally { $leitor.Dispose(); $algoritmo.Dispose() }
++}
++foreach ($nomeNeuroLegado in @("radai_nidus.py", "radai_nidus_screen.py")) {
++    $fonteNeuroLegado = Join-Path $DESTINO $nomeNeuroLegado
++    if (Test-Path -LiteralPath $fonteNeuroLegado -PathType Leaf) {
++        $hashNeuroLegado = (HashCodigoNeuroLegado $fonteNeuroLegado)
++        $pastaNeuroBackup = Join-Path $DESTINO ".migration-backups\neuro-rt-v1"
++        New-Item -ItemType Directory -Path $pastaNeuroBackup -Force | Out-Null
++        $arquivoNeuroBackup = Join-Path $pastaNeuroBackup ($hashNeuroLegado + "-" + $nomeNeuroLegado)
++        if (-not (Test-Path -LiteralPath $arquivoNeuroBackup)) {
++            Copy-Item -LiteralPath $fonteNeuroLegado -Destination $arquivoNeuroBackup -ErrorAction Stop
++        }
++        if ((HashCodigoNeuroLegado $arquivoNeuroBackup) -ne $hashNeuroLegado) {
++            throw "Backup do modulo legado Nidus nao confere; remocao interrompida."
++        }
++    }
+ }
+ 
+ $ORFAOS = @(
++    "radai_nidus.py",
++    "radai_nidus_screen.py",
+     "radai_calibrator.py",
+     "radai_compiler.py",
+     "radai_crosscheck.py",
+diff --git a/packager/UPDATE.ps1 b/packager/UPDATE.ps1
+index 2f9dd41dad9d18aa89fcc0837c249f3b8ad98465..3350ff84c1fb44263cd305185f61585c16ef8a6a 100644
+--- a/packager/UPDATE.ps1
++++ b/packager/UPDATE.ps1
+@@ -705,6 +705,8 @@ function _Relativos($de, $so) {
+ function Copiar($de, $para, $so) {
+     $n = 0; $t = 0
+     foreach ($it in (_Relativos $de $so)) {
++        # Plugins have an independent installer; base updates preserve them.
++        if (($it.rel -split "[\\/]")[0] -ieq "Plugins") { throw "A atualizacao base nao pode alterar Plugins." }
+         $alvo = Join-Path $para $it.rel
+         if (-not (Test-Path -LiteralPath $alvo)) { $n++ }
+         elseif ((Get-Item -LiteralPath $alvo).Length -ne $it.f.Length -or
+@@ -864,6 +866,8 @@ function Aplicar($de, $para, $so) {
+         New-Item -ItemType Directory -Path $para -Force | Out-Null
+     }
+     foreach ($it in (_Relativos $de $so)) {
++        # Plugins have an independent installer; base updates preserve them.
++        if (($it.rel -split "[\\/]")[0] -ieq "Plugins") { throw "A atualizacao base nao pode alterar Plugins." }
+         $alvo = Join-Path $para $it.rel
+         $pasta = Split-Path -Parent $alvo
+         if ($pasta -and -not (Test-Path -LiteralPath $pasta)) {
+@@ -887,7 +891,33 @@ foreach ($cacheCodigo in $script:CachesDoCodigo.Keys) {
+     if (Test-Path -LiteralPath $cacheNormal -PathType Container) { Remove-Item -LiteralPath $cacheNormal -Recurse -Force -ErrorAction SilentlyContinue }
+ }
+ 
++# Two retired base modules have migrated into the independently versioned plugin.
++# Keep original code by SHA256 before removing only those explicitly known paths.
++function HashCodigoNeuroLegado([string]$arquivo) {
++    $algoritmo = [Security.Cryptography.SHA256]::Create()
++    $leitor = [IO.File]::OpenRead($arquivo)
++    try { return ([BitConverter]::ToString($algoritmo.ComputeHash($leitor))).Replace('-', '').ToLowerInvariant() }
++    finally { $leitor.Dispose(); $algoritmo.Dispose() }
++}
++foreach ($nomeNeuroLegado in @("radai_nidus.py", "radai_nidus_screen.py")) {
++    $fonteNeuroLegado = Join-Path $INST $nomeNeuroLegado
++    if (Test-Path -LiteralPath $fonteNeuroLegado -PathType Leaf) {
++        $hashNeuroLegado = (HashCodigoNeuroLegado $fonteNeuroLegado)
++        $pastaNeuroBackup = Join-Path $INST ".migration-backups\neuro-rt-v1"
++        New-Item -ItemType Directory -Path $pastaNeuroBackup -Force | Out-Null
++        $arquivoNeuroBackup = Join-Path $pastaNeuroBackup ($hashNeuroLegado + "-" + $nomeNeuroLegado)
++        if (-not (Test-Path -LiteralPath $arquivoNeuroBackup)) {
++            Copy-Item -LiteralPath $fonteNeuroLegado -Destination $arquivoNeuroBackup -ErrorAction Stop
++        }
++        if ((HashCodigoNeuroLegado $arquivoNeuroBackup) -ne $hashNeuroLegado) {
++            throw "Backup do modulo legado Nidus nao confere; remocao interrompida."
++        }
++    }
++}
++
+ $ORFAOS = @(
++    "radai_nidus.py",
++    "radai_nidus_screen.py",
+     "radai_calibrator.py",
+     "radai_compiler.py",
+     "radai_crosscheck.py",
+diff --git a/tools/_componentes.py b/tools/_componentes.py
+index e8e30f1b724f896035e30b84ca2dcdf864fae79f..4b77493f9fa9b2f8b89ea526a529a1636a9508e0 100644
+--- a/tools/_componentes.py
++++ b/tools/_componentes.py
+@@ -12,6 +12,8 @@ MARCA = "componente.json"
+ SUITE = "local-suite"
+ NOME_DO_PTH = "radai_componentes.pth"
+ IGNORAR = ("__pycache__",)
++COMPONENTES_FORA_DA_BASE = frozenset(("NIDUS_RT",))
++_EXTRAS = {}
+ 
+ 
+ class ComponenteDuplicado(Exception):
+@@ -58,7 +60,7 @@ def componentes(suite=None):
+                 os.path.exists(suite) and os.path.samefile(pasta, suite)):
+             continue
+         dados = _ler_marca(pasta)
+-        if dados is not None:
++        if dados is not None and dados.get("nome") not in COMPONENTES_FORA_DA_BASE:
+             achados.append((pasta, dados))
+     return achados
+ 
+@@ -74,7 +76,7 @@ def _pasta_de(raiz, sub):
+     return p
+ 
+ 
+-def pastas(sub, suite=None):
++def pastas_base(sub, suite=None):
+     suite = suite or raiz_da_suite()
+     saida = [_pasta_de(suite, sub)]
+     for pasta, _ in componentes(suite):
+@@ -84,6 +86,15 @@ def pastas(sub, suite=None):
+     return saida
+ 
+ 
++def pastas(sub, suite=None):
++    saida = pastas_base(sub, suite)
++    if sub == "app":
++        for pasta in _EXTRAS.get(os.path.normcase(os.path.abspath(suite or raiz_da_suite())), ()):
++            if pasta not in saida:
++                saida.append(pasta)
++    return saida
++
++
+ def pastas_de(subs, suite=None, app_rel="app"):
+     suite = suite or raiz_da_suite()
+     saida = [(sub, os.path.join(suite, app_rel if sub == "app" else sub))
+@@ -129,7 +140,7 @@ def fonte(relativo, suite=None):
+         return relativo
+     suite = suite or raiz_da_suite()
+     rel = os.path.normpath(relativo.replace("\\", "/"))
+-    for raiz in [suite] + [p for p, _ in componentes(suite)]:
++    for raiz in [suite] + [p for p, _ in componentes(suite)] + [os.path.dirname(p) for p in _EXTRAS.get(os.path.normcase(os.path.abspath(suite)), ())]:
+         caminho = os.path.join(raiz, rel)
+         if os.path.exists(caminho):
+             return caminho
+@@ -149,7 +160,7 @@ def ler(relativo, suite=None):
+ def ler_todos(relativo, suite=None):
+     suite = suite or raiz_da_suite()
+     partes = []
+-    for raiz in [suite] + [p for p, _ in componentes(suite)]:
++    for raiz in [suite] + [p for p, _ in componentes(suite)] + [os.path.dirname(p) for p in _EXTRAS.get(os.path.normcase(os.path.abspath(suite)), ())]:
+         caminho = os.path.join(raiz, relativo)
+         if os.path.isfile(caminho):
+             with io.open(caminho, encoding="utf-8", errors="replace") as f:
+@@ -249,13 +260,28 @@ def verificar(pasta, suite=None):
+ 
+ def ligar(suite=None):
+     destino = os.path.join(sysconfig.get_paths()["purelib"], NOME_DO_PTH)
+-    linhas = pastas("app", suite) + pastas("tools", suite)
++    linhas = pastas_base("app", suite) + pastas_base("tools", suite)
+     with io.open(destino, "w", encoding="utf-8") as f:
+         f.write(u"\n".join(linhas) + u"\n")
+     return destino, linhas
+ 
+ 
+-def ligar_caminho(suite=None):
++def ligar_caminho(suite=None, extras=()):
++    suite = suite or raiz_da_suite()
++    chave = os.path.normcase(os.path.abspath(suite))
++    novos = list(_EXTRAS.get(chave, ()))
++    for pasta in extras:
++        pasta = os.path.abspath(pasta)
++        if not os.path.isdir(pasta):
++            raise ValueError("pasta extra do plugin ausente: %s" % pasta)
++        if pasta not in novos:
++            novos.append(pasta)
++    _EXTRAS[chave] = tuple(novos)
++    for pasta in list(sys.path):
++        dados = _ler_marca(os.path.dirname(os.path.abspath(pasta)))
++        if dados and dados.get("nome") in COMPONENTES_FORA_DA_BASE:
++            sys.path.remove(pasta)
++    arquivos("app", suite=suite)
+     for p in reversed(pastas("app", suite)):
+         if p not in sys.path:
+             sys.path.insert(0, p)
+@@ -297,7 +323,7 @@ def nao_ignorados(pasta):
+ 
+ def montar_app(destino, suite=None):
+     copiados = {}
+-    for pasta in pastas("app", suite):
++    for pasta in pastas_base("app", suite):
+         # GUARDA: o que o .gitignore da pasta ignora e estado de execucao (config, registro, modelos) e nao entra na montagem.
+         permitidos = nao_ignorados(pasta)
+         for atual, dirs, nomes in os.walk(pasta):
+diff --git a/tools/test_componentes.py b/tools/test_componentes.py
+index afb852299ced51f40df99bd70b0edcff7b9f2329..878fd3f4bf446993a0ebd12f57c1f78582cbed88 100644
+--- a/tools/test_componentes.py
++++ b/tools/test_componentes.py
+@@ -437,6 +437,53 @@ def teste_empacotador_confere_a_arvore():
+         shutil.rmtree(base, ignore_errors=True)
+ 
+ 
++def teste_empacotador_exige_recon_compativel():
++    secao(u"o coletor recusa Recon3D publico antigo antes de montar base sem Nidus")
++    import empacotar_instalador as E
++    base = tempfile.mkdtemp(prefix="radai_baixa_")
++    antes = os.environ.get(C.VARIAVEL_DA_PASTA)
++    try:
++        servidor = os.path.join(base, "servidor")
++        os.makedirs(servidor)
++        suite = os.path.join(base, "SUITE")
++        os.makedirs(suite)
++        antigos = {"app/radai_recon3d_vascular.py": b"import radai_nidus_screen\n"}
++        so_core = dict(antigos, **{"app/radai_projection.py": b"X = 1\n"})
++        adaptados = dict(so_core, **{
++            "app/radai_projection_bone.py": b"Y = 1\n",
++            "app/radai_recon3d_vascular.py": b"import radai_projection\nimport radai_projection_bone\n"})
++        for numero, arquivos in enumerate((antigos, so_core, adaptados)):
++            tag = "vteste%d" % numero
++            _zipball(os.path.join(servidor, "RECON_3D-%s.zip" % tag), "RECON_3D", arquivos)
++            trava = os.path.join(base, "trava.json")
++            gravar(trava, json.dumps({"componentes": [{
++                "nome": "RECON_3D", "repositorio": "RECON_3D", "tag": tag,
++                "arvore_sha256": _arvore("RECON_3D", arquivos)}]}))
++            baixados = os.path.join(base, "baixados%d" % numero)
++            B.baixar_todos(baixados, trava, _origem(servidor), avisar=lambda *_: None)
++            os.environ[C.VARIAVEL_DA_PASTA] = baixados
++            try:
++                nomes = [n for n, _ in E.coletar_componentes(set(), suite=suite, trava=trava)]
++                erro = u""
++            except SystemExit as e:
++                nomes, erro = [], u"%s" % e
++            if numero < 2:
++                checar(u"Recon sem %s e recusado com motivo antes de gerar pacote" %
++                       ("os dois helpers" if numero == 0 else "o helper de osso"),
++                       not nomes and u"RECON_3D" in erro
++                       and u"radai_projection_bone.py" in erro, erro)
++            else:
++                checar(u"Recon adaptado com os dois helpers entra na montagem",
++                       not erro and "app/radai_projection.py" in nomes
++                       and "app/radai_projection_bone.py" in nomes, erro)
++    finally:
++        if antes is None:
++            os.environ.pop(C.VARIAVEL_DA_PASTA, None)
++        else:
++            os.environ[C.VARIAVEL_DA_PASTA] = antes
++        shutil.rmtree(base, ignore_errors=True)
++
++
+ def teste_exportador():
+     if OFICINA is None:
+         secao(u"o exportador do componente")
+@@ -446,11 +493,11 @@ def teste_exportador():
+ 
+ 
+ def teste_trava_do_repositorio():
+-    secao(u"a trava versionada lista os seis apps")
++    secao(u"a trava versionada lista os cinco apps da base")
+     lista = B.ler_trava()
+     nomes = sorted(c["nome"] for c in lista)
+-    checar(u"os seis componentes estão na trava",
+-           nomes == sorted(["CONTOURLAB", "DICOM_BRIDGE", "RECON_3D", "NIDUS_RT",
++    checar(u"os cinco componentes da base estão na trava",
++           nomes == sorted(["CONTOURLAB", "DICOM_BRIDGE", "RECON_3D",
+                             "ELASTIC_RT", "3D_PRINTED_BOLUS"]), nomes)
+     reais = sorted(d.get("nome") for _, d in C.componentes())
+     checar(u"e são os mesmos que a marca acha nesta máquina (quando há irmãs)",
+@@ -584,6 +631,7 @@ def main():
+               teste_montagem_sem_o_que_o_git_ignora,
+               teste_pasta_alternativa, teste_baixador, teste_travar,
+               teste_empacotador_confere_a_arvore,
++              teste_empacotador_exige_recon_compativel,
+               teste_o_empacotador_confere_antes_do_nome_oficial,
+               teste_o_carimbo_ve_o_app_alterado, teste_exportador,
+               teste_trava_do_repositorio):
