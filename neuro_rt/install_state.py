@@ -22,7 +22,7 @@ import time
 import uuid
 import zipfile
 
-from .plugin_manifest import (_numeric_version, _relative_path, read_manifest,
+from .plugin_manifest import (_numeric_version, _relative_path, read_manifest, BETA_TOOLS,
                               validate_host_runtime, HostRuntimeUnavailable)
 from .model_registry import load_catalog
 
@@ -38,8 +38,10 @@ CODE_ROOTS = {'module.json', 'neuro_rt', 'web', 'integration', 'app', 'catalog',
 HOST_CODE_SUFFIXES = {
     'neuro_rt': {'.py'}, 'integration': {'.py'}, 'app': {'.py'},
     'web': {'.html', '.js', '.css', '.svg', '.json'}, 'catalog': {'.json'},
-    'licenses': {'.txt', '.md', '.html'}, 'installer': {'.ps1'},
+    'licenses': {'.txt', '.md', '.html'}, 'installer': {'.ps1', '.cmd'},
 }
+HOST_INSTALLERS = {'INSTALL.ps1', 'UPDATE.ps1', 'PREPARE_LATEST.ps1', 'START_HERE.ps1', 'START_HERE.cmd'}
+SETUP_LAUNCHERS = {'START_HERE.cmd': 'code/installer/START_HERE.cmd'}
 
 
 @dataclass(frozen=True)
@@ -233,6 +235,8 @@ class InstallFailure(ValueError):
 
 
 _ERROR_REASONS = {
+    'LOCAL_RESOURCES_MISSING': 'O pacote local não contém todos os recursos. Monte ou traga o pacote offline completo pelo START HERE.',
+    'EXTERNAL_MAINTENANCE_REQUIRED': 'Use START_HERE ou as configurações da Local Suite para preparar recursos e concluir a manutenção externa.',
     'HOST_INCOMPATIBLE': 'Atualize ou repare a base do Local Suite antes de instalar o plugin.',
     'INSTALL_BUSY': 'Outra preparação do plugin está em andamento. Aguarde sua conclusão antes de tentar novamente.',
     'INSUFFICIENT_SPACE': 'Espaço livre insuficiente para preparar o NEURO RT.',
@@ -441,6 +445,9 @@ def _manifest_shape(data):
                      Path(parts[-1]).suffix.lower() not in HOST_CODE_SUFFIXES[parts[1]])) or
                     (parts[1] not in HOST_CODE_SUFFIXES and len(parts) != 2)):
                 raise ValueError('Modo host permite somente código, instaladores e textos autorizados.')
+            if execution_mode == 'host' and parts[1] == 'installer' and (
+                    len(parts) != 3 or parts[2] not in HOST_INSTALLERS):
+                raise ValueError('Entrada do instalador fora da allowlist fixa.')
         elif parts[0] not in ('models', 'runtimes') or len(parts) < 4:
             raise ValueError('Payload deve separar code, runtimes e models.')
         if execution_mode == 'host' and parts[0] != 'code':
@@ -482,6 +489,18 @@ def _manifest_shape(data):
         model_keys.add(key)
         components.append((f'models/{key[0]}/{key[1]}', model))
     names = {record['path'] for record in files}
+    launchers = data.get('launchers', [])
+    if not isinstance(launchers, list) or len(launchers) > 1 or len(files) + len(launchers) > MAX_FILES:
+        raise ValueError('Launchers do SETUP inválidos.')
+    records = {record['path']: record for record in files}
+    for record in launchers:
+        if not isinstance(record, dict) or set(record) != {'path', 'size', 'sha256'}:
+            raise ValueError('Registro de launcher inválido.')
+        mirror = SETUP_LAUNCHERS.get(record['path'])
+        expected = records.get(mirror)
+        if (execution_mode != 'host' or expected is None or type(record['size']) is not int or
+                not 0 < record['size'] <= 16 * 1024 or any(record[key] != expected[key] for key in ('size', 'sha256'))):
+            raise ValueError('Launcher deve espelhar exatamente o código fixado do SETUP.')
     for prefix, component in components:
         records = [name for name in names if name.startswith(prefix + '/')]
         if not records:
@@ -545,15 +564,18 @@ def _inspect_zip(zipped):
         raise ValueError('ZIP não contém release-manifest.json válido.')
     data = json.loads(zipped.read('release-manifest.json').decode('utf-8'))
     components, size = _manifest_shape(data)
-    records = {record['path']: record for record in data['files']}
+    records = {record['path']: record for record in data['files'] + data.get('launchers', [])}
     if any(name != 'release-manifest.json' and name not in records for name in files):
         raise ValueError('ZIP contém arquivo não fixado no manifesto.')
     for name, entry in files.items():
         if name != 'release-manifest.json' and entry.file_size != records[name]['size']:
             raise ValueError('Tamanho ZIP difere do inventário.')
     for name in records:
-        if name.startswith('code/') and name not in files:
+        if (name.startswith('code/') or name in SETUP_LAUNCHERS) and name not in files:
             raise ValueError('Código precisa estar completo dentro do ZIP.')
+    for record in data.get('launchers', []):
+        if hashlib.sha256(zipped.read(record['path'])).hexdigest() != record['sha256']:
+            raise ValueError('Launcher do SETUP difere do código fixado.')
     if data.get('execution_mode', 'isolated') == 'host':
         for name in records:
             with zipped.open(files[name]) as stream:
@@ -594,8 +616,15 @@ def _verify_catalog(code, data):
         raise ValueError('Modo de execução do plugin difere da release.')
     models = load_catalog(_path(code, manifest.catalog))
     if manifest.execution_mode == 'host':
-        if manifest.enabled_tools != ('nidus',):
-            raise ValueError('Modo host desta entrega permite somente Nidus RT.')
+        if manifest.enabled_tools == BETA_TOOLS:
+            recipe = manifest.resource_recipe
+            if 'code/' + recipe not in names:
+                raise ValueError('A receita de recursos deve estar fixada no inventário CODE.')
+            values = _read_json(_path(code, recipe))
+            if not isinstance(values, dict) or values.get('schema') != 'neuro-rt/resource-recipe/1':
+                raise ValueError('Receita de recursos inválida.')
+        elif manifest.enabled_tools != ('nidus',):
+            raise ValueError('Ferramentas fora do perfil host autorizado.')
         # Future specifications remain validated documentation, not installed models.
         return
     runtimes = {r['id']: r for r in data['runtimes']}
@@ -785,7 +814,8 @@ def begin_install(host_root, package, transaction_id, *, host_python=None) -> In
                     _path(root, name).mkdir(exist_ok=True)
                 updated = dict(previous, state='installed_pending_restart', pending_version=version,
                                transaction_id=transaction_id, pending_runtime=data['runtime'],
-                               pending_execution_mode=data.get('execution_mode', 'isolated'), package_sha256=expected)
+                               pending_execution_mode=data.get('execution_mode', 'isolated'), package_sha256=expected,
+                               pending_resources=None)
                 _atomic_json(state_file, updated)
                 committed = True
                 _atomic_json(receipt_file, asdict(receipt))
@@ -866,12 +896,22 @@ def activate_release(plugin_root, version, *, host_python=None) -> ActivationRec
             validate_host_runtime(host_python)
         state_file = _path(root, 'installation.json')
         previous = _read_json(state_file)
+        code = _path(root, 'versions/' + version)
+        manifest = read_manifest(_path(code, 'module.json'))
+        resources = None
+        if manifest.execution_mode == 'host' and manifest.enabled_tools == BETA_TOOLS:
+            if (previous.get('pending_version') != version or not previous.get('transaction_id')
+                    or previous.get('pending_resources') is None):
+                raise ValueError('A versão beta exige os recursos preparados pela mesma transação pendente.')
+            from .resource_paths import resolve_resources
+            resources, _, _ = resolve_resources(root, code, previous['pending_resources'])
         old = previous.get('active_version')
         receipt = ActivationReceipt(old if old != version else previous.get('previous_version'), version, False, 'ready')
         updated = dict(previous, state='ready', active_version=version,
                        previous_version=receipt.previous_version, pending_version=None,
                        pending_runtime=None, runtime=data['runtime'], pending_execution_mode=None,
-                       execution_mode=data.get('execution_mode', 'isolated'))
+                       execution_mode=data.get('execution_mode', 'isolated'),
+                       resources=resources, pending_resources=None)
         _atomic_json(state_file, updated)
         transaction = previous.get('transaction_id', 'activation')
         _status(root, transaction, 'ready', 'active')

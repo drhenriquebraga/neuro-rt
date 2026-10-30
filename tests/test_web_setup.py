@@ -52,6 +52,8 @@ class WebSetupTests(unittest.TestCase):
             'installer/INSTALL.ps1': b'# Use the existing host interpreter.\n',
             'installer/UPDATE.ps1': b'# Stage reviewed plugin code.\n',
             'installer/PREPARE_LATEST.ps1': b'# Consent before setup download.\n',
+            'installer/START_HERE.ps1': b'# Guided preparation using the existing host.\n',
+            'installer/START_HERE.cmd': b'@echo off\r\nrem synthetic trusted launcher\r\n',
         }.items():
             self.write(name, raw)
 
@@ -82,9 +84,11 @@ class WebSetupTests(unittest.TestCase):
             self.assertIn('code/catalog/model_assets_v1_manifest.json', names)
             self.assertIn('code/LICENSE', names)
             self.assertIn('code/licenses/NIDUS.txt', names)
-            for script in ('INSTALL.ps1', 'UPDATE.ps1', 'PREPARE_LATEST.ps1'):
+            for script in ('INSTALL.ps1', 'UPDATE.ps1', 'PREPARE_LATEST.ps1', 'START_HERE.ps1', 'START_HERE.cmd'):
                 self.assertIn('code/installer/' + script, names)
-            self.assertTrue(all(n == 'release-manifest.json' or n.startswith('code/') for n in names))
+            self.assertIn('START_HERE.cmd', names)
+            self.assertEqual(archive.read('START_HERE.cmd'), archive.read('code/installer/START_HERE.cmd'))
+            self.assertTrue(all(n in ('release-manifest.json', 'START_HERE.cmd') or n.startswith('code/') for n in names))
             self.assertNotIn('setup-manifest.json', names)
             manifest = json.loads(archive.read('release-manifest.json'))
             self.assertEqual(manifest, result['manifest'])
@@ -93,7 +97,10 @@ class WebSetupTests(unittest.TestCase):
             self.assertIsNone(manifest['runtime'])
             self.assertEqual(manifest['runtimes'], [])
             self.assertEqual(manifest['models'], [])
-            self.assertEqual({r['path'] for r in manifest['files']}, names - {'release-manifest.json'})
+            self.assertEqual({r['path'] for r in manifest['files']}, names - {'release-manifest.json', 'START_HERE.cmd'})
+            launcher = manifest['launchers'][0]
+            self.assertEqual(launcher, {'path': 'START_HERE.cmd', 'size': len(archive.read('START_HERE.cmd')),
+                'sha256': hashlib.sha256(archive.read('START_HERE.cmd')).hexdigest()})
             for record in manifest['files']:
                 content = archive.read(record['path'])
                 self.assertEqual(len(content), record['size'])

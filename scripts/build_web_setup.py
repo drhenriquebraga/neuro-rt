@@ -20,7 +20,7 @@ from neuro_rt.model_registry import load_catalog
 from neuro_rt.plugin_manifest import read_manifest
 from scripts.build_plugin_release import CODE_DIRS, CODE_FILES, PRIVATE_PARTS, _archive, source_code_files
 
-INSTALLERS = ('INSTALL.ps1', 'UPDATE.ps1', 'PREPARE_LATEST.ps1')
+INSTALLERS = ('INSTALL.ps1', 'UPDATE.ps1', 'PREPARE_LATEST.ps1', 'START_HERE.ps1', 'START_HERE.cmd')
 MAX_SETUP_SIZE = 3 * 1024 * 1024
 _PRIVATE = {part.casefold() for part in PRIVATE_PARTS} | {
     'runtime', 'runtimes', 'models', 'python', 'site-packages', 'venv', 'host_updates'}
@@ -76,6 +76,7 @@ def build_web_setup(output_dir, *, root=ROOT) -> dict:
     payload = {name: _source_bytes(root, name, source,
                    asset_fallback=fallback and name == _ASSET_MANIFEST)
                for name, source in sorted(sources.items())}
+    payload['START_HERE.cmd'] = payload['code/installer/START_HERE.cmd']
     required = {'code/module.json', 'code/LICENSE', 'code/NOTICE',
                 'code/' + module.catalog, 'code/' + module.adapter.split(':')[0]}
     if not required.issubset(payload):
@@ -89,9 +90,12 @@ def build_web_setup(output_dir, *, root=ROOT) -> dict:
                                      if name in ('code/LICENSE', 'code/NOTICE') or
                                      name.startswith('code/licenses/')),
         'files': [{'path': name, 'size': len(raw), 'sha256': hashlib.sha256(raw).hexdigest()}
-                  for name, raw in sorted(payload.items())],
+                  for name, raw in sorted(payload.items()) if name.startswith('code/')],
+        'launchers': [{'path': 'START_HERE.cmd', 'size': len(payload['START_HERE.cmd']),
+                      'sha256': hashlib.sha256(payload['START_HERE.cmd']).hexdigest()}],
     }
     install_state._manifest_shape(manifest)
+    install_state._verify_catalog(root, manifest)
     output = install_state._plain(output_dir).resolve()
     output.mkdir(parents=True, exist_ok=True)
     setup = output / f'NEURO_RT_SETUP_v{module.version}.zip'

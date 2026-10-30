@@ -30,8 +30,11 @@ def _inside(root, relative):
     root = Path(root).absolute()
     raw_path = root.joinpath(*parts)
     for parent in (raw_path, *raw_path.parents):
-        if parent.exists() or parent.is_symlink():
+        try:
             info = parent.lstat()
+        except FileNotFoundError:
+            pass
+        else:
             if stat.S_ISLNK(info.st_mode) or getattr(info, 'st_file_attributes', 0) & 0x400:
                 raise ValueError('A instalação do plugin não permite links ou redirecionamentos.')
         if parent == root:

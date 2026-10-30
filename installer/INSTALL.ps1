@@ -1,12 +1,13 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$SuiteRoot,
-    [Parameter(Mandatory = $true)][string]$PackagePath,
-    [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-f]{64}$')][string]$PackageSha256,
-    [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$')][string]$TransactionId,
+    [string]$PackagePath,
+    [ValidatePattern('^[0-9a-f]{64}$')][string]$PackageSha256,
+    [ValidatePattern('^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$')][string]$TransactionId,
     [string]$BootstrapPython,
     [string]$HostVersion,
-    [switch]$AcceptTerms
+    [switch]$AcceptTerms,
+    [switch]$LegacyPrepareForQA
 )
 
 Set-StrictMode -Version Latest
@@ -15,6 +16,14 @@ $ErrorActionPreference = 'Stop'
 try {
     # No inferred install destination, downloads, credentials or global pip.
     $suite = (Resolve-Path -LiteralPath $SuiteRoot -ErrorAction Stop).Path
+    if (-not $LegacyPrepareForQA) {
+        Write-Host 'NEURO RT: a instalacao/atualizacao e concluida pelas configuracoes da Local Suite.'
+        & (Join-Path $PSScriptRoot 'START_HERE.ps1') -SuiteRoot $suite -Mode prepare
+        exit $LASTEXITCODE
+    }
+    if ([string]::IsNullOrWhiteSpace($PackagePath) -or [string]::IsNullOrWhiteSpace($PackageSha256) -or [string]::IsNullOrWhiteSpace($TransactionId)) {
+        throw 'O preparo legado QA exige pacote 1.0.2, SHA e transacao explicitos.'
+    }
     $package = (Resolve-Path -LiteralPath $PackagePath -ErrorAction Stop).Path
     $bootstrapRoot = Split-Path -Parent $PSScriptRoot
     if (-not (Test-Path -LiteralPath (Join-Path $bootstrapRoot 'neuro_rt\install_state.py') -PathType Leaf)) {

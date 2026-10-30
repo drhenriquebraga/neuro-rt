@@ -1,4 +1,4 @@
-"""The public PS installer reuses the complete base; it never prepares Python."""
+"""Explicit legacy 1.0.2 QA keeps its old CODE preparation contract."""
 import importlib.metadata
 import json
 from pathlib import Path
@@ -21,7 +21,7 @@ def complete_base():
 
 class SetupPowerShellTests(unittest.TestCase):
     @unittest.skipUnless(complete_base(),'Requires the complete Local Suite Python, not a parallel test environment.')
-    def test_public_setup_prepares_code_using_existing_base_python_and_prints_steps(self):
+    def test_legacy_102_qa_prepares_code_using_existing_base_python_and_prints_steps(self):
         powershell=shutil.which('powershell') or shutil.which('pwsh')
         if not powershell:self.skipTest('PowerShell unavailable')
         root=Path(__file__).resolve().parents[1]
@@ -35,7 +35,7 @@ class SetupPowerShellTests(unittest.TestCase):
             result=subprocess.run([powershell,'-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass',
                 '-File',str(root/'installer/INSTALL.ps1'),'-SuiteRoot',str(suite),
                 '-PackagePath',setup['path'],'-PackageSha256',setup['sha256'],
-                '-TransactionId','light-ps','-BootstrapPython',sys.executable,'-AcceptTerms'],
+                '-TransactionId','light-ps','-BootstrapPython',sys.executable,'-AcceptTerms','-LegacyPrepareForQA'],
                 cwd=work,capture_output=True,text=True,timeout=60)
             self.assertEqual(result.returncode,0,result.stdout+result.stderr)
             plugin=suite/'Plugins/NEURO RT'

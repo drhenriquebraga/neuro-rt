@@ -92,6 +92,12 @@ class ReleaseClient:
         self._expires = 0
         self.ttl = ttl
 
+    def refresh_plugin_release(self, plugin_id, installed_version):
+        with self._lock:
+            self._cached = None
+            self._expires = 0
+        return self.check_plugin_release(plugin_id, installed_version)
+
     def check_plugin_release(self, plugin_id, installed_version):
         if plugin_id != 'neuro-rt':
             raise ValueError('Plugin não autorizado.')
@@ -374,6 +380,26 @@ class UpdateCoordinator:
             return self.status()
 
 
+def inspect_local_source(folder):
+    from .external_install import inspect_local_source as inspect
+    return inspect(folder)
+
+
+def prepare_external_plan(payload, *, source_folder=None):
+    from .external_install import prepare_external_plan as prepare
+    return prepare(payload, source_folder=source_folder)
+
+
+def run_external(plan, progress, *, suite_root, host_python):
+    from .external_install import run_external as run
+    return run(plan, progress, suite_root=suite_root, host_python=host_python)
+
+
+def _validate_external_plan(plan):
+    from .external_install import _validate_plan
+    _validate_plan(plan)
+
+
 def main(argv=None):
     """Trusted lightweight setup prepares a release; the host owns activation."""
     parser = argparse.ArgumentParser(description=__doc__)
@@ -401,6 +427,16 @@ def main(argv=None):
             coordinator._selected = dict(selected)
             destination = coordinator.plugin_root / 'staging/downloads' / (uuid.uuid4().hex + '.zip')
             package = coordinator.client.download(selected, destination)
+        if install_state._file_digest(package['path']) != package['sha256']:
+            raise ValueError('SHA256 externo divergente.')
+        with zipfile.ZipFile(package['path']) as archive:
+            install_state._inspect_zip(archive)
+            module = json.loads(archive.read('code/module.json'))
+        if not isinstance(module, dict):
+            raise ValueError('Manifesto do plugin inválido.')
+        parts = _numeric_version(module.get('version'))
+        if parts + (0,) * max(0, 3 - len(parts)) >= (1, 1, 0):
+            raise install_state.InstallFailure('EXTERNAL_MAINTENANCE_REQUIRED', 'A versão beta exige manutenção externa.')
         print(json.dumps(coordinator.prepare(package, require_host=True,
                                             transaction_id=args.transaction_id), ensure_ascii=True))
         return 0

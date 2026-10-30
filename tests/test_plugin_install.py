@@ -261,7 +261,7 @@ class PluginInstallTests(unittest.TestCase):
                                  '-File', str(script), '-SuiteRoot', str(self.host),
                                  '-PackagePath', package['path'], '-PackageSha256', package['sha256'],
                                  '-TransactionId', 'powershell', '-BootstrapPython', sys.executable,
-                                 '-HostVersion', '8.11', '-AcceptTerms'],
+                                 '-HostVersion', '8.11', '-AcceptTerms', '-LegacyPrepareForQA'],
                                 cwd=self.root, capture_output=True, text=True, timeout=60)
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse((self.plugin / 'installation.json').exists())

@@ -1,14 +1,19 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$SuiteRoot,
-    [Parameter(Mandatory = $true)][string]$HostVersion,
+    [string]$HostVersion,
     [string]$BootstrapPython,
-    [switch]$AcceptTerms
+    [switch]$AcceptTerms,
+    [switch]$LegacyPrepareForQA
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 try {
     $suite = (Resolve-Path -LiteralPath $SuiteRoot).Path
+    if (-not $LegacyPrepareForQA) {
+        & (Join-Path $PSScriptRoot 'START_HERE.ps1') -SuiteRoot $suite -Mode prepare
+        exit $LASTEXITCODE
+    }
     $trustedBootstrap = Split-Path -Parent $PSScriptRoot
     if ([string]::IsNullOrWhiteSpace($BootstrapPython)) {
         $BootstrapPython = Join-Path $suite 'python\python.exe'
