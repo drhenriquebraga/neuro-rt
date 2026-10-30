@@ -1,5 +1,16 @@
 # Integração NEURO RT / Local Suite
 
+## Contrato atual 1.0.2
+
+O [desenho atual](superpowers/specs/2026-10-30-installer-only-host-python-design.md)
+substitui o modo isolado descrito nas seções históricas abaixo. O SETUP público
+instala somente CODE; `execution_mode=host`, `runtime=null`, `runtimes=[]` e
+`models=[]`. O binding `host_info['python_executable']` vem de `sys.executable`
+da suíte e é usado pelo adapter/Settings. Nidus não baixa Python, dependências
+ou pesos na base completa. Os demais quatro cards continuam em construção.
+Os paths de runtimes privados abaixo valem para compatibilidade local legada,
+nunca como fallback do instalador remoto. O host mínimo atual é 8.11.
+
 Este é o contrato do plugin 1.0, com o recorte de disponibilidade 1.0.1 descrito
 abaixo. O protótipo iframe/API v1 está preservado em
 LEGADO_V02_INTEGRACAO.md; ele não define a instalação integrada atual.
@@ -87,7 +98,7 @@ novos. A versão anterior, modelos válidos e dados são preservados.
 
 ## Contrato do host
 
-O manifesto exige `local-suite/plugins/1` e Local Suite 8.10 ou posterior. O host
+O manifesto 1.0.2 exige `local-suite/plugins/1` e Local Suite 8.11 ou posterior. O host
 carrega a entrada conhecida e chama `montar(app, code_dir, host_services=...)` uma
 vez. HostServices fornece:
 

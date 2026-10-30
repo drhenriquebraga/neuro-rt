@@ -1,10 +1,20 @@
 # NEURO RT — plugin do Local Suite
 
-Primeiro plugin opcional da suíte. Na versão 1.0.1, **Nidus RT está habilitado**;
+Primeiro plugin opcional da suíte. Na versão 1.0.2, **Nidus RT está habilitado**;
 Glioma RT, Metastasis RT, Meningioma RT e Anatomia RT aparecem desativados com
 `[em construção]`. Seus motores ficam preservados para desenvolvimento, com
 novas execuções bloqueadas nesta entrega. A instalação fica em `Plugins/NEURO RT`; navegação,
 fila, carregamento de séries, configurações e visores pertencem ao Local Suite.
+
+A revisão 1.0.2 exige Local Suite 8.11 e corrige preparo, acompanhamento e
+reabertura da instalação. As [notas de instalação](docs/RELEASE_NOTES_v1.0.2.md)
+descrevem o contrato e a validação desta revisão.
+
+O SETUP leve instala somente código, termo e licenças. **Nidus reutiliza o Python
+e os recursos da suíte completa: não há novo Python, ambiente, pacote ou peso a
+baixar nesta entrega.** Somente SETUP versionado e SETUP_LATEST são publicados.
+O [contrato atual](docs/superpowers/specs/2026-10-30-installer-only-host-python-design.md)
+substitui os desenhos de distribuição OFFLINE e de runtimes privados anteriores.
 
 O [handoff 1.0.1](docs/HANDOFF_LOCAL_SUITE_2026-10-30.md) registra o recorte de
 disponibilidade, o aceite comum e a situação efetiva da publicação.
@@ -17,7 +27,7 @@ registrada no handoff e nas [notas da versão](docs/RELEASE_NOTES_v1.0.1.md).
 ## Uso e comportamento
 
 1. Abra NEURO RT na home da suíte compatível (contrato `local-suite/plugins/1`,
-   versão mínima 8.10 com bootstrap desta revisão). Se ausente, leia e aceite o
+   versão mínima 8.11 com bootstrap desta revisão). Se ausente, leia e aceite o
    termo do plugin antes de confirmar a instalação.
 2. Na primeira abertura, confirme o mesmo documento versionado. O aceite da
    instalação e o primeiro uso são atos distintos; nenhum deles aprova resultados.
@@ -31,7 +41,7 @@ pertencem ao TPS e ao profissional responsável. Não há criação de CTV.
 
 O seletor de modelos não tem modos AUTO ou FAST. A preferência global de
 processamento auto/CPU/GPU é uma configuração diferente; GPU estrita não faz
-fallback silencioso. Os ambientes distribuídos e testados nesta entrega são CPU.
+fallback silencioso. Esta entrega reutiliza a preferência e os recursos da base.
 
 ## Catálogo científico preservado — em construção
 
@@ -63,8 +73,8 @@ reutiliza somente resultados íntegros cuja identidade de execução permaneceu 
 O conector GitHub usa release/asset fixados e SHA-256 externo. A entrega pública
 autorizada usa o repositório `drhenriquebraga/neuro-rt` e assets da release Latest;
 confira a publicação e as identidades no handoff. Não há token embutido. A
-instalação offline também recebe pacote e hash externo.
-Código, runtimes e modelos só são ativados após conferência; a versão anterior,
+instalação recebe apenas o SETUP pequeno, autenticado pelo digest da API GitHub.
+Código do plugin só é ativado após conferência; a versão anterior,
 configuração e dados são preservados. A atualização aguarda a fila ou usa a
 interrupção explícita do padrão da suíte e reabre o aplicativo.
 
@@ -84,7 +94,7 @@ Testes HTTP também usam o Python do host, com FastAPI/httpx; quando há restri�
 locais de socket/IPC, precisam de execução autorizada. Dados de teste são
 sintéticos. Pesos, runtimes, imagens, configuração privada e resultados não entram
 no Git. Os contratos comuns funcionam em Python 3.10 ou posterior; as versões
-científicas são fixadas separadamente por runtime.
+científicas antigas são apenas pesquisa e não devem ser aplicadas à base.
 
 Inferências completas com pesos reais e restauração geométrica foram verificadas
 em fantomas. Isso não comprova precisão clínica nem desempenho anatômico. GPU,

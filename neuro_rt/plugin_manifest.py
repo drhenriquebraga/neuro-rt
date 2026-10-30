@@ -4,8 +4,10 @@
 Such a draft may be inspected but must not be mounted in a production host.
 """
 
+import importlib.metadata
 import json
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
 from typing import Mapping
@@ -14,6 +16,34 @@ from typing import Mapping
 MANIFEST_SCHEMA = 'neuro-rt/plugin-manifest/1'
 HOST_CONTRACT = 'local-suite/plugins/1'
 PLUGIN_ID = 'neuro-rt'
+NIDUS_BASE_DISTRIBUTIONS = ('numpy', 'SimpleITK', 'scipy', 'pydicom', 'fastapi', 'Pillow')
+
+
+class HostRuntimeUnavailable(ValueError):
+    error_code = 'HOST_INCOMPATIBLE'
+
+
+def validate_host_runtime(host_python) -> Path:
+    """Validate the host-owned interpreter using metadata only, never pip/imports."""
+    if not isinstance(host_python, (str, Path)) or not host_python:
+        raise HostRuntimeUnavailable('O Python autorizado da base deve ser informado pelo host.')
+    try:
+        binding = Path(host_python)
+        if not binding.is_absolute() or binding.resolve() != Path(sys.executable).resolve() or not binding.is_file():
+            raise HostRuntimeUnavailable('O Python autorizado deve ser o mesmo processo da base.')
+        binding = binding.resolve()
+    except (OSError, ValueError):
+        raise HostRuntimeUnavailable('O Python autorizado deve ser o mesmo processo da base.') from None
+    if sys.version_info[:2] < (3, 10):
+        raise HostRuntimeUnavailable('O Python da base deve ser 3.10 ou posterior.')
+    for name in NIDUS_BASE_DISTRIBUTIONS:
+        try:
+            value = importlib.metadata.version(name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError()
+        except (importlib.metadata.PackageNotFoundError, OSError, ValueError):
+            raise HostRuntimeUnavailable('Dependência da base ausente ou inválida: ' + name + '.') from None
+    return binding
 
 
 def _numeric_version(value):
@@ -55,6 +85,8 @@ class PluginManifest:
     catalog: str
     runtimes: dict
     artifacts: tuple
+    execution_mode: str = 'isolated'
+    enabled_tools: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -95,8 +127,18 @@ def read_manifest(path) -> PluginManifest:
         raise ValueError('Função do adaptador inválida.')
     _relative_path(path.parent, adapter_path)
     _relative_path(path.parent, values.get('catalog'))
+    execution_mode = values.get('execution_mode', 'isolated')
+    enabled_tools = values.get('enabled_tools', [])
+    if execution_mode not in ('isolated', 'host'):
+        raise ValueError('Modo de execução do plugin inválido.')
+    if not isinstance(enabled_tools, list) or any(not isinstance(tool, str) for tool in enabled_tools):
+        raise ValueError('Ferramentas habilitadas inválidas.')
     runtimes = values.get('runtimes')
-    if not isinstance(runtimes, dict) or not runtimes:
+    if execution_mode == 'host' and (runtimes != {} or values.get('runtime') != 'host-shared'
+            or enabled_tools != ['nidus'] or values.get('artifacts') != []
+            or any(key in values for key in ('host_python', 'python_executable', 'worker_python'))):
+        raise ValueError('O modo host permite somente Nidus, sem runtime privado ou artefatos.')
+    if not isinstance(runtimes, dict) or (not runtimes and execution_mode != 'host'):
         raise ValueError('Manifesto deve declarar os runtimes do plugin.')
     for runtime_id, runtime in runtimes.items():
         if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_-]*', runtime_id):
@@ -115,7 +157,8 @@ def read_manifest(path) -> PluginManifest:
         schema=values['schema'], id=values['id'], version=values['version'],
         host_contract=values['host_contract'], host_min_version=minimum,
         entrypoint=values['entrypoint'], adapter=adapter, catalog=values['catalog'],
-        runtimes=runtimes, artifacts=tuple(artifacts))
+        runtimes=runtimes, artifacts=tuple(artifacts), execution_mode=execution_mode,
+        enabled_tools=tuple(enabled_tools))
 
 
 def check_host_compatibility(manifest, host_info) -> CompatibilityResult:

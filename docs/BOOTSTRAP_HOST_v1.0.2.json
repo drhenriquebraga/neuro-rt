@@ -1,0 +1,28 @@
+{
+  "schema": "neuro-rt/host-bootstrap-handoff/2",
+  "plugin_version": "1.0.2",
+  "host_min_version": "8.11",
+  "source_commit": "61c5695f66f5fcc71d41b4fb65c407db04c4e598",
+  "generated_windows_file": {
+    "local_path": "dist/handoff-1.0.2/radai_neuro_install.py",
+    "host_destination": "app/radai_neuro_install.py",
+    "sha256": "9d134c47eefa51cfd74d3e9aca04659b1a61277a2d33239016f54d11f8017109",
+    "size": 191862
+  },
+  "sources": {
+    "plugin_consent": "5658cf885aa2668c0887c88b6049e305541f72db6197a4273ebfb67f2b4a73b8",
+    "plugin_manifest": "9556c7ca492bf0d1ffbf3570da8365aa5c80e98636217946912f6b06d8b60ee3",
+    "model_paths": "a54a3aba9cad1d1a30751abeafea39719638372322b952bcae7a8cce7da96f58",
+    "model_registry": "6b13fb6a60133a874241b5eb060ac5da2e1804d2a252d5594f33e25fc7978d10",
+    "install_state": "323a926a546a6b0394c148cf6c91d865814acc562eb38b45e8db155e645a2f81",
+    "plugin_update": "2ad2ed096bfec72ca39026afa5aa20b1dabd0b3587b5a7955d3987979ff17f23"
+  },
+  "execution_mode": "host",
+  "required_host_binding": "host_info.python_executable = sys.executable",
+  "ui": {
+    "plugin-update.js": "d43fd04d717bcb8eaec6af0d72370e4b771f8e39364b79cebd037a7df533b00e",
+    "plugin-update-i18n.json": "b0a58d85d1d3671ca91cebdeee13e3f82253e4948a45a8f1012a90c1f326293a"
+  },
+  "consent_version": "1.0",
+  "consent_digest": "ae6fd4434ec42a08ffe6a4be6eaf002940a903de15a516a1b5fce3275ab772b0"
+}

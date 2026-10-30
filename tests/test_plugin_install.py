@@ -251,7 +251,7 @@ class PluginInstallTests(unittest.TestCase):
             installer._atomic_json(destination, {'state': 'ready'})
         self.assertEqual(json.loads(destination.read_text()), {'state': 'ready'})
 
-    def test_powershell_entrypoint_installs_from_other_working_directory(self):
+    def test_public_powershell_rejects_old_runtime_bundle_from_other_directory(self):
         powershell = shutil.which('powershell') or shutil.which('pwsh')
         if not powershell:
             self.skipTest('PowerShell não disponível.')
@@ -260,10 +260,12 @@ class PluginInstallTests(unittest.TestCase):
         result = subprocess.run([powershell, '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
                                  '-File', str(script), '-SuiteRoot', str(self.host),
                                  '-PackagePath', package['path'], '-PackageSha256', package['sha256'],
-                                 '-TransactionId', 'powershell', '-BootstrapPython', sys.executable, '-AcceptTerms'],
+                                 '-TransactionId', 'powershell', '-BootstrapPython', sys.executable,
+                                 '-HostVersion', '8.11', '-AcceptTerms'],
                                 cwd=self.root, capture_output=True, text=True, timeout=60)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(installer.read_install_status(self.plugin).state, 'installed_pending_restart')
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse((self.plugin / 'installation.json').exists())
+        self.assertFalse((self.plugin / 'runtimes').exists())
 
     def test_zip_bomb_and_case_collisions_are_rejected(self):
         for index, name in enumerate(('code/MODULE.JSON', 'code/bomb.bin')):

@@ -1,5 +1,15 @@
 # Evidências técnicas da integração NEURO RT 1.0.0
 
+## Aceite atual 1.0.2
+
+A entrega atual é CODE-only com o Python já instalado no Local Suite, sem
+novo ambiente, dependência ou peso para Nidus. A prova real isolada usa API e
+provider da suíte, novo processo do mesmo Python, montagem 1.0.2 e comparação
+de dez arquivos críticos/versões antes e depois. O recibo atual fica em
+[INSTALL_VERIFICATION_v1.0.2.json](INSTALL_VERIFICATION_v1.0.2.json).
+Os ensaios científicos e o bundle local abaixo são histórico de pesquisa,
+não representam a distribuição nem requisitos da instalação Nidus atual.
+
 ## Revisão dirigida 1.0.1 — 30/10/2026
 
 - 107 testes selecionados de contratos, paths, pacote, instalador, atualização,

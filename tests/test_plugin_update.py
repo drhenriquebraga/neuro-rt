@@ -2,12 +2,19 @@
 import concurrent.futures
 import json
 from pathlib import Path
+import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import Mock, patch
 from neuro_rt import plugin_update as update
 from neuro_rt import install_state
 from test_plugin_install import fixture_package
+from host_setup_fixtures import host_setup
+
+
+def asset_url(identity):
+    return 'https://api.github.com/repos/' + update.REPOSITORY + '/releases/assets/' + str(identity)
 
 
 class ReleaseTests(unittest.TestCase):
@@ -23,8 +30,8 @@ class ReleaseTests(unittest.TestCase):
         def fetch(url, **kw):
             calls.append(url)
             time.sleep(.03)
-            return {'tag_name': 'v1.0.0', 'assets': [{'id': 7, 'name': 'NEURO_RT_OFFLINE_v1.0.0.zip',
-                    'url': 'https://api.github.com/assets/7', 'size': 20, 'digest': 'sha256:' + 'a'*64}]}
+            return {'tag_name': 'v1.0.0', 'assets': [{'id': 7, 'name': 'NEURO_RT_SETUP_v1.0.0.zip',
+                    'url': asset_url(7), 'size': 20, 'digest': 'sha256:' + 'a'*64}]}
         client = update.ReleaseClient(fetch_json=fetch)
         with concurrent.futures.ThreadPoolExecutor(6) as pool:
             results = list(pool.map(lambda _: client.check_plugin_release('neuro-rt', '1.0.0'), range(6)))
@@ -46,12 +53,13 @@ class ReleaseTests(unittest.TestCase):
 
     def test_latest_incompatible_release_is_visible_before_download(self):
         raw = {'tag_name': 'v2.0.0', 'assets': [
-            {'id': 7, 'name': 'NEURO_RT_OFFLINE_v2.0.0.zip', 'url': 'https://api.github.com/assets/7',
-             'size': 20, 'digest': 'sha256:' + 'a'*64},
-            {'id': 8, 'name': 'release-manifest.json', 'url': 'https://api.github.com/assets/8'}]}
+            {'id': 7, 'name': 'NEURO_RT_SETUP_v2.0.0.zip', 'url': asset_url(7),
+             'size': 20, 'digest': 'sha256:' + 'a'*64}]}
+        external_manifest = Mock(side_effect=AssertionError('No external manifest is downloaded before consent'))
         client = update.ReleaseClient(fetch_json=lambda _: raw, host_version='8.10',
-            fetch_manifest=lambda _: {'schema': install_state.SCHEMA, 'version': '2.0.0', 'host_min_version': '9.0'})
+            fetch_manifest=external_manifest)
         self.assertEqual(client.check_plugin_release('neuro-rt', '1.0.0')['state'], 'incompatible')
+        external_manifest.assert_not_called()
 
 
 class UpgradeTests(unittest.TestCase):
@@ -68,10 +76,10 @@ class UpgradeTests(unittest.TestCase):
         self.plugin = self.host / 'Plugins/NEURO RT'
         self.events = []
         self.busy = False
-        self.coordinator = update.UpdateCoordinator(self.host, host_version='8.10',
+        self.coordinator = update.UpdateCoordinator(self.host, host_version='8.11', host_python=sys.executable,
             hold=lambda held: self.events.append(('hold', held)), busy=lambda: self.busy,
             cancel=lambda: self.events.append(('cancel', True)),
-            restart=lambda: self.events.append(('restart', True)))
+            restart=lambda: (self.events.append(('restart', True)) or {'ok': True, 'scheduled': True}))
 
     def test_offline_install_and_update_preserve_old_code_data_and_hold_before_restart(self):
         for version in ('1.0.0', '2.0.0'):
@@ -115,26 +123,30 @@ class UpgradeTests(unittest.TestCase):
         self.coordinator.finish_restart()
         self.coordinator.prepare(fixture_package(self.root, '2.0.0'))
         self.coordinator.restart = lambda: (_ for _ in ()).throw(OSError('restart failed'))
-        with self.assertRaises(OSError):
-            self.coordinator.finish_restart()
+        result = self.coordinator.finish_restart()
+        self.assertEqual(result['state'], 'installed_pending_restart')
+        self.assertEqual(result['error_code'], 'RESTART_NOT_CONFIRMED')
         state = json.loads((self.plugin / 'installation.json').read_text())
         self.assertEqual(state['active_version'], '1.0.0')
+        self.assertEqual(state['pending_version'], '2.0.0')
 
     def test_download_verify_install_activate_uses_one_pinned_release(self):
         import io
-        package = fixture_package(self.root)
+        package = host_setup(self.root, '1.0.0')
         raw = Path(package['path']).read_bytes()
         calls = []
         def latest(url):
             calls.append(url)
             return {'tag_name': 'v1.0.0', 'id': 42, 'assets': [{'id': 7,
-                'name': 'NEURO_RT_OFFLINE_v1.0.0.zip', 'url': 'https://api.github.com/assets/7',
+                'name': 'NEURO_RT_SETUP_v1.0.0.zip', 'url': asset_url(7),
                 'size': len(raw), 'digest': 'sha256:' + package['sha256']}]}
         self.coordinator.client = update.ReleaseClient(fetch_json=latest)
-        with unittest.mock.patch.object(update, '_open', return_value=io.BytesIO(raw)):
+        with patch.object(update, '_open', return_value=io.BytesIO(raw)) as opened, \
+                patch.object(install_state, 'validate_host_runtime', return_value=Path(sys.executable).resolve()):
             self.coordinator.request_plugin_update('neuro-rt', 'comecar')
             self.coordinator._worker.join(120)
             self.assertFalse(self.coordinator._worker.is_alive(), 'fixture install did not finish')
+        opened.assert_called_once_with(asset_url(7), binary=True)
         self.assertEqual(self.coordinator.status()['state'], 'restarting')
         self.assertEqual(len(calls), 1)
         self.assertEqual(json.loads((self.plugin / 'installation.json').read_text())['active_version'], '1.0.0')
@@ -154,7 +166,7 @@ class UpgradeTests(unittest.TestCase):
         target = self.root / 'transfer.zip'
         partial = target.with_suffix('.part')
         partial.write_bytes(b'preserve preexisting partial')
-        release = {'url': 'https://api.github.com/assets/7', 'size': 1, 'sha256': 'a'*64}
+        release = {'name': 'NEURO_RT_SETUP_v2.0.0.zip', 'url': asset_url(7), 'size': 1, 'sha256': 'a'*64}
         with patch.object(update, '_open', side_effect=OSError('interrupted')):
             with self.assertRaises(OSError):
                 self.coordinator.client.download(release, target)
@@ -166,16 +178,17 @@ class UpgradeTests(unittest.TestCase):
         self.coordinator.prepare(fixture_package(self.root))
         self.coordinator.finish_restart()
         (self.plugin / 'data/keep.txt').write_bytes(b'preserve synthetic result')
-        package = fixture_package(self.root, '2.0.0')
+        package = host_setup(self.root, '2.0.0')
         raw = Path(package['path']).read_bytes()
         latest = {'tag_name': 'v2.0.0', 'assets': [{'id': 8,
-            'name': 'NEURO_RT_OFFLINE_v2.0.0.zip', 'url': 'https://api.github.com/assets/8',
+            'name': 'NEURO_RT_SETUP_v2.0.0.zip', 'url': asset_url(8),
             'size': len(raw), 'digest': 'sha256:' + package['sha256']}]}
         self.coordinator.client = update.ReleaseClient(fetch_json=lambda _: latest)
-        with patch.object(update, '_open', return_value=io.BytesIO(raw[:20])):
+        with patch.object(update, '_open', return_value=io.BytesIO(raw[:20])) as opened:
             self.coordinator.request_plugin_update('neuro-rt', 'comecar')
             self.coordinator._worker.join(120)
             self.assertFalse(self.coordinator._worker.is_alive())
+        opened.assert_called_once_with(asset_url(8), binary=True)
         self.assertEqual(self.coordinator.status()['state'], 'failed')
         self.assertEqual(json.loads((self.plugin / 'installation.json').read_text())['active_version'], '1.0.0')
         self.assertEqual((self.plugin / 'data/keep.txt').read_bytes(), b'preserve synthetic result')

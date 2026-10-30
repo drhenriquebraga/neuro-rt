@@ -69,7 +69,8 @@ class UpdateProviderTests(unittest.TestCase):
         with patch.dict(sys.modules, {'radai_queue_state': queue, 'radai_atualizar': updater,
                                       'radai_watcher': watcher}):
             provider = module.build_provider(host, {'version': '8.10'},
-                {'neuro_package': fixture_package(self.root), 'recarregar': lambda: restarted.set()})
+                {'neuro_package': fixture_package(self.root),
+                 'neuro_restart': lambda: (restarted.set() or {'ok': True, 'scheduled': True})})
             consent = provider.consent_policy()
             provider.accept_consent(dict(accepted=True, version=consent['version'], digest=consent['digest']))
             try:
@@ -92,6 +93,10 @@ class UpdateProviderTests(unittest.TestCase):
                 state.update(turno_agendado=False, overnight=False)
                 owner['dono'] = None
                 restarted.wait(15)
+                for worker in threading.enumerate():
+                    if worker.name == 'neuro-update':
+                        worker.join(15)
+                        self.assertFalse(worker.is_alive(), 'Installer worker must finish before fixture cleanup')
 
     def test_scheduled_and_between_job_overnight_use_owner_api_source_and_generated(self):
         for module in (self.source, self.generated):

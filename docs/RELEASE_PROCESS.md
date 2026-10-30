@@ -1,43 +1,16 @@
-# Preparação e publicação da release
+# Preparação e publicação — instalador leve
 
-O código é verificado por `verify.yml` no Windows com Python 3.10 e 3.12.
-Essa etapa usa somente contratos e pacotes sintéticos; não baixa pesos, não faz
-inferência e não substitui a matriz de instalação nem os ensaios científicos.
-As actions estão fixadas por commit, conferidos nas fontes oficiais de
-[checkout](https://github.com/actions/checkout/commit/3d3c42e5aac5ba805825da76410c181273ba90b1)
-e [setup-python](https://github.com/actions/setup-python/commit/6d4fd22b20465ccc0f7354476588e8df7c9ca0e0).
+O contrato atual é installer-only, execution_mode=host, Local Suite mínimo8.11. A base completa fornece o Python, as bibliotecas e serviços do Nidus. Não construir/distribuir runtimes privados nem baixar Python, bibliotecas ou pesos para esta entrega.
 
-O workflow manual `release.yml` repete esses contratos e cria somente um
-**rascunho em repositório privado**, com o ZIP de fontes e seu checksum.
-Não publica `latest`, não monta runtimes no runner e não declara que esse ZIP
-de fontes instala o produto. A versão precisa coincidir com `module.json`.
-Uma release existente não é sobrescrita automaticamente.
+1. Revisar e testar o código na branch, preservando main e tags históricas.
+2. Rodar verify.yml (contratos sintéticos Windows/Python3.10 e3.12), os testes de navegador pertinentes e a prova CODE-only no Python real da base. Registrar skips e limites.
+3. Gerar os dois arquivos com `python scripts/build_web_setup.py --output dist/web-setup`. O builder só aceita CODE/licenças/PS, modo host, Nidus-only, sem binários/pesos/ambientes, e limita a3MiB.
+4. Conferir hashes e byte-identidade de SETUP_v e SETUP_LATEST. O digest externo do asset é fornecido pela API GitHub; nenhum terceiro asset de manifesto/checksum é necessário.
+5. Gerar o bootstrap confiável com scripts/build_host_bootstrap.py e integrá-lo à base. Verificar equivalência de SOURCES/UI/catálogo e o binding sys.executable; nenhuma animação existente muda.
+6. Preparar rascunho com somente NEURO_RT_SETUP_v<versão>.zip e NEURO_RT_SETUP_LATEST.zip. O workflow release.yml segue esse formato e não publica automaticamente.
+7. Publicar a base compatível antes de promover o plugin a Latest. Em rascunhos já existentes, atualizar o target para o commit revisado e substituir somente esses dois assets; nunca alterar tags/código históricos.
+8. Após publicação, verificar releases/latest e download anônimo do SETUP, tamanho, digest e inventário CODE-only. O cliente não pode voltar a OFFLINE/PLUGIN nem solicitar componentes científicos.
 
-Antes de criar o rascunho, o workflow consulta as referências de tags remotas e
-exige que a tag exata esteja ausente. Qualquer tag preexistente é recusada,
-leve ou anotada, inclusive se apontar para o mesmo commit; uma referência como
-`v1.0.0-extra` não equivale a `v1.0.0`. Erro de consulta ou resposta inválida
-interrompe o fluxo. Nenhuma tag é movida ou sobrescrita. Para uma tag ausente,
-`--target GITHUB_SHA` conserva a criação no commit que gerou o ZIP e o checksum.
+O chat LOCAL SUITE I é responsável pela retirada coordenada de assets de bundle antigos, preservando cópias locais e sem alterar código/tags. Não realizar exclusões concorrentes. Publicação e exclusão do repositório Nidus continuam assuntos separados.
 
-Antes de transformar o rascunho em release publicada:
-
-1. Fixar o commit revisado, os patches privados da base e o catálogo distribuído.
-2. Executar a verificação completa apropriada às mudanças e registrar ambientes,
-   resultados, skips e limites em `VALIDACAO_PLUGIN.md` e na matriz.
-3. Gerar os dois runtimes portáteis a partir dos locks e conferir procedência e
-   licenças. O runtime CPU da entrega não implica disponibilidade de CUDA.
-4. Construir OFFLINE, PLUGIN, SETUP, alias SETUP_LATEST, manifesto e checksums
-   conforme `RELEASE_BUILD.md`; executar `verify_release` no OFFLINE final.
-5. Conferir inventário final, atlas autorizados, ausência de DICOM/configuração
-   privada e todos os hashes. Preservar as licenças originais.
-6. Anexar os artefatos imutáveis da mesma versão ao rascunho privado por acesso
-   autorizado. Conferir tamanho e `digest` SHA-256 do asset OFFLINE na API GitHub.
-7. Decidir a publicação e o acesso de distribuição. Enquanto privado, somente
-   usuários autorizados conseguem baixar; nenhum token integra o pacote.
-8. Após publicar, testar `releases/latest` com acesso autorizado e uma instalação
-   isolada. Não prometer download público enquanto o repositório continuar privado.
-
-A base Local Suite e o Recon3D públicos não recebem os novos patches por efeito
-deste workflow. Aplicar ambos privadamente ou preparar uma base privada compatível.
-Publicação pública, merge e exclusão futura do Nidus são decisões separadas.
+Os builders/locks isolados anteriores são somente ferramentas de pesquisa e testes locais. Não os usar para gerar os assets públicos ou reaplicar seus pins ao ambiente da suíte.
