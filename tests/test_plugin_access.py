@@ -6,8 +6,9 @@ from types import SimpleNamespace
 import unittest
 
 
-@unittest.skipUnless(importlib.util.find_spec('fastapi') and importlib.util.find_spec('httpx'),
-                     'Use o Python do host com FastAPI/httpx.')
+@unittest.skipUnless(importlib.util.find_spec('fastapi') and
+                     (importlib.util.find_spec('httpx') or importlib.util.find_spec('httpx2')),
+                     'Use o Python do host com FastAPI e seu cliente HTTP de testes.')
 class PluginAccessTests(unittest.TestCase):
     def setUp(self):
         from fastapi import FastAPI, HTTPException, Request
@@ -73,6 +74,8 @@ class PluginAccessTests(unittest.TestCase):
         headers = {'X-Neuro-Token': 'synthetic-token'}
         response = self.client.post('/neuro/api/consent', json=self.payload, headers=headers)
         self.assertEqual(response.status_code, 200)
+        phase = self.client.get('/neuro/api/testing/nidus').json()['policy']
+        self.assertEqual(self.client.post('/neuro/api/testing/nidus', json=dict(phase,accepted=True), headers=headers).status_code,200)
         self.assertEqual(self.client.get('/nidus/projecao').json(), {'nidus': True})
         self.assertEqual(self.client.post('/api/nidus/abrir', json={}).status_code, 200)
 
@@ -81,20 +84,20 @@ class PluginAccessTests(unittest.TestCase):
             for path in ('/neuro/'+tool, '/neuro/?category='+tool,
                          '/neuro/?category=other&category='+tool, '/neuro/?category='+tool+'&category='+tool):
                 with self.subTest(path=path):
-                    response = self.client.get(path)
-                    self.assertEqual(response.status_code, 503)
-                    self.assertIn('em construção', response.text)
+                    response = self.client.get(path, follow_redirects=False)
+                    self.assertEqual(response.status_code, 303)
+                    self.assertEqual(response.headers['location'], '/neuro/onboarding')
         for path in ('/neuro/api/studies', '/neuro/api/jobs', '/neuro/api/selection',
                      '/neuro/api/studies/synthetic/retry'):
             with self.subTest(path=path):
                 self.assertEqual(self.client.post(path, json={},
-                    headers={'X-Neuro-Token': 'synthetic-token'}).status_code, 409)
+                    headers={'X-Neuro-Token': 'synthetic-token'}).status_code, 428)
 
     def test_consent_status_keeps_installation_separate_and_returns_tool_contract(self):
         response = self.client.get('/neuro/api/consent').json()
         self.assertFalse(response['first_use'])
         self.assertFalse(response['installation'])
-        self.assertEqual([t['id'] for t in response['tools'] if t['enabled']], ['nidus'])
+        self.assertEqual(len([t for t in response['tools'] if t['enabled']]), 5)
         self.client.post('/neuro/api/consent', json=self.payload,
                          headers={'X-Neuro-Token': 'synthetic-token'})
         response = self.client.get('/neuro/api/consent').json()

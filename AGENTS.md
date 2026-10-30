@@ -2,6 +2,18 @@
 
 ## Entrega atual — 30/10/2026
 
+O pedido explícito mais recente autoriza a fase de testes 1.1.0, substituindo o
+recorte Nidus-only abaixo: cinco cards habilitados, aceite de testes por entrada,
+motores e pesos disponíveis, consenso Nidus ajustável/exportável UNAPPROVED e
+MPR principal. Local Suite 8.12 é responsabilidade do chat LOCAL SUITE I: manutenção
+externa visível, encerramento/reabertura e seleção de instalador/bundle local.
+Neuro fornece SDK confiável, START HERE guiado e montagem de bundle offline LOCAL.
+GitHub recebe somente SETUP versionado e SETUP_LATEST. Reutilizar o Python completo
+da suíte e suas bibliotecas; extras compatíveis em overlay próprio, sem copiar
+Python/venv nem substituir versões da base. Inferências solicitadas usam somente
+fantomas e demos públicas desidentificadas, nunca dados clínicos do serviço.
+Leia o desenho e plano `2026-10-30-neuro-beta-110` antes de continuar.
+
 A revisão 1.0.1 habilita somente Nidus RT. Os outros quatro cards permanecem
 `[em construção]`, apagados e sem execução por URL/API. Não ampliar catálogo ou
 rodar novas inferências para esta integração. Leia `docs/INTEGRACAO.md` e

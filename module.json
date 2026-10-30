@@ -2,9 +2,9 @@
   "schema": "neuro-rt/plugin-manifest/1",
   "id": "neuro-rt",
   "name": "NeuroRT",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "host_contract": "local-suite/plugins/1",
-  "host_min_version": "8.11",
+  "host_min_version": "8.12",
   "entrypoint": "/neuro/",
   "adapter": "integration/radai_neuro.py:montar",
   "catalog": "catalog/models.json",
@@ -20,7 +20,8 @@
   "license": "MIT",
   "model_license": "per-model",
   "model_license_source": "catalog/models.json",
-  "enabled_tools": ["nidus"],
-  "consent_policy_version": "1.0",
+  "enabled_tools": ["nidus", "glioma", "metastasis", "meningioma", "anatomia"],
+  "resource_recipe": "catalog/resource_recipe.json",
+  "consent_policy_version": "1.1",
   "consent_policy_source": "neuro_rt/plugin_consent.py"
 }

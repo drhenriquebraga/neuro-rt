@@ -16,16 +16,13 @@ def _pagina_ferramentas(renderer):
     color = renderer.CORES.get('neuro', ('--accent', '--accent-fraco'))[0]
     for card in cards:
         tool = tools[card[0]]
-        if tool.enabled:
-            continue
-        disabled = list(card)
-        while len(disabled) < 6:
-            disabled.append('')
-        disabled[3] = ''
-        disabled[5] = 'EM CONSTRUÇÃO'
+        entry = list(card)
+        while len(entry) < 6:
+            entry.append('')
+        entry[3] = '/neuro/testing/' + tool.id
+        entry[5] = tool.label
         original = renderer._cartao(card, color)
-        replacement = renderer._cartao(disabled, color).replace(
-            '>EM CONSTRUÇÃO</span>', '>' + html.escape(tool.label) + '</span>', 1)
+        replacement = renderer._cartao(entry, color)
         if page.count(original) != 1:
             raise RuntimeError('O renderer de ferramentas NEURO RT do host mudou.')
         page = page.replace(original, replacement, 1)

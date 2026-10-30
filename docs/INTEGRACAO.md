@@ -1,6 +1,39 @@
 # Integração NEURO RT / Local Suite
 
-## Contrato atual 1.0.2
+## Contrato em desenvolvimento 1.1.0 / Local Suite 8.12
+
+O desenho `superpowers/specs/2026-10-30-neuro-beta-110.md` substitui o recorte
+Nidus-only das seções históricas. Cinco cards ativos têm `[fase de testes]` e
+entrada `/neuro/testing/{tool}` com diálogo explícito a cada abertura de card.
+O termo comum passa à versão1.1; instalação e primeiro uso continuam separados.
+Os aceites de testes usam cookies opacos por ferramenta, HttpOnly, SameSiteStrict,
+válidos por até8h na instância atual. Não escrevem feedbacks nem identidade.
+
+URLs diretas de ferramentas passam pelo mesmo controle; `/api/nidus/*` exige
+primeiro uso e aceite Nidus. APIs selection/studies/retry/jobs também exigem
+aceite coerente com os grupos dos modelos, além dos controles de origem/token e
+do pedido explícito. Modelos anatômicos podem acompanhar uma ferramenta tumoral.
+
+O modo host continua sem runtime privado e sem artefatos científicos dentro do
+SETUP. O perfil1.1.0 declara os cinco tools e `resource_recipe` fixada em
+`catalog/resource_recipe.json`. O estado instalado tem um descritor `resources`
+de oito campos, vinculado ao SHA do recibo e da receita; `PluginPaths` resolve
+`resources`, `extras_dir` e `resources_file`. Caminhos de modelos devem coincidir
+com o catálogo; Buti host_managed reutiliza recursos da base. Extras são adicionados
+após os caminhos Python da suíte. Estado/pacote nunca escolhem outro interpretador.
+
+O bootstrap confiável fornece `inspect_local_source`, `prepare_external_plan` e
+`run_external`. O host fornece raiz e Python como argumentos confiáveis e possui
+fila, ack/nonce/PID, fechamento e reabertura. O SDK não reinicia o host. A fonte
+local é autenticada pelo digest canônico do inventário CODE fixado no bootstrap,
+e cada recurso pela receita fixada. Nunca executar scripts da pasta selecionada.
+START HERE cria o bundle offline local para transporte; a suíte instalada seleciona
+essa pasta em Configurações. GitHub continua com somente dois SETUPs leves.
+
+Os gates desta fase ainda estão em execução; esta seção documenta o contrato de
+desenvolvimento e não comprova publicação ou validação clínica.
+
+## Contrato publicado anterior 1.0.2
 
 O [desenho atual](superpowers/specs/2026-10-30-installer-only-host-python-design.md)
 substitui o modo isolado descrito nas seções históricas abaixo. O SETUP público

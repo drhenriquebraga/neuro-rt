@@ -17,6 +17,7 @@ MANIFEST_SCHEMA = 'neuro-rt/plugin-manifest/1'
 HOST_CONTRACT = 'local-suite/plugins/1'
 PLUGIN_ID = 'neuro-rt'
 NIDUS_BASE_DISTRIBUTIONS = ('numpy', 'SimpleITK', 'scipy', 'pydicom', 'fastapi', 'Pillow')
+BETA_TOOLS = ('nidus', 'glioma', 'metastasis', 'meningioma', 'anatomia')
 
 
 class HostRuntimeUnavailable(ValueError):
@@ -87,6 +88,7 @@ class PluginManifest:
     artifacts: tuple
     execution_mode: str = 'isolated'
     enabled_tools: tuple = ()
+    resource_recipe: str | None = None
 
 
 @dataclass(frozen=True)
@@ -134,10 +136,17 @@ def read_manifest(path) -> PluginManifest:
     if not isinstance(enabled_tools, list) or any(not isinstance(tool, str) for tool in enabled_tools):
         raise ValueError('Ferramentas habilitadas inválidas.')
     runtimes = values.get('runtimes')
+    resource_recipe = values.get('resource_recipe')
+    legacy_host = enabled_tools == ['nidus'] and resource_recipe is None
+    beta_host = (enabled_tools == list(BETA_TOOLS) and resource_recipe == 'catalog/resource_recipe.json'
+                 and _numeric_version(values['version']) >= (1, 1, 0)
+                 and minimum is not None and _numeric_version(minimum) >= (8, 12))
     if execution_mode == 'host' and (runtimes != {} or values.get('runtime') != 'host-shared'
-            or enabled_tools != ['nidus'] or values.get('artifacts') != []
+            or not (legacy_host or beta_host) or values.get('artifacts') != []
             or any(key in values for key in ('host_python', 'python_executable', 'worker_python'))):
-        raise ValueError('O modo host permite somente Nidus, sem runtime privado ou artefatos.')
+        raise ValueError('O modo host exige um perfil autorizado, sem Python privado ou artefatos no SETUP.')
+    if resource_recipe is not None:
+        _relative_path(path.parent, resource_recipe)
     if not isinstance(runtimes, dict) or (not runtimes and execution_mode != 'host'):
         raise ValueError('Manifesto deve declarar os runtimes do plugin.')
     for runtime_id, runtime in runtimes.items():
@@ -158,7 +167,7 @@ def read_manifest(path) -> PluginManifest:
         host_contract=values['host_contract'], host_min_version=minimum,
         entrypoint=values['entrypoint'], adapter=adapter, catalog=values['catalog'],
         runtimes=runtimes, artifacts=tuple(artifacts), execution_mode=execution_mode,
-        enabled_tools=tuple(enabled_tools))
+        enabled_tools=tuple(enabled_tools), resource_recipe=resource_recipe)
 
 
 def check_host_compatibility(manifest, host_info) -> CompatibilityResult:

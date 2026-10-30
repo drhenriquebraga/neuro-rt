@@ -1,20 +1,23 @@
 # NEURO RT — plugin do Local Suite
 
-Primeiro plugin opcional da suíte. Na versão 1.0.2, **Nidus RT está habilitado**;
-Glioma RT, Metastasis RT, Meningioma RT e Anatomia RT aparecem desativados com
-`[em construção]`. Seus motores ficam preservados para desenvolvimento, com
-novas execuções bloqueadas nesta entrega. A instalação fica em `Plugins/NEURO RT`; navegação,
+Primeiro plugin opcional da suíte. A versão **1.1.0 em desenvolvimento** abre a
+fase de testes de Nidus RT, Glioma RT, Metastasis RT, Meningioma RT e Anatomia RT.
+A publicação depende dos gates de motores, exportação e manutenção; acompanhe
+[o plano desta fase](docs/superpowers/plans/2026-10-30-neuro-beta-110.md).
+A instalação fica em `Plugins/NEURO RT`; navegação,
 fila, carregamento de séries, configurações e visores pertencem ao Local Suite.
 
-A revisão 1.0.2 exige Local Suite 8.11 e corrige preparo, acompanhamento e
-reabertura da instalação. As [notas de instalação](docs/RELEASE_NOTES_v1.0.2.md)
-descrevem o contrato e a validação desta revisão.
+A fase 1.1.0 exige Local Suite 8.12. O host controla o fechamento, o preparo
+externo em PowerShell e a reabertura. As [notas de instalação 1.0.2](docs/RELEASE_NOTES_v1.0.2.md)
+registram a revisão publicada anterior, que habilita somente Nidus.
 
-O SETUP leve instala somente código, termo e licenças. **Nidus reutiliza o Python
-e os recursos da suíte completa: não há novo Python, ambiente, pacote ou peso a
-baixar nesta entrega.** Somente SETUP versionado e SETUP_LATEST são publicados.
-O [contrato atual](docs/superpowers/specs/2026-10-30-installer-only-host-python-design.md)
-substitui os desenhos de distribuição OFFLINE e de runtimes privados anteriores.
+O SETUP público contém código, termos, licenças e receitas de recursos. Todos os
+motores reutilizam o Python da suíte completa e suas bibliotecas compatíveis.
+Somente extras ausentes e pesos necessários são preparados em pastas próprias,
+sem substituir bibliotecas da base. Somente SETUP versionado e SETUP_LATEST são
+publicados. O START HERE monta pacotes offline **localmente** para transporte;
+eles não são assets públicos. O [desenho desta fase](docs/superpowers/specs/2026-10-30-neuro-beta-110.md)
+complementa o contrato de Python compartilhado da versão anterior.
 
 O [handoff 1.0.1](docs/HANDOFF_LOCAL_SUITE_2026-10-30.md) registra o recorte de
 disponibilidade, o aceite comum e a situação efetiva da publicação.
@@ -27,14 +30,18 @@ registrada no handoff e nas [notas da versão](docs/RELEASE_NOTES_v1.0.1.md).
 ## Uso e comportamento
 
 1. Abra NEURO RT na home da suíte compatível (contrato `local-suite/plugins/1`,
-   versão mínima 8.11 com bootstrap desta revisão). Se ausente, leia e aceite o
+   versão mínima 8.12 com bootstrap desta revisão). Se ausente, leia e aceite o
    termo do plugin antes de confirmar a instalação.
 2. Na primeira abertura, confirme o mesmo documento versionado. O aceite da
    instalação e o primeiro uso são atos distintos; nenhum deles aprova resultados.
-3. Escolha Nidus RT e use suas ferramentas geométricas e os visores da suíte.
-   A interseção é uma referência visual e não é exportada como alvo.
-4. As demais funcionalidades estão em construção, inclusive por URL e API.
-   O catálogo científico abaixo documenta motores preservados, sem os habilitar.
+3. Ao abrir cada card, confirme o aviso de fase de testes. Cancelar retorna à
+   minipágina; feedbacks não são enviados automaticamente.
+4. Nidus: registre incidências, amplie um plano MPR e ajuste a temperatura do
+   consenso geométrico de união (0) a interseção (100). A sugestão pode ser
+   revisada e exportada explicitamente como RTSTRUCT UNAPPROVED.
+5. Nas segmentações, carregue séries, confira as associações, escolha os modelos
+   e solicite o processamento. A ausência de um canal obrigatório desativa o
+   modelo; classificação ambígua avisa e permite escolher a associação.
 
 Resultados continuam `UNAPPROVED`; revisão, edição, fusão e aprovação clínica
 pertencem ao TPS e ao profissional responsável. Não há criação de CTV.
@@ -43,7 +50,7 @@ O seletor de modelos não tem modos AUTO ou FAST. A preferência global de
 processamento auto/CPU/GPU é uma configuração diferente; GPU estrita não faz
 fallback silencioso. Esta entrega reutiliza a preferência e os recursos da base.
 
-## Catálogo científico preservado — em construção
+## Catálogo científico da fase de testes
 
 | Motor | Entrada | Saída |
 |---|---|---|
@@ -61,7 +68,7 @@ fallback silencioso. Esta entrega reutiliza a preferência e os recursos da base
 Quatro adições estão incluídas; QTIM foi adiado. O Brain auxiliar de alguns
 motores Raidionics é dependência, não outra opção de segmentação. Buti reaproveita
 pesos e runtime do host. A disponibilidade efetiva depende de entradas, artefatos
-e ambientes verificados; o catálogo não habilita modelos apenas por seu nome.
+e dependências verificadas; o catálogo não habilita modelos apenas por seu nome.
 
 Séries diferentes exigem alinhamento explícito no espaço físico. O fluxo não
 transfere resultados implicitamente entre RM e TC nem mistura sujeitos/estudos.
@@ -74,7 +81,7 @@ O conector GitHub usa release/asset fixados e SHA-256 externo. A entrega públic
 autorizada usa o repositório `drhenriquebraga/neuro-rt` e assets da release Latest;
 confira a publicação e as identidades no handoff. Não há token embutido. A
 instalação recebe apenas o SETUP pequeno, autenticado pelo digest da API GitHub.
-Código do plugin só é ativado após conferência; a versão anterior,
+Código e recursos do plugin só são ativados após conferência; a versão anterior,
 configuração e dados são preservados. A atualização aguarda a fila ou usa a
 interrupção explícita do padrão da suíte e reabre o aplicativo.
 

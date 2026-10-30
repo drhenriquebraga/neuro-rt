@@ -88,9 +88,8 @@ def make_server(service, port=8766):
                 return self.reply(403, {'error': 'Origem ou token inválido.'})
             if urlsplit(self.path).path != PREFIX + 'api/jobs':
                 return self.reply(404, {'error': 'Rota não encontrada.'})
-            # The 1.0.1 staged product enables Nidus only through the host.
-            # Keep the scientific Service available for explicit developer tests,
-            # but never expose a standalone HTTP path around the product gate.
+            # Integrated test-phase tools require the host queue, current terms
+            # and per-tool acknowledgement. The prototype never bypasses them.
             # Drain a bounded body before closing the HTTP/1.0 connection: Windows
             # can otherwise reset a socket with unread request bytes before the
             # client receives our explicit refusal.
@@ -101,8 +100,7 @@ def make_server(service, port=8766):
                 self.rfile.read(length)
             except ValueError as exc:
                 return self.reply(400, {'error': str(exc)})
-            return self.reply(409, {'error': 'Segmentações em construção nesta entrega. '
-                                   'Abra Nidus RT pela Local Suite.'})
+            return self.reply(409, {'error': 'Abra a ferramenta de testes pelo NEURO RT na Local Suite.'})
     return ThreadingHTTPServer(('127.0.0.1', port), Handler)
 
 

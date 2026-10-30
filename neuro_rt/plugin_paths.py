@@ -44,6 +44,9 @@ class PluginPaths:
     installation_file: Path
     state: InstallationState
     execution_mode: str = 'isolated'
+    resources: Mapping | None = None
+    extras_dir: Path | None = None
+    resources_file: Path | None = None
 
 
 def resolve_plugin_paths(host_root, installation_state, *, host_python=None) -> PluginPaths:
@@ -83,6 +86,13 @@ def resolve_plugin_paths(host_root, installation_state, *, host_python=None) -> 
             raise ValueError('Digest do lock de runtime deve ser SHA-256 hexadecimal minúsculo.')
         runtime_dir = _relative_path(runtimes_dir, f'{runtime_id}/{digest}')
         worker_python = _relative_path(runtime_dir, runtime.get('python', 'python.exe'))
+    from .resource_paths import resolve_resources
+    if execution_mode == 'host' and active_version and _numeric_version(active_version) >= (1, 1, 0) and installation_state.get('resources') is None:
+        raise ValueError('A fase de testes exige os recursos verificados antes de montar o plugin.')
+    if execution_mode != 'host' and installation_state.get('resources') is not None:
+        raise ValueError('Recursos compartilhados exigem execution_mode=host.')
+    resources, extras_dir, resources_file = resolve_resources(
+        plugin_root, code_dir, installation_state.get('resources'))
     return PluginPaths(
         host_root=host_root, plugin_root=plugin_root, active_version=active_version,
         code_dir=code_dir, runtimes_dir=runtimes_dir, runtime_dir=runtime_dir,
@@ -90,4 +100,5 @@ def resolve_plugin_paths(host_root, installation_state, *, host_python=None) -> 
         data_dir=_relative_path(plugin_root, 'data'), config_dir=_relative_path(plugin_root, 'config'),
         staging_dir=_relative_path(plugin_root, 'staging'),
         installation_file=_relative_path(plugin_root, 'installation.json'), state=state,
-        execution_mode=execution_mode)
+        execution_mode=execution_mode, resources=resources, extras_dir=extras_dir,
+        resources_file=resources_file)
