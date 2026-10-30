@@ -1,0 +1,95 @@
+{
+  "schema": "neuro-rt/production-e2e/1",
+  "status": "completed",
+  "scope": "Unmocked original-weight MRI_Meningioma on invented DICOM phantom; no clinical validation",
+  "setup_sha256": "ab56e7b1552c29a04716379574b84e4183ff914944e953b81178ad2dc3d99475",
+  "installed_code_version": "1.1.0",
+  "host_version": "8.12",
+  "same_host_python": true,
+  "python_version": "3.10.11",
+  "code_imported_from_installed_release": true,
+  "real_host_queue": true,
+  "model_boundary_mocked": false,
+  "source_slices": 24,
+  "base_versions": {
+    "numpy": "1.26.4",
+    "scipy": "1.15.3",
+    "SimpleITK": "2.5.6",
+    "torch": "2.5.1+cu121",
+    "monai": "1.4.0",
+    "dipy": "1.11.0"
+  },
+  "release_manifest_sha256": "21fc30e2c7e48cea644aabfd643acbac4c7504d12c42d0c2083f167bd7b48819",
+  "rtstruct_files": 1,
+  "rtstruct_sha256": "5ded03228d1ff7e308eb6d574b60eb10e34932b030848d3e7710fd5f5e5a65b0",
+  "approval_status": "UNAPPROVED",
+  "source_series_reference_valid": true,
+  "frame_of_reference_valid": true,
+  "contour_sop_references_valid": true,
+  "referenced_contour_sops": 14,
+  "returned_rois": 1,
+  "mpr_planes": 3,
+  "mesh_artifacts": 1,
+  "viewer_artifact_http_reopened": true,
+  "opaque_artifacts_no_private_paths": true,
+  "history_revision_reopened": true,
+  "queue_state": "pronto",
+  "queue_heavy_lease_released": true,
+  "workers_reaped_before_release": true,
+  "managed_processes": [
+    {
+      "same_host_python": true,
+      "isolated_flag_before_entry": true,
+      "no_bytecode_flag_before_entry": true,
+      "job_object_owned": true,
+      "entry_from_installed_code": true,
+      "observed_stage": "preparing"
+    },
+    {
+      "same_host_python": true,
+      "isolated_flag_before_entry": true,
+      "no_bytecode_flag_before_entry": true,
+      "job_object_owned": true,
+      "entry_from_installed_code": true,
+      "observed_stage": "preparing"
+    },
+    {
+      "same_host_python": true,
+      "isolated_flag_before_entry": true,
+      "no_bytecode_flag_before_entry": true,
+      "job_object_owned": true,
+      "entry_from_installed_code": true,
+      "observed_stage": "exporting"
+    },
+    {
+      "same_host_python": true,
+      "isolated_flag_before_entry": true,
+      "no_bytecode_flag_before_entry": true,
+      "job_object_owned": true,
+      "entry_from_installed_code": true,
+      "observed_stage": "visualizing"
+    }
+  ],
+  "process_log_sha256": {
+    "prepare.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "models/MRI_Meningioma/model.log": "49f71951e1e09da7208a887be89c323f756e192b592013ba491210197d52d44b",
+    "export.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "views.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "elapsed_seconds": 33.694172999996226,
+  "evidence_sha256": "432d38906c3dc717d00a22d5fa76f08bc2858daf713454e5de5d5107ef0ee45c",
+  "harness_sha256": "bbdef9c286423e7b5ae56974032f067d5b12fedceb54bd42d3843ac07a9594e2",
+  "installed_engine_sha256": {
+    "neuro_rt/process_tree.py": "02b61d19a5b4d5678caa0e4835c8ccd1f2c7931c429f8a348db981d249451b1e",
+    "neuro_rt/child_entry.py": "5076c388b2f74666acf22f48c18516c9eef49a102a2bd5d507d149a08ce7b65f",
+    "neuro_rt/worker_bootstrap.py": "11098fc6e5c4c6510abeed9274cb4769c2510d5d68390f57a892177c023919ec",
+    "neuro_rt/service.py": "0f48ac3d8fd08c333c95463ba936ef39bdfdf4bd76aa636a3a1e4df3dd9952d0",
+    "neuro_rt/study_service.py": "8f98b19dcbc2f30bd1e9105cd9a73ca271f47ba2eed80316dac386abf38c7235",
+    "neuro_rt/study_worker.py": "549bbdd06d8eebf9f1ba378801847d23af60f0a82eae173cdd8474e006cacdc5",
+    "neuro_rt/export_study.py": "5eac98cc40fadb9cbf97f1a9fe7ed54c8db1aab2f73d33faba1640969a10f338",
+    "neuro_rt/build_study_views.py": "e8bdab77fa03ff7d14aa351ed0eb12e8c43e0e8fd1a1c8bed4ad7a7f7481a17a",
+    "neuro_rt/resource_preparation.py": "eae310671c1e651a8ea59b0a48d7d82ea82863762b98088f43fbcfcfcdca0225",
+    "neuro_rt/adapters/raidionics.py": "1be4e0c647c7379d13d53dc9113e8ee9fce481bd319d93ba2b1351775a15a58e",
+    "catalog/resource_recipe.json": "646448fa58efe33435ebba60c9248626fcb61529b2db678ab6bec00ad9bf39cc"
+  }
+}
