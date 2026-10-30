@@ -208,6 +208,15 @@ def montar(app, module_root, *, host_services=None):
         try:return FileResponse(service.view_file(job_id,name),headers={'Cache-Control':'no-store'})
         except (KeyError,ValueError,FileNotFoundError) as exc:raise fail(exc)
 
+    from integration.plugin_access import attach
+    consent_config = (plugin_paths.config_dir if plugin_paths is not None else
+                      Path(host_services.host_info['suite_root']) / 'Plugins/NEURO RT/config'
+                      if host_services is not None else settings.data_dir / 'plugin-consent')
+    protect_routes = attach(app, router, service, consent_config, local, action,
+                            integrated=host_services is not None)
+    # Publish the denial-only guard before any callable endpoints are exposed.
+    # Nidus imports can take time during the host's background lazy mount.
+    protect_routes()
     app.include_router(router)
     app.mount('/neuro/', StaticFiles(directory=str(root / 'web'), html=True), name='neuro-rt-web')
     if host_services is not None:

@@ -1,34 +1,39 @@
 # NEURO RT — plugin do Local Suite
 
-Primeiro plugin opcional da suíte, com Nidus RT, Glioma RT, Metastasis RT,
-Meningioma RT e Anatomia RT. A instalação fica em `Plugins/NEURO RT`; navegação,
+Primeiro plugin opcional da suíte. Na versão 1.0.1, **Nidus RT está habilitado**;
+Glioma RT, Metastasis RT, Meningioma RT e Anatomia RT aparecem desativados com
+`[em construção]`. Seus motores ficam preservados para desenvolvimento, com
+novas execuções bloqueadas nesta entrega. A instalação fica em `Plugins/NEURO RT`; navegação,
 fila, carregamento de séries, configurações e visores pertencem ao Local Suite.
 
-A versão 1.0.0 foi implementada, revisada e empacotada para entrega privada
+O [handoff 1.0.1](docs/HANDOFF_LOCAL_SUITE_2026-10-30.md) registra o recorte de
+disponibilidade, o aceite comum e a situação efetiva da publicação.
+A versão anterior 1.0.0 foi implementada, revisada e empacotada para entrega privada
 offline. Os arquivos e as instruções estão em [ENTREGA_V1](docs/ENTREGA_V1.md),
-com [evidências e limites](docs/VALIDACAO_PLUGIN.md). A publicação de uma release
-e a disponibilidade de `latest` são etapas separadas; nenhum asset foi publicado.
+com [evidências e limites](docs/VALIDACAO_PLUGIN.md). Naquela entrega privada não
+houve publicação de assets. A disponibilização pública da revisão 1.0.1 é
+registrada no handoff e nas [notas da versão](docs/RELEASE_NOTES_v1.0.1.md).
 
 ## Uso e comportamento
 
 1. Abra NEURO RT na home da suíte compatível (contrato `local-suite/plugins/1`,
-   versão mínima 8.10). Se ausente, confirme a instalação pelo fluxo da suíte.
-2. Escolha uma das cinco funcionalidades. Carregue o exame pelo seletor comum.
-3. Associe as séries aos canais e escolha a referência. Ligue somente os modelos
-   desejados; todas as chaves começam desligadas. Ausência real desativa a chave;
-   classificação incerta avisa e permite executar. A ajuda `?` permanece acessível.
-4. Confirme o processamento. O estudo entra na mesma fila dos outros aplicativos.
-5. Confira a série segmentada nos MPRs e no 3D. Visibilidade e opacidade são por
-   estrutura; resultados anteriores continuam acessíveis por revisão.
-6. Leve o RTSTRUCT ao TPS para editar, fundir e aprovar. A saída é sempre
-   `UNAPPROVED`, com ROIs distintas por modelo/classe e um arquivo por referência
-   e execução. Não há fusão automática de máscaras nem criação de CTV.
+   versão mínima 8.10 com bootstrap desta revisão). Se ausente, leia e aceite o
+   termo do plugin antes de confirmar a instalação.
+2. Na primeira abertura, confirme o mesmo documento versionado. O aceite da
+   instalação e o primeiro uso são atos distintos; nenhum deles aprova resultados.
+3. Escolha Nidus RT e use suas ferramentas geométricas e os visores da suíte.
+   A interseção é uma referência visual e não é exportada como alvo.
+4. As demais funcionalidades estão em construção, inclusive por URL e API.
+   O catálogo científico abaixo documenta motores preservados, sem os habilitar.
+
+Resultados continuam `UNAPPROVED`; revisão, edição, fusão e aprovação clínica
+pertencem ao TPS e ao profissional responsável. Não há criação de CTV.
 
 O seletor de modelos não tem modos AUTO ou FAST. A preferência global de
 processamento auto/CPU/GPU é uma configuração diferente; GPU estrita não faz
 fallback silencioso. Os ambientes distribuídos e testados nesta entrega são CPU.
 
-## Catálogo
+## Catálogo científico preservado — em construção
 
 | Motor | Entrada | Saída |
 |---|---|---|
@@ -55,9 +60,10 @@ reutiliza somente resultados íntegros cuja identidade de execução permaneceu 
 
 ## Instalação e atualização
 
-O repositório NEURO RT foi criado privado. O conector GitHub usa release/asset
-fixados e SHA-256 externo; acesso privado requer credencial autorizada no ambiente.
-Não há token embutido. A instalação offline também recebe pacote e hash externo.
+O conector GitHub usa release/asset fixados e SHA-256 externo. A entrega pública
+autorizada usa o repositório `drhenriquebraga/neuro-rt` e assets da release Latest;
+confira a publicação e as identidades no handoff. Não há token embutido. A
+instalação offline também recebe pacote e hash externo.
 Código, runtimes e modelos só são ativados após conferência; a versão anterior,
 configuração e dados são preservados. A atualização aguarda a fila ou usa a
 interrupção explícita do padrão da suíte e reabre o aplicativo.

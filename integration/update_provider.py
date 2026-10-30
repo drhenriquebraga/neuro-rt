@@ -26,7 +26,7 @@ def _load_private_installer():
         parent.__path__ = []
         sys.modules[package] = parent
         try:
-            for name in ('plugin_manifest', 'model_paths', 'model_registry', 'install_state', 'plugin_update'):
+            for name in ('plugin_consent', 'plugin_manifest', 'model_paths', 'model_registry', 'install_state', 'plugin_update'):
                 key = package + '.' + name
                 module = types.ModuleType(key)
                 module.__package__ = package
@@ -88,13 +88,32 @@ def build_provider(suite_root, host_info, cfg):
                     hold=hold, busy=busy, cancel=cancel, restart=cfg.get('recarregar'),
                     client=cfg.get('neuro_release_client'), package=cfg.get('neuro_package'))
             return coordinator
+    def consent():
+        _load_private_installer()
+        return sys.modules['_radai_neuro_bootstrap.plugin_consent']
+    def require_consent():
+        document = consent()
+        if not document.accepted(document.config_for_suite(root), 'installation'):
+            raise ValueError('Leia e aceite o termo atual do plugin antes de instalar ou atualizar o NEURO RT.')
     class Provider:
+        def consent_policy(self):
+            return consent().policy()
+        def consent_status(self):
+            document = consent()
+            config = document.config_for_suite(root)
+            return {'installation_accepted': document.accepted(config, 'installation'),
+                    'first_use_accepted': document.accepted(config, 'first_use')}
+        def accept_consent(self, payload):
+            document = consent()
+            return document.accept(document.config_for_suite(root), 'installation', payload)
         def check_plugin_release(self, plugin_id, installed_version):
             return get_coordinator().client.check_plugin_release(plugin_id, installed_version)
         def request_plugin_update(self, plugin_id, action):
+            # All entry paths are guarded before queue hold, cancellation or I/O.
+            require_consent()
             return get_coordinator().request_plugin_update(plugin_id, action)
         def install(self):
-            return get_coordinator().request_plugin_update('neuro-rt', 'comecar')
+            return self.request_plugin_update('neuro-rt', 'comecar')
         def status(self):
             return get_coordinator().status()
     return Provider()

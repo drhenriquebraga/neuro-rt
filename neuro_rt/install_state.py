@@ -612,6 +612,9 @@ def main(argv=None):
     parser.add_argument('--transaction-id', required=True)
     args = parser.parse_args(argv)
     try:
+        from . import plugin_consent
+        if not plugin_consent.accepted(plugin_consent.config_for_suite(args.suite_root), 'installation'):
+            raise ValueError('Aceite do termo do plugin ausente.')
         receipt = begin_install(args.suite_root, {'path': args.package_path, 'sha256': args.package_sha256}, args.transaction_id)
         print(json.dumps(asdict(receipt)))
         return 0

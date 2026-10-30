@@ -5,10 +5,37 @@ import re
 from pathlib import Path
 
 
+def _pagina_ferramentas(renderer):
+    """Use the host's own cards without modifying its shared module globals."""
+    from neuro_rt.tool_availability import TOOLS
+    tools = {tool.card_id: tool for tool in TOOLS}
+    cards = renderer.FERRAMENTAS.get('neuro', ())
+    if len(cards) != len(tools) or {card[0] for card in cards} != set(tools):
+        raise RuntimeError('O contrato de ferramentas NEURO RT do host não corresponde ao plugin.')
+    page = renderer.pagina_completa('neuro')
+    color = renderer.CORES.get('neuro', ('--accent', '--accent-fraco'))[0]
+    for card in cards:
+        tool = tools[card[0]]
+        if tool.enabled:
+            continue
+        disabled = list(card)
+        while len(disabled) < 6:
+            disabled.append('')
+        disabled[3] = ''
+        disabled[5] = 'EM CONSTRUÇÃO'
+        original = renderer._cartao(card, color)
+        replacement = renderer._cartao(disabled, color).replace(
+            '>EM CONSTRUÇÃO</span>', '>' + html.escape(tool.label) + '</span>', 1)
+        if page.count(original) != 1:
+            raise RuntimeError('O renderer de ferramentas NEURO RT do host mudou.')
+        page = page.replace(original, replacement, 1)
+    return page
+
+
 def pagina_neuro(host_services, plugin_status):
     import radai_menu
     import radai_modules
-    page = radai_modules.pagina_completa('neuro')
+    page = _pagina_ferramentas(radai_modules)
     panel = '''<section id="neuro-update" hidden aria-labelledby="neuro-update-title">
 <h2 id="neuro-update-title">Atualização do NEURO RT</h2>
 <p id="neuro-update-message" role="status" aria-live="polite"></p>

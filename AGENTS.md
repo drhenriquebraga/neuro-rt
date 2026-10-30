@@ -1,5 +1,19 @@
 # NeuroRT — módulo externo do Local Suite
 
+## Entrega atual — 30/10/2026
+
+A revisão 1.0.1 habilita somente Nidus RT. Os outros quatro cards permanecem
+`[em construção]`, apagados e sem execução por URL/API. Não ampliar catálogo ou
+rodar novas inferências para esta integração. Leia `docs/INTEGRACAO.md` e
+`docs/HANDOFF_LOCAL_SUITE_2026-10-30.md`: o bootstrap e o primeiro uso compartilham
+um termo versionado; os dois atos são explícitos e distintos. A montagem é tardia
+no host; não usar app.add_middleware depois que FastAPI iniciou.
+
+O Dr. Henrique autorizou tornar neuro-rt público e publicar a revisão como Latest
+com instalador versionado e SETUP_LATEST, após auditoria de fontes/histórico e
+verificação do pacote. A integração atual de AUTO_CONTORNO e sua release 8.10
+pertencem ao agente da Local Suite; não editar o host nesta coordenação.
+
 ## Alinhamento atual — 29/10/2026
 
 O desenho e o roadmap foram aceitos. O usuário autorizou explicitamente

@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory = $true)][string]$PackagePath,
     [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-f]{64}$')][string]$PackageSha256,
     [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$')][string]$TransactionId,
-    [string]$BootstrapPython
+    [string]$BootstrapPython,
+    [switch]$AcceptTerms
 )
 
 Set-StrictMode -Version Latest
@@ -30,6 +31,13 @@ try {
         }
     }
     $python = (Resolve-Path -LiteralPath $BootstrapPython -ErrorAction Stop).Path
+    # The same versioned document is used on first opening. AcceptTerms is only
+    # for a caller that has already displayed it and obtained explicit agreement.
+    $consentEntry = 'import sys; sys.path.insert(0, sys.argv.pop(1)); from neuro_rt.plugin_consent import main; sys.exit(main())'
+    $consentArgs = @('--suite-root', $suite)
+    if ($AcceptTerms) { $consentArgs += '--accept-terms' }
+    & $python -I -B -c $consentEntry $bootstrapRoot @consentArgs
+    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     # -I ignores user site/PYTHONPATH/current directory; -B preserves immutable code.
     # Bootstrap comes from the trusted installer distribution, never the ZIP payload.
     $entry = 'import sys; sys.path.insert(0, sys.argv.pop(1)); from neuro_rt.install_state import main; sys.exit(main())'

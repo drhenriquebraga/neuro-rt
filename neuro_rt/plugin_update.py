@@ -289,9 +289,12 @@ def main(argv=None):
     parser.add_argument('--package-path')
     parser.add_argument('--package-sha256')
     args = parser.parse_args(argv)
-    coordinator = UpdateCoordinator(args.suite_root, host_version=args.host_version,
-        hold=lambda _: None, busy=lambda: False, cancel=lambda: None, restart=None)
     try:
+        from . import plugin_consent
+        if not plugin_consent.accepted(plugin_consent.config_for_suite(args.suite_root), 'installation'):
+            raise ValueError('Aceite do termo do plugin ausente.')
+        coordinator = UpdateCoordinator(args.suite_root, host_version=args.host_version,
+            hold=lambda _: None, busy=lambda: False, cancel=lambda: None, restart=None)
         if args.package_path:
             package = {'path': args.package_path, 'sha256': args.package_sha256}
         else:

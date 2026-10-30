@@ -5,6 +5,7 @@ const {chromium}=require(process.env.NEURO_PLAYWRIGHT_MODULE||'C:/Users/henri/.c
  try {
   const page=await browser.newPage(),posted=[],tokens=[],unexpected=[];
   const data={state:'absent',mounted:false,active_version:null,token:'stale-page-token',release_check:{state:'available',version:'1.0.0'},update:{state:'idle'}};
+  data.consent={installation_accepted:true,first_use_accepted:false,policy:{schema:'neuro-rt/consent-policy/1',plugin_id:'neuro-rt',version:'1.0',digest:'a'.repeat(64),title:'Termo sintético',clauses:[{id:'scope',text:'Synthetic scope'}]}};
   let gap=false;
   await page.route('http://neuro.test/**',async route=>{
    const req=route.request(),path=new URL(req.url()).pathname;

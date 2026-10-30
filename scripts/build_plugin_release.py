@@ -291,7 +291,7 @@ def _finish_release(root, module, manifest, offline, payload, out, *, verified=F
     setup_scripts = ('INSTALL.ps1', 'UPDATE.ps1', 'PREPARE_LATEST.ps1')
     if all((root / 'installer' / n).is_file() for n in setup_scripts):
         setup_payload = {'installer/' + n: root / 'installer' / n for n in setup_scripts}
-        for name in ('__init__', 'plugin_manifest', 'model_paths', 'model_registry', 'install_state', 'plugin_update'):
+        for name in ('__init__', 'plugin_manifest', 'model_paths', 'model_registry', 'plugin_consent', 'install_state', 'plugin_update'):
             setup_payload['neuro_rt/' + name + '.py'] = root / 'neuro_rt' / (name + '.py')
         for name in ('LICENSE', 'NOTICE'):
             setup_payload[name] = root / name

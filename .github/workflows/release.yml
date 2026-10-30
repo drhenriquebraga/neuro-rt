@@ -1,4 +1,4 @@
-name: Prepare private release draft
+name: Prepare source release draft
 
 on:
   workflow_dispatch:
@@ -37,14 +37,12 @@ jobs:
           if ($module.version -ne $env:RELEASE_VERSION) { throw 'Version differs from module.json.' }
           python scripts/package_module.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Create private draft with source only
+      - name: Create draft with source only
         shell: pwsh
         env:
           GH_TOKEN: '${{ github.token }}'
           RELEASE_VERSION: '${{ inputs.version }}'
         run: |
-          $private = gh api ('repos/' + $env:GITHUB_REPOSITORY) --jq '.private'
-          if ($LASTEXITCODE -ne 0 -or $private.Trim() -ne 'true') { throw 'This workflow requires a private repository.' }
           $tag = 'v' + $env:RELEASE_VERSION
           $source = 'dist/NEURO_RT_SOURCE_v' + $env:RELEASE_VERSION + '.zip'
           $notes = 'docs/RELEASE_NOTES_v' + $env:RELEASE_VERSION + '.md'

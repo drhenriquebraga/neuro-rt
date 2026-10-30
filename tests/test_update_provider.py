@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 from test_plugin_install import fixture_package
+from scripts.build_host_bootstrap import generate
 
 ROOT = Path(__file__).resolve().parents[1]
 HOST_APP = ROOT.parent / 'AUTO_CONTORNO/app'
@@ -28,9 +29,21 @@ class UpdateProviderTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory(dir=base)
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        self.generated = module_at('test_generated_neuro_provider', HOST_APP / 'radai_neuro_install.py')
+        self.generated = module_at('test_generated_neuro_provider', generate(self.root / 'bootstrap.py'))
         self.source = module_at('test_source_neuro_provider', ROOT / 'integration/update_provider.py')
         self.source.SOURCES = self.generated.SOURCES
+        # Each generated revision owns its reviewed, pinned bootstrap package.
+        self.bootstrap_modules = {key: value for key, value in sys.modules.items()
+                                  if key.startswith('_radai_neuro_bootstrap')}
+        for key in self.bootstrap_modules:
+            sys.modules.pop(key)
+        self.addCleanup(self.restore_bootstrap_modules)
+
+    def restore_bootstrap_modules(self):
+        for key in list(sys.modules):
+            if key.startswith('_radai_neuro_bootstrap'):
+                sys.modules.pop(key)
+        sys.modules.update(self.bootstrap_modules)
 
     def scenario(self, module, flag, active_child=False):
         host = self.root / (module.__name__ + '-' + flag + ('-active' if active_child else ''))
@@ -57,6 +70,8 @@ class UpdateProviderTests(unittest.TestCase):
                                       'radai_watcher': watcher}):
             provider = module.build_provider(host, {'version': '8.10'},
                 {'neuro_package': fixture_package(self.root), 'recarregar': lambda: restarted.set()})
+            consent = provider.consent_policy()
+            provider.accept_consent(dict(accepted=True, version=consent['version'], digest=consent['digest']))
             try:
                 provider.request_plugin_update('neuro-rt', 'interromper')
                 self.assertIn('overnight_interromper', events)

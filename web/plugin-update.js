@@ -7,7 +7,23 @@
   const message = document.getElementById('neuro-update-message');
   const actions = document.getElementById('neuro-update-actions');
   const progress = document.getElementById('neuro-update-progress');
-  const state = {last: null, timer: null, confirm: false, posting: false, initial: '', restarting: false, view: ''};
+  const state = {last: null, timer: null, confirm: false, posting: false, initial: '', restarting: false, view: '', consentKey: '', consentChecked: false, consentRequired: false, consentValid: true};
+  const consentPanel = document.createElement('section');
+  consentPanel.id = 'neuro-install-consent'; consentPanel.hidden = true;
+  const consentDocument = document.createElement('div');
+  consentDocument.id = 'neuro-install-consent-document';
+  consentDocument.setAttribute('translate', 'no'); consentDocument.className = 'notranslate';
+  const consentLabel = document.createElement('label');
+  const consentCheck = document.createElement('input');
+  consentCheck.type = 'checkbox'; consentCheck.id = 'neuro-install-consent-check';
+  const consentWords = document.createElement('span');
+  consentLabel.append(consentCheck, consentWords);
+  consentPanel.append(consentDocument, consentLabel);
+  actions.before(consentPanel);
+  consentCheck.addEventListener('change', () => {
+    state.consentChecked = consentCheck.checked;
+    refreshButtons();
+  });
   const installWords = {
     'Atualizar NEURO RT': 'Instalar NEURO RT',
     'Uma nova versão do NEURO RT está disponível.': 'O plugin NEURO RT ainda não está instalado.',
@@ -25,6 +41,57 @@
     const extra = window.NEURO_INSTALL_CATALOG && window.NEURO_INSTALL_CATALOG[code];
     return extra && extra[text] || (window.radaiFrase ? window.radaiFrase(text) : text);
   };
+
+  function consentInfo(data) {
+    if (!data || !Object.prototype.hasOwnProperty.call(data, 'consent'))
+      return {required: installing, valid: !installing, key: '', policy: null};
+    const value = data.consent, policy = value && value.policy;
+    const valid = !!(value && typeof value.installation_accepted === 'boolean' && policy &&
+      policy.schema === 'neuro-rt/consent-policy/1' && policy.plugin_id === 'neuro-rt' &&
+      typeof policy.version === 'string' && /^\d+(?:\.\d+)*$/.test(policy.version) &&
+      typeof policy.digest === 'string' && /^[0-9a-f]{64}$/.test(policy.digest) &&
+      typeof policy.title === 'string' && policy.title.trim() && Array.isArray(policy.clauses) &&
+      policy.clauses.length && policy.clauses.every(c => c && typeof c.text === 'string' && c.text.trim()));
+    return {required: !valid || value.installation_accepted !== true, valid,
+      key: valid ? policy.version + ':' + policy.digest : '', policy: valid ? policy : null};
+  }
+
+  function refreshButtons() {
+    const blocked = state.consentRequired && (!state.consentValid || !state.consentChecked);
+    actions.querySelectorAll('button').forEach(button => {
+      button.disabled = state.posting || (blocked && ['comecar', 'esperar', 'interromper'].includes(button.dataset.neuroAction));
+    });
+  }
+
+  function renderConsent(data) {
+    const info = consentInfo(data);
+    state.consentRequired = info.required; state.consentValid = info.valid;
+    if (state.consentKey !== info.key) {
+      state.consentKey = info.key; state.consentChecked = false;
+      consentCheck.checked = false;
+      consentDocument.replaceChildren();
+      if (info.policy) {
+        const title = document.createElement('h3');
+        title.setAttribute('data-radai-t', '1');
+        title.textContent = info.policy.title + ' — ' + info.policy.version;
+        consentDocument.appendChild(title);
+        info.policy.clauses.forEach(clause => {
+          const line = document.createElement('p'); line.textContent = clause.text;
+          line.setAttribute('data-radai-t', '1');
+          consentDocument.appendChild(line);
+        });
+        const digest = document.createElement('p'); digest.style.overflowWrap = 'anywhere';
+        digest.setAttribute('data-radai-t', '1');
+        digest.textContent = 'SHA-256: ' + info.policy.digest; consentDocument.appendChild(digest);
+      }
+    }
+    consentPanel.hidden = !info.required;
+    consentLabel.hidden = !info.valid;
+    consentCheck.disabled = state.posting;
+    consentWords.textContent = T('Li e aceito o termo do plugin NEURO RT.');
+    if (!info.valid) consentDocument.textContent = T('Atualize a Local Suite para exibir e aceitar o termo do plugin.');
+    refreshButtons();
+  }
 
   function view(kind, text, buttons, percent) {
     panel.hidden = kind === 'hidden';
@@ -49,7 +116,7 @@
         actions.appendChild(button);
       });
     }
-    actions.querySelectorAll('button').forEach(button => { button.disabled = state.posting; });
+    renderConsent(state.last);
   }
 
   function render(data) {
@@ -131,10 +198,16 @@
     actions.querySelectorAll('button').forEach(button => { button.disabled = true; });
     try {
       const current = await status();
+      const info = consentInfo(current);
+      if (info.required && (!info.valid || !state.consentChecked || state.consentKey !== info.key)) {
+        state.posting = false; render(current); return;
+      }
       const firstInstall = installing && action === 'comecar';
+      const payload = firstInstall ? {confirm: true} : {action};
+      if (info.required) payload.consent = {accepted: true, version: info.policy.version, digest: info.policy.digest};
       const response = await fetch(firstInstall ? '/api/plugins/neuro-rt/install' : '/api/plugins/neuro-rt/update', {method: 'POST',
         headers: {'Content-Type': 'application/json', 'X-Neuro-Plugin-Token': current.token},
-        body: JSON.stringify(firstInstall ? {confirm: true} : {action})});
+        body: JSON.stringify(payload)});
       if (!response.ok) throw Error('update');
       state.posting = false;
       render(Object.assign({}, current, {update: await response.json()}));

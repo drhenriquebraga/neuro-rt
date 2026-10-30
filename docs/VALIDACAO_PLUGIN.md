@@ -1,5 +1,29 @@
 # Evidências técnicas da integração NEURO RT 1.0.0
 
+## Revisão dirigida 1.0.1 — 30/10/2026
+
+- 107 testes selecionados de contratos, paths, pacote, instalador, atualização,
+  recibos, disponibilidade e provider: OK, com dois skips de symlink por privilégio
+  Windows. Junctions foram efetivamente exercitadas.
+- Sete testes HTTP locais: três de acesso/aceite, dois de adapter/montagem tardia
+  (incluindo tentativa no intervalo de publicação) e dois de servidor stdlib.
+  Nenhuma chamada a motor foi permitida nos cenários bloqueados.
+- Chrome/Playwright: quatro fluxos dirigidos passaram — cards/foco/opacidade,
+  primeiro uso, aceite do instalador com renovação de hash e atualização comum.
+  Cobertura dos controles nos 12 idiomas preservada; documento do termo em PT-BR.
+- Revisão independente: sem achados bloqueantes conhecidos após corrigir quatro
+  achados. Relatório de trabalho em
+  `.superpowers/sdd/neuro-plugin/2026-10-30-nidus-consent-review.md`.
+- Auditoria pré-publicação: histórico/refs Git e snapshot publicável examinados,
+  sem credenciais ou PHI identificados; nenhum peso/ambiente/imagem versionado.
+- Build final com os componentes comprimidos já inventariados, verificação de
+  cada SHA descomprimido, inventário/licenças e comparação CODE com a fonte atual.
+  A publicação e os downloads são registrados no handoff 30/10.
+
+Essas provas são técnicas e sintéticas. Não houve nova inferência científica,
+instalação em estação clínica ou teste em TPS nesta revisão. Os pesos existentes
+continuam no OFFLINE, mas as quatro ferramentas científicas não ficam habilitadas.
+
 Registro da construção de 29/10/2026. Dados exclusivamente sintéticos, sem leitura
 de exames privados, acesso ao TPS ou mudança de instalação de uso. As provas
 demonstram execução e contratos; não medem precisão de segmentação em pacientes.

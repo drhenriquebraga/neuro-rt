@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ('plugin_manifest', 'model_paths', 'model_registry', 'install_state', 'plugin_update')
+FILES = ('plugin_consent', 'plugin_manifest', 'model_paths', 'model_registry', 'install_state', 'plugin_update')
 
 
 def generate(destination, root=ROOT):

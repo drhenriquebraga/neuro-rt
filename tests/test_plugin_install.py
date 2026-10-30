@@ -260,7 +260,7 @@ class PluginInstallTests(unittest.TestCase):
         result = subprocess.run([powershell, '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
                                  '-File', str(script), '-SuiteRoot', str(self.host),
                                  '-PackagePath', package['path'], '-PackageSha256', package['sha256'],
-                                 '-TransactionId', 'powershell', '-BootstrapPython', sys.executable],
+                                 '-TransactionId', 'powershell', '-BootstrapPython', sys.executable, '-AcceptTerms'],
                                 cwd=self.root, capture_output=True, text=True, timeout=60)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(installer.read_install_status(self.plugin).state, 'installed_pending_restart')

@@ -1,5 +1,24 @@
 # Implementação do plugin NEURO RT
 
+## Revisão 1.0.1 — 30/10/2026
+
+Somente Nidus RT fica habilitado nesta primeira disponibilização pública
+autorizada. Quatro cards aparecem `[em construção]`, opacidade .62, sem links ou
+foco acionável. O contrato `tool_availability` e a barreira ASGI recusam entrada
+direta e novos processamentos. O servidor stdlib também recusa novas submissões.
+
+Instalador confiável e onboarding compartilham termo PT-BR versão 1.0,
+SHA-256 `ae6fd4434ec42a08ffe6a4be6eaf002940a903de15a516a1b5fce3275ab772b0`.
+Recibos installation/first_use são locais, separados e explícitos. O host precisa
+regenerar seu bootstrap e ligar status/POST ao contrato em `INTEGRACAO.md`.
+
+Revisão independente resolveu: montagem tardia após startup, query duplicada,
+janela de publicação de endpoints e servidor alternativo. As provas dirigidas
+passaram sem nova inferência. Build 1.0.1 preserva componentes anteriores e
+verifica integralmente o ZIP; a identidade do código foi comparada ao manifesto.
+Situação de publicação, arquivos, SHA e passagem ao dono do host:
+`HANDOFF_LOCAL_SUITE_2026-10-30.md`. Nenhum arquivo AUTO_CONTORNO foi alterado.
+
 Atualizado em 29/10/2026. Execução autorizada pelo usuário após o desenho e roadmap.
 Este arquivo é o ponto de retomada versionado; o roadmap completo continua em
 `docs/superpowers/plans/2026-10-29-neuro-rt-roadmap.md`.

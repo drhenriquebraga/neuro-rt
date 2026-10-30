@@ -1,9 +1,54 @@
 # Integração NEURO RT / Local Suite
 
-Este é o contrato do plugin 1.0. O protótipo iframe/API v1 está preservado em
+Este é o contrato do plugin 1.0, com o recorte de disponibilidade 1.0.1 descrito
+abaixo. O protótipo iframe/API v1 está preservado em
 LEGADO_V02_INTEGRACAO.md; ele não define a instalação integrada atual.
 
 ## Responsabilidades
+
+**Disponibilidade 1.0.1:** somente Nidus RT está habilitado. Os outros quatro
+cards usam o renderer comum com rota vazia, `aria-disabled=true`, `[em construção]`
+e opacidade do host. `neuro_rt/tool_availability.py` é a fonte canônica;
+`module.json.enabled_tools` permite inspeção sem importar motores. As URLs dessas
+ferramentas devolvem 503, e POST selection/studies/jobs/retry devolvem 409 após
+os controles de origem/token. Leituras históricas e cancelamento são preservados.
+O servidor stdlib de desenvolvimento também recusa novas execuções.
+
+## Aceite compartilhado com o host
+
+`neuro_rt/plugin_consent.py` contém o documento PT-BR, versão 1.0 e impressão
+SHA-256 do conteúdo canônico. O bootstrap confiável inclui a mesma fonte. Texto
+alterado exige versão nova, hash novo e coordenação com o bootstrap da base;
+nunca buscar um termo executável no payload para autorizar sua própria instalação.
+
+O provider gerado fornece `consent_policy()`, `consent_status()` e
+`accept_consent(payload)`. Este último registra somente a etapa `installation`.
+O host deve expor no status do plugin:
+
+```json
+{"consent":{"policy":"objeto retornado por consent_policy()",
+            "installation_accepted":false,"first_use_accepted":false}}
+```
+
+O objeto `policy` real inclui title/version/digest/clauses, não a string ilustrativa.
+O consumidor UI confiável mostra o texto e envia `consent={accepted:true,version,
+digest}` no POST install/update quando necessário. O host valida sua origem/token
+e JSON, chama `provider.accept_consent(body['consent'])` e só então `install()` ou
+`request_plugin_update(...)`. A guarda do provider recusa qualquer ação sem recibo
+atual, antes de segurar a fila, cancelar trabalho ou iniciar download. Instalações
+antigas sem recibo também exigem essa confirmação antes de atualizar.
+
+Na primeira entrada, `/neuro/onboarding` usa o mesmo documento. GET/POST
+`/neuro/api/consent` fornecem estado/token e registram `first_use`, com origem e
+token próprios da instância. Sem esse recibo, `/neuro/`, `/neuro/nidus`,
+`/nidus/projecao` redirecionam ao onboarding e `/api/nidus/*` responde 428. Um
+registro não substitui o outro. A tela inicial não tem checkbox marcado por padrão.
+Os arquivos separados `config/consent-installation.json` e
+`config/consent-first_use.json` guardam versão/hash/etapa/instante UTC, sem paciente
+ou operador. São locais à instalação, não um serviço de autenticação pessoal.
+
+O aceite complementa os termos da suíte; mantém MIT da integração, Apache-2.0 do
+Nidus/core e licenças por componente, e não constitui aprovação clínica.
 
 O host é dono da aplicação FastAPI, origem, home, menu, idioma, tema, carregador
 DICOM e bilhetes, preferência de dispositivo, fila, acervo, gravador DICOM-RT e
