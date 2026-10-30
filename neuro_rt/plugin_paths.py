@@ -3,6 +3,8 @@
 ``installation_state`` is None or a mapping with ``state``, ``active_version``
 and optional ``runtime={id, lock_digest, python}``. ``python`` is relative to
 that runtime directory and defaults to ``python.exe`` on the Windows target.
+With ``execution_mode='host'``, runtime must be None and the caller supplies the
+trusted host_python binding; installed metadata never selects an interpreter.
 Runtime selection/integrity and transactional state publication belong to I02.
 """
 
@@ -12,7 +14,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Mapping
 
-from .plugin_manifest import _numeric_version, _relative_path
+from .plugin_manifest import _numeric_version, _relative_path, validate_host_runtime
 
 
 class InstallationState(str, Enum):
@@ -41,9 +43,10 @@ class PluginPaths:
     staging_dir: Path
     installation_file: Path
     state: InstallationState
+    execution_mode: str = 'isolated'
 
 
-def resolve_plugin_paths(host_root, installation_state) -> PluginPaths:
+def resolve_plugin_paths(host_root, installation_state, *, host_python=None) -> PluginPaths:
     host_root = Path(host_root).resolve()
     if installation_state is None:
         installation_state = {'state': 'absent'}
@@ -63,7 +66,14 @@ def resolve_plugin_paths(host_root, installation_state) -> PluginPaths:
         code_dir = _relative_path(versions_dir, active_version)
     runtime_dir = worker_python = None
     runtime = installation_state.get('runtime')
-    if runtime is not None:
+    execution_mode = installation_state.get('execution_mode', 'isolated')
+    if execution_mode not in ('isolated', 'host'):
+        raise ValueError('Modo de execução da instalação inválido.')
+    if execution_mode == 'host':
+        if runtime is not None or any(key in installation_state for key in ('host_python', 'python_executable', 'worker_python')):
+            raise ValueError('O estado instalado não pode fornecer um Python ou runtime privado.')
+        worker_python = validate_host_runtime(host_python)
+    elif runtime is not None:
         if not isinstance(runtime, Mapping):
             raise ValueError('Runtime da instalação inválido.')
         runtime_id, digest = runtime.get('id'), runtime.get('lock_digest')
@@ -79,4 +89,5 @@ def resolve_plugin_paths(host_root, installation_state) -> PluginPaths:
         worker_python=worker_python, models_dir=_relative_path(plugin_root, 'models'),
         data_dir=_relative_path(plugin_root, 'data'), config_dir=_relative_path(plugin_root, 'config'),
         staging_dir=_relative_path(plugin_root, 'staging'),
-        installation_file=_relative_path(plugin_root, 'installation.json'), state=state)
+        installation_file=_relative_path(plugin_root, 'installation.json'), state=state,
+        execution_mode=execution_mode)

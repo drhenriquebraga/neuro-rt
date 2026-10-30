@@ -5,6 +5,7 @@ param(
     [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-f]{64}$')][string]$PackageSha256,
     [Parameter(Mandatory = $true)][ValidatePattern('^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$')][string]$TransactionId,
     [string]$BootstrapPython,
+    [string]$HostVersion,
     [switch]$AcceptTerms
 )
 
@@ -31,6 +32,20 @@ try {
         }
     }
     $python = (Resolve-Path -LiteralPath $BootstrapPython -ErrorAction Stop).Path
+    if ([string]::IsNullOrWhiteSpace($HostVersion)) {
+        $neuroVersionFile = Join-Path $suite 'entrega.txt'
+        if (Test-Path -LiteralPath $neuroVersionFile -PathType Leaf) {
+            $neuroVersionText = Get-Content -LiteralPath $neuroVersionFile -Raw -Encoding UTF8
+            if ($neuroVersionText -match '(?im)^\s*VERSAO\s*=\s*(\d+(?:\.\d+)*)\s*$') {
+                $HostVersion = $Matches[1]
+            }
+        }
+    }
+    if ($HostVersion -notmatch '^\d+(?:\.\d+)*$') {
+        throw 'Versao da suite ausente. Informe -HostVersion com a versao instalada.'
+    }
+    Write-Host 'NEURO RT: usando o Python ja instalado no Local Suite.'
+    Write-Host 'NEURO RT: conferindo o termo de instalacao.'
     # The same versioned document is used on first opening. AcceptTerms is only
     # for a caller that has already displayed it and obtained explicit agreement.
     $consentEntry = 'import sys; sys.path.insert(0, sys.argv.pop(1)); from neuro_rt.plugin_consent import main; sys.exit(main())'
@@ -40,10 +55,12 @@ try {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
     # -I ignores user site/PYTHONPATH/current directory; -B preserves immutable code.
     # Bootstrap comes from the trusted installer distribution, never the ZIP payload.
-    $entry = 'import sys; sys.path.insert(0, sys.argv.pop(1)); from neuro_rt.install_state import main; sys.exit(main())'
-    & $python -I -B -c $entry $bootstrapRoot --suite-root $suite --package-path $package --package-sha256 $PackageSha256 --transaction-id $TransactionId
+    Write-Host 'NEURO RT: verificando o SETUP e instalando o codigo do plugin.'
+    $entry = 'import sys; sys.path.insert(0, sys.argv.pop(1)); from neuro_rt.plugin_update import main; sys.exit(main())'
+    & $python -I -B -c $entry $bootstrapRoot --suite-root $suite --host-version $HostVersion --package-path $package --package-sha256 $PackageSha256 --transaction-id $TransactionId
     $result = $LASTEXITCODE
     if ($result -ne 0) { exit $result }
+    Write-Host 'NEURO RT: preparo concluido. Abra o NEURO RT na suite para concluir a ativacao.'
     exit 0
 } catch {
     Write-Error 'Instalacao NeuroRT interrompida. Confira SuiteRoot, pacote, hash externo e bootstrap autorizado.' -ErrorAction Continue

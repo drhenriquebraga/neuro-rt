@@ -49,7 +49,7 @@
     checking: 'Conferindo o pacote do NEURO RT…',
     verifying: 'Conferindo o pacote do NEURO RT…',
     copying: 'Copiando os arquivos da instalação…',
-    extracting: 'Extraindo bibliotecas e modelos…',
+    extracting: 'Copiando os arquivos da instalação…',
     validating: 'Validando os componentes instalados…',
     publishing: 'Concluindo o preparo da versão…',
     complete: 'Pacote preparado. Aguardando reabertura da Local Suite.',

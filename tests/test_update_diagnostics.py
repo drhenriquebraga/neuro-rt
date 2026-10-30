@@ -1,11 +1,13 @@
 import json
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
 from neuro_rt import plugin_update as update
 from test_plugin_install import fixture_package
+from host_setup_fixtures import host_setup
 
 
 class UpdateDiagnosticsTests(unittest.TestCase):
@@ -21,7 +23,7 @@ class UpdateDiagnosticsTests(unittest.TestCase):
             (self.host/name).write_text('synthetic')
         self.plugin = self.host/'Plugins/NEURO RT'
         self.events = []
-        self.coordinator = update.UpdateCoordinator(self.host, host_version='8.10',
+        self.coordinator = update.UpdateCoordinator(self.host, host_version='8.11', host_python=sys.executable,
             hold=lambda value: self.events.append(('hold',value)), busy=lambda:False,
             cancel=lambda:None, restart=None, package=fixture_package(self.root))
 
@@ -116,14 +118,16 @@ class UpdateDiagnosticsTests(unittest.TestCase):
         self.assertEqual(self.coordinator.status()['error_code'],'INSTALL_BUSY')
 
     def test_fresh_coordinator_resumes_actual_pending_version_without_latest_download(self):
-        self.coordinator.prepare(self.coordinator.offline_package)
+        with patch.object(update.install_state, 'validate_host_runtime', return_value=Path(sys.executable).resolve()):
+            self.coordinator.prepare(host_setup(self.root, '1.0.1'))
         resumed=update.UpdateCoordinator(self.host,host_version='8.11',hold=lambda _:None,
-            busy=lambda:False,cancel=lambda:None,restart=lambda:{'ok':True,'scheduled':True})
-        with patch.object(resumed.client,'check_plugin_release',side_effect=AssertionError('Pending payload must be reused')):
+            busy=lambda:False,cancel=lambda:None,restart=lambda:{'ok':True,'scheduled':True}, host_python=sys.executable)
+        with patch.object(resumed.client,'check_plugin_release',side_effect=AssertionError('Pending host SETUP must be reused')), \
+                patch.object(update.install_state, 'validate_host_runtime', return_value=Path(sys.executable).resolve()):
             resumed.request_plugin_update('neuro-rt','esperar')
             resumed._worker.join(30)
         self.assertEqual(resumed.status()['state'],'restarting')
-        self.assertEqual(resumed.status()['version'],'1.0.0')
+        self.assertEqual(resumed.status()['version'],'1.0.1')
 
     def test_activation_failure_after_pointer_write_restores_pending_before_release(self):
         self.coordinator.prepare(self.coordinator.offline_package)

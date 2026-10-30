@@ -81,7 +81,8 @@ class InstallerConsentTests(unittest.TestCase):
         run = subprocess.run([powershell, '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
                               '-File', str(ROOT / 'installer/INSTALL.ps1'), '-SuiteRoot', str(host),
                               '-PackagePath', str(package), '-PackageSha256', 'a'*64,
-                              '-TransactionId', 'without-consent', '-BootstrapPython', sys.executable],
+                              '-TransactionId', 'without-consent', '-BootstrapPython', sys.executable,
+                              '-HostVersion', '8.11'],
                              input='', capture_output=True, text=True, timeout=30)
         self.assertNotEqual(run.returncode, 0)
         self.assertIn('ACEITO', run.stdout)

@@ -18,7 +18,7 @@ class InstallProgressBrowserTests(unittest.TestCase):
         self.assertEqual(len(data),12)
         for code,phrases in data.items():
             self.assertEqual(set(phrases),set(data['pt-BR']),code)
-            for text in ('Extraindo bibliotecas e modelos…','Pacote preparado. Aguardando reabertura da Local Suite.','Arquivos:','Etapa:','Código:'):
+            for text in ('Copiando os arquivos da instalação…','Pacote preparado. Aguardando reabertura da Local Suite.','Arquivos:','Etapa:','Código:'):
                 self.assertTrue(phrases.get(text,'').strip(),(code,text))
 
     @unittest.skipUnless(shutil.which('node') and Path(PLAYWRIGHT).is_dir() and Path(CHROME).is_file(),'Chrome/Playwright indisponível.')

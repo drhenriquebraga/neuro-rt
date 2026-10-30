@@ -31,7 +31,7 @@ const {chromium}=require(process.env.NEURO_PLAYWRIGHT_MODULE||'C:/Users/henri/.c
   data.update={state:'preparing',stage:'extracting',version:'1.0.2',transaction_id:'transaction-one',
    completed_files:10,total_files:100,processed_bytes:1048576,total_unpacked_bytes:4194304};
   await page.evaluate(()=>NeuroPluginUpdate.read());
-  assert((await page.locator('#neuro-update-message').textContent()).includes('Extraindo'));
+  assert((await page.locator('#neuro-update-message').textContent()).includes('Copiando'));
   let detail=await page.locator('#neuro-update-detail').textContent();
   assert(detail.includes('10 / 100'));assert(detail.includes('1.0 MiB / 4.0 MiB'));
   data.update.completed_files=3;data.update.processed_bytes=100;

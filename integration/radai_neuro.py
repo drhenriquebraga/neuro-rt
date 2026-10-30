@@ -22,11 +22,12 @@ def montar(app, module_root, *, host_services=None):
         host_root = Path(host_services.host_info['suite_root']).resolve()
         state_file = host_root / 'Plugins/NEURO RT/installation.json'
         if state_file.is_file():
-            plugin_paths = resolve_plugin_paths(host_root, json.loads(state_file.read_text(encoding='utf-8')))
+            plugin_paths = resolve_plugin_paths(host_root, json.loads(state_file.read_text(encoding='utf-8')),
+                host_python=host_services.host_info.get('python_executable'))
             if plugin_paths.code_dir != root:
                 raise ValueError('O código montado não corresponde à versão ativa do plugin.')
     settings = Settings(root, plugin_paths=plugin_paths)
-    if host_services is not None:
+    if host_services is not None and (plugin_paths is None or plugin_paths.execution_mode != 'host'):
         settings.host_app = Path(host_services.host_info['suite_root']).resolve()
         embedded = settings.host_app / 'python/python.exe'
         development = settings.host_app / '.venv/Scripts/python.exe'

@@ -24,7 +24,6 @@
     "Interromper e instalar": "Interromper e instalar",
     "Conferindo o pacote do NEURO RT…": "Conferindo o pacote do NEURO RT…",
     "Copiando os arquivos da instalação…": "Copiando os arquivos da instalação…",
-    "Extraindo bibliotecas e modelos…": "Extraindo bibliotecas e modelos…",
     "Validando os componentes instalados…": "Validando os componentes instalados…",
     "Concluindo o preparo da versão…": "Concluindo o preparo da versão…",
     "Pacote preparado. Aguardando reabertura da Local Suite.": "Pacote preparado. Aguardando reabertura da Local Suite.",
@@ -32,7 +31,8 @@
     "Arquivos:": "Arquivos:",
     "Código:": "Código:",
     "Etapa:": "Etapa:",
-    "Reiniciar agora": "Reiniciar agora"
+    "Reiniciar agora": "Reiniciar agora",
+    "Atualize ou repare a base do Local Suite antes de instalar o plugin.": "Atualize ou repare a base do Local Suite antes de instalar o plugin."
   },
   "en": {
     "Li e aceito o termo do plugin NEURO RT.": "I have read and accept the NEURO RT plugin terms.",
@@ -59,7 +59,6 @@
     "Interromper e instalar": "Interrupt and install",
     "Conferindo o pacote do NEURO RT…": "Checking the NEURO RT package…",
     "Copiando os arquivos da instalação…": "Copying installation files…",
-    "Extraindo bibliotecas e modelos…": "Extracting libraries and models…",
     "Validando os componentes instalados…": "Validating installed components…",
     "Concluindo o preparo da versão…": "Finishing version preparation…",
     "Pacote preparado. Aguardando reabertura da Local Suite.": "Package prepared. Waiting for Local Suite to reopen.",
@@ -67,7 +66,8 @@
     "Arquivos:": "Files:",
     "Código:": "Code:",
     "Etapa:": "Stage:",
-    "Reiniciar agora": "Restart now"
+    "Reiniciar agora": "Restart now",
+    "Atualize ou repare a base do Local Suite antes de instalar o plugin.": "Update or repair the Local Suite installation before installing the plugin."
   },
   "es": {
     "Li e aceito o termo do plugin NEURO RT.": "He leído y acepto los términos del plugin NEURO RT.",
@@ -94,7 +94,6 @@
     "Interromper e instalar": "Interrumpir e instalar",
     "Conferindo o pacote do NEURO RT…": "Comprobando el paquete de NEURO RT…",
     "Copiando os arquivos da instalação…": "Copiando los archivos de instalación…",
-    "Extraindo bibliotecas e modelos…": "Extrayendo bibliotecas y modelos…",
     "Validando os componentes instalados…": "Validando los componentes instalados…",
     "Concluindo o preparo da versão…": "Finalizando la preparación de la versión…",
     "Pacote preparado. Aguardando reabertura da Local Suite.": "Paquete preparado. Esperando la reapertura de Local Suite.",
@@ -102,7 +101,8 @@
     "Arquivos:": "Archivos:",
     "Código:": "Código:",
     "Etapa:": "Etapa:",
-    "Reiniciar agora": "Reiniciar ahora"
+    "Reiniciar agora": "Reiniciar ahora",
+    "Atualize ou repare a base do Local Suite antes de instalar o plugin.": "Actualice o repare la instalación de Local Suite antes de instalar el complemento."
   },
   "de": {
     "Li e aceito o termo do plugin NEURO RT.": "Ich habe die Bedingungen des NEURO RT Plugins gelesen und akzeptiere sie.",
@@ -129,7 +129,6 @@
     "Interromper e instalar": "Unterbrechen und installieren",
     "Conferindo o pacote do NEURO RT…": "NEURO RT-Paket wird geprüft…",
     "Copiando os arquivos da instalação…": "Installationsdateien werden kopiert…",
-    "Extraindo bibliotecas e modelos…": "Bibliotheken und Modelle werden entpackt…",
     "Validando os componentes instalados…": "Installierte Komponenten werden geprüft…",
     "Concluindo o preparo da versão…": "Vorbereitung der Version wird abgeschlossen…",
     "Pacote preparado. Aguardando reabertura da Local Suite.": "Paket vorbereitet. Warten auf das erneute Öffnen von Local Suite.",
@@ -137,7 +136,8 @@
     "Arquivos:": "Dateien:",
     "Código:": "Code:",
     "Etapa:": "Schritt:",
-    "Reiniciar agora": "Jetzt neu starten"
+    "Reiniciar agora": "Jetzt neu starten",
+    "Atualize ou repare a base do Local Suite antes de instalar o plugin.": "Aktualisieren oder reparieren Sie die Local-Suite-Installation, bevor Sie das Plugin installieren."
   },
   "fr": {
     "Li e aceito o termo do plugin NEURO RT.": "J’ai lu et j’accepte les conditions du plugin NEURO RT.",
@@ -164,7 +164,6 @@
     "Interromper e instalar": "Interrompre et installer",
     "Conferindo o pacote do NEURO RT…": "Vérification du paquet NEURO RT…",
     "Copiando os arquivos da instalação…": "Copie des fichiers d’installation…",
-    "Extraindo bibliotecas e modelos…": "Extraction des bibliothèques et des modèles…",
     "Validando os componentes instalados…": "Validation des composants installés…",
     "Concluindo o preparo da versão…": "Finalisation de la préparation de la version…",
     "Pacote preparado. Aguardando reabertura da Local Suite.": "Paquet préparé. En attente de la réouverture de Local Suite.",
@@ -172,7 +171,8 @@
     "Arquivos:": "Fichiers :",
     "Código:": "Code :",
     "Etapa:": "Étape :",
-    "Reiniciar agora": "Redémarrer maintenant"
+    "Reiniciar agora": "Redémarrer maintenant",
+    "Atualize ou repare a base do Local Suite antes de instalar o plugin.": "Mettez à jour ou réparez Local Suite avant d’installer le plugin."
   },
   "it": {
     "Li e aceito o termo do plugin NEURO RT.": "Ho letto e accetto i termini del plugin NEURO RT.",
@@ -199,7 +199,6 @@
     "Interromper e instalar": "Interrompi e installa",
     "Conferindo o pacote do NEURO RT…": "Verifica del pacchetto NEURO RT…",
     "Copiando os arquivos da instalação…": "Copia dei file di installazione…",
-    "Extraindo bibliotecas e modelos…": "Estrazione delle librerie e dei modelli…",
     "Validando os componentes instalados…": "Convalida dei componenti installati…",
     "Concluindo o preparo da versão…": "Completamento della preparazione della versione…",
     "Pacote preparado. Aguardando reabertura da Local Suite.": "Pacchetto preparato. In attesa della riapertura di Local Suite.",
@@ -207,7 +206,8 @@
     "Arquivos:": "File:",
     "Código:": "Codice:",
     "Etapa:": "Fase:",
-    "Reiniciar agora": "Riavvia ora"
+    "Reiniciar agora": "Riavvia ora",
+    "Atualize ou repare a base do Local Suite antes de instalar o plugin.": "Aggiorna o ripara Local Suite prima di installare il plugin."
   },
   "pl": {
     "Li e aceito o termo do plugin NEURO RT.": "Przeczytałem i akceptuję warunki wtyczki NEURO RT.",
@@ -234,7 +234,6 @@
     "Interromper e instalar": "Przerwij i zainstaluj",
     "Conferindo o pacote do NEURO RT…": "Sprawdzanie pakietu NEURO RT…",
     "Copiando os arquivos da instalação…": "Kopiowanie plików instalacyjnych…",
-    "Extraindo bibliotecas e modelos…": "Rozpakowywanie bibliotek i modeli…",
     "Validando os componentes instalados…": "Weryfikowanie zainstalowanych składników…",
     "Concluindo o preparo da versão…": "Kończenie przygotowania wersji…",
     "Pacote preparado. Aguardando reabertura da Local Suite.": "Pakiet przygotowany. Oczekiwanie na ponowne otwarcie Local Suite.",
@@ -242,7 +241,8 @@
     "Arquivos:": "Pliki:",
     "Código:": "Kod:",
     "Etapa:": "Etap:",
-    "Reiniciar agora": "Uruchom ponownie teraz"
+    "Reiniciar agora": "Uruchom ponownie teraz",
+    "Atualize ou repare a base do Local Suite antes de instalar o plugin.": "Zaktualizuj lub napraw Local Suite przed zainstalowaniem wtyczki."
   },
   "ar": {
     "Li e aceito o termo do plugin NEURO RT.": "قرأت شروط إضافة NEURO RT وأوافق عليها.",
@@ -269,7 +269,6 @@
     "Interromper e instalar": "إيقاف العمل والتثبيت",
     "Conferindo o pacote do NEURO RT…": "جارٍ التحقق من حزمة NEURO RT…",
     "Copiando os arquivos da instalação…": "جارٍ نسخ ملفات التثبيت…",
-    "Extraindo bibliotecas e modelos…": "جارٍ استخراج المكتبات والنماذج…",
     "Validando os componentes instalados…": "جارٍ التحقق من المكونات المثبتة…",
     "Concluindo o preparo da versão…": "جارٍ إكمال تحضير الإصدار…",
     "Pacote preparado. Aguardando reabertura da Local Suite.": "الحزمة جاهزة. في انتظار إعادة فتح Local Suite.",
@@ -277,7 +276,8 @@
     "Arquivos:": "الملفات:",
     "Código:": "الرمز:",
     "Etapa:": "المرحلة:",
-    "Reiniciar agora": "إعادة التشغيل الآن"
+    "Reiniciar agora": "إعادة التشغيل الآن",
+    "Atualize ou repare a base do Local Suite antes de instalar o plugin.": "حدّث تثبيت Local Suite أو أصلحه قبل تثبيت الإضافة."
   },
   "bn": {
     "Li e aceito o termo do plugin NEURO RT.": "আমি NEURO RT প্লাগইনের শর্তাবলি পড়েছি এবং সম্মত হয়েছি।",
@@ -304,7 +304,6 @@
     "Interromper e instalar": "থামিয়ে ইনস্টল করুন",
     "Conferindo o pacote do NEURO RT…": "NEURO RT প্যাকেজ যাচাই করা হচ্ছে…",
     "Copiando os arquivos da instalação…": "ইনস্টলেশনের ফাইল কপি করা হচ্ছে…",
-    "Extraindo bibliotecas e modelos…": "লাইব্রেরি ও মডেল বের করা হচ্ছে…",
     "Validando os componentes instalados…": "ইনস্টল করা উপাদান যাচাই করা হচ্ছে…",
     "Concluindo o preparo da versão…": "সংস্করণ প্রস্তুতির কাজ শেষ করা হচ্ছে…",
     "Pacote preparado. Aguardando reabertura da Local Suite.": "প্যাকেজ প্রস্তুত। Local Suite আবার খোলার অপেক্ষায়।",
@@ -312,7 +311,8 @@
     "Arquivos:": "ফাইল:",
     "Código:": "কোড:",
     "Etapa:": "ধাপ:",
-    "Reiniciar agora": "এখনই পুনরায় চালু করুন"
+    "Reiniciar agora": "এখনই পুনরায় চালু করুন",
+    "Atualize ou repare a base do Local Suite antes de instalar o plugin.": "প্লাগইন ইনস্টল করার আগে Local Suite আপডেট বা মেরামত করুন।"
   },
   "ko": {
     "Li e aceito o termo do plugin NEURO RT.": "NEURO RT 플러그인 약관을 읽었으며 동의합니다.",
@@ -339,7 +339,6 @@
     "Interromper e instalar": "중단하고 설치",
     "Conferindo o pacote do NEURO RT…": "NEURO RT 패키지 확인 중…",
     "Copiando os arquivos da instalação…": "설치 파일 복사 중…",
-    "Extraindo bibliotecas e modelos…": "라이브러리 및 모델 압축 해제 중…",
     "Validando os componentes instalados…": "설치된 구성 요소 검증 중…",
     "Concluindo o preparo da versão…": "버전 준비 마무리 중…",
     "Pacote preparado. Aguardando reabertura da Local Suite.": "패키지 준비 완료. Local Suite가 다시 열리기를 기다리는 중입니다.",
@@ -347,7 +346,8 @@
     "Arquivos:": "파일:",
     "Código:": "코드:",
     "Etapa:": "단계:",
-    "Reiniciar agora": "지금 다시 시작"
+    "Reiniciar agora": "지금 다시 시작",
+    "Atualize ou repare a base do Local Suite antes de instalar o plugin.": "플러그인을 설치하기 전에 Local Suite를 업데이트하거나 복구하세요."
   },
   "zh-CN": {
     "Li e aceito o termo do plugin NEURO RT.": "我已阅读并接受 NEURO RT 插件条款。",
@@ -374,7 +374,6 @@
     "Interromper e instalar": "中断并安装",
     "Conferindo o pacote do NEURO RT…": "正在检查 NEURO RT 安装包…",
     "Copiando os arquivos da instalação…": "正在复制安装文件…",
-    "Extraindo bibliotecas e modelos…": "正在解压库和模型…",
     "Validando os componentes instalados…": "正在验证已安装的组件…",
     "Concluindo o preparo da versão…": "正在完成版本准备…",
     "Pacote preparado. Aguardando reabertura da Local Suite.": "安装包已准备好，等待 Local Suite 重新打开。",
@@ -382,7 +381,8 @@
     "Arquivos:": "文件：",
     "Código:": "代码：",
     "Etapa:": "阶段：",
-    "Reiniciar agora": "立即重启"
+    "Reiniciar agora": "立即重启",
+    "Atualize ou repare a base do Local Suite antes de instalar o plugin.": "安装插件前，请更新或修复 Local Suite。"
   },
   "ja": {
     "Li e aceito o termo do plugin NEURO RT.": "NEURO RT プラグインの利用条件を読み、同意します。",
@@ -409,7 +409,6 @@
     "Interromper e instalar": "中断してインストール",
     "Conferindo o pacote do NEURO RT…": "NEURO RTパッケージを確認中…",
     "Copiando os arquivos da instalação…": "インストールファイルをコピー中…",
-    "Extraindo bibliotecas e modelos…": "ライブラリとモデルを展開中…",
     "Validando os componentes instalados…": "インストール済みコンポーネントを検証中…",
     "Concluindo o preparo da versão…": "バージョンの準備を完了中…",
     "Pacote preparado. Aguardando reabertura da Local Suite.": "パッケージの準備ができました。Local Suiteの再起動を待っています。",
@@ -417,6 +416,7 @@
     "Arquivos:": "ファイル：",
     "Código:": "コード：",
     "Etapa:": "段階：",
-    "Reiniciar agora": "今すぐ再起動"
+    "Reiniciar agora": "今すぐ再起動",
+    "Atualize ou repare a base do Local Suite antes de instalar o plugin.": "プラグインをインストールする前に、Local Suiteを更新または修復してください。"
   }
 }

@@ -19,6 +19,8 @@ from . import install_state
 from .plugin_manifest import _numeric_version
 
 REPOSITORY = 'drhenriquebraga/neuro-rt'
+MAX_SETUP_SIZE = 3 * 1024 * 1024
+MIN_SETUP_HOST = '8.11'
 
 
 class ReleaseUnavailable(ValueError):
@@ -101,29 +103,27 @@ class ReleaseClient:
                     _numeric_version(version)
                     if raw.get('draft') or raw.get('prerelease'):
                         raise ReleaseUnavailable('Release ainda não publicada como estável.')
-                    name = 'NEURO_RT_OFFLINE_v' + version + '.zip'
+                    name = 'NEURO_RT_SETUP_v' + version + '.zip'
                     assets = [a for a in raw['assets'] if a.get('name') == name]
                     if len(assets) != 1:
-                        raise ReleaseUnavailable('Payload offline completo ausente na release.')
+                        raise ReleaseUnavailable('Instalador versionado ausente na release.')
                     asset = assets[0]
                     digest = asset.get('digest', '')
-                    if not re.fullmatch(r'sha256:[0-9a-f]{64}', digest):
+                    if not isinstance(digest, str) or not re.fullmatch(r'sha256:[0-9a-f]{64}', digest):
                         raise ReleaseUnavailable('Asset sem SHA256 externo publicado; instalação indisponível.')
+                    if (type(asset.get('size')) is not int or not 0 < asset['size'] <= MAX_SETUP_SIZE
+                            or type(asset.get('id')) is not int or asset['id'] <= 0
+                            or asset.get('url') != 'https://api.github.com/repos/' + REPOSITORY
+                                + '/releases/assets/' + str(asset['id'])):
+                        raise ReleaseUnavailable('Identidade ou tamanho do instalador inválido.')
                     self._cached = {'state': 'available', 'version': version,
                         'release_id': raw.get('id'), 'asset_id': asset['id'], 'name': name,
-                        'url': asset['url'], 'sha256': digest[7:], 'size': asset['size'], 'reason': ''}
-                    if self.host_version:
-                        manifests = [a for a in raw['assets'] if a.get('name') == 'release-manifest.json']
-                        if len(manifests) != 1:
-                            raise ReleaseUnavailable('Manifesto de compatibilidade ausente na release.')
-                        metadata = self._fetch_manifest(manifests[0]['url'])
-                        if metadata.get('schema') != install_state.SCHEMA or metadata.get('version') != version:
-                            raise ReleaseUnavailable('Manifesto externo não corresponde à release selecionada.')
-                        minimum = metadata['host_min_version']
-                        if _numeric_version(self.host_version) < _numeric_version(minimum):
-                            self._cached.update(state='incompatible', reason='Atualize o Local Suite para ' + minimum + ' antes do NEURO RT.')
-                        elif not python_compatible(metadata.get('python')):
-                            self._cached.update(state='incompatible', reason='O Python desta versão do Local Suite não atende a release NEURO RT.')
+                        'url': asset['url'], 'sha256': digest[7:], 'size': asset['size'],
+                        'package_kind': 'setup', 'reason': ''}
+                    # Only release metadata is read before consent. The authenticated
+                    # SETUP supplies its exact host requirement during preparation.
+                    if self.host_version and _numeric_version(self.host_version) < _numeric_version(MIN_SETUP_HOST):
+                        self._cached.update(state='incompatible', reason='Atualize o Local Suite para ' + MIN_SETUP_HOST + ' antes do NEURO RT.')
                 except (OSError, ValueError, KeyError, TypeError):
                     import sys as _sys
                     error = _sys.exc_info()[1]
@@ -165,10 +165,11 @@ class ReleaseClient:
 
 
 class UpdateCoordinator:
-    def __init__(self, host_root, *, host_version, hold, busy, cancel, restart, client=None, package=None):
+    def __init__(self, host_root, *, host_version, hold, busy, cancel, restart, client=None, package=None, host_python=None):
         self.host_root = Path(host_root)
         self.plugin_root = self.host_root / 'Plugins/NEURO RT'
         self.host_version = host_version
+        self.host_python = host_python
         self.hold, self.busy, self.cancel, self.restart = hold, busy, cancel, restart
         self.client = client or ReleaseClient(host_version=host_version)
         self.offline_package = dict(package) if package is not None else None
@@ -220,7 +221,7 @@ class UpdateCoordinator:
                 pass
         return value
 
-    def prepare(self, package):
+    def prepare(self, package, *, require_host=False, transaction_id=None):
         # Authenticate bytes before reading metadata, before invoking the installer.
         self._set_status(state='preparing', stage='host_validation', error_code='', error_stage='')
         install_state.validate_host_root(self.host_root)
@@ -230,13 +231,18 @@ class UpdateCoordinator:
         with zipfile.ZipFile(package['path']) as archive:
             manifest, _, _, _ = install_state._inspect_zip(archive)
             module = json.loads(archive.read('code/module.json'))
+        if (require_host or self._selected is not None) and module.get('execution_mode') != 'host':
+            raise ValueError('O instalador remoto deve reutilizar o Python do Local Suite.')
+        if self._selected is not None and self._selected.get('version') != module.get('version'):
+            raise ValueError('A versão do SETUP difere da release selecionada.')
         self._set_status(version=module['version'])
         if _numeric_version(self.host_version) < _numeric_version(module['host_min_version']):
-            raise ValueError('Atualize o Local Suite antes de instalar esta release.')
+            raise install_state.InstallFailure('HOST_INCOMPATIBLE', 'Atualize o Local Suite antes de instalar esta release.')
         if not python_compatible(module.get('python')):
-            raise ValueError('O Python do Local Suite não atende esta release.')
-        self._transaction_id = uuid.uuid4().hex
-        receipt = install_state.begin_install(self.host_root, package, self._transaction_id)
+            raise install_state.InstallFailure('HOST_INCOMPATIBLE', 'O Python do Local Suite não atende esta release.')
+        self._transaction_id = transaction_id or uuid.uuid4().hex
+        receipt = install_state.begin_install(self.host_root, package, self._transaction_id,
+                                             host_python=self.host_python)
         if receipt.following:
             raise install_state.InstallFailure('INSTALL_BUSY', 'Outra instalação possui a transação.')
         self._set_status(state='installed_pending_restart', stage='complete', version=receipt.version,
@@ -263,7 +269,7 @@ class UpdateCoordinator:
             if version:
                 self._set_status(state='activating', stage='validating',
                     reason='Conferindo os componentes antes da reabertura da suíte.')
-                install_state.activate_release(self.plugin_root, version)
+                install_state.activate_release(self.plugin_root, version, host_python=self.host_python)
             activation_finished = True
             if not self._set_status(state='restarting', stage='restart', error_code='', error_stage='',
                     reason='Solicitando reabertura. Aguardando nova instância da suíte e ativação do plugin.'):
@@ -300,6 +306,24 @@ class UpdateCoordinator:
                          reason='Reabertura solicitada. Aguardando nova instância da suíte e ativação do plugin.')
         return self.status()
 
+    def _pending_host_setup(self, state):
+        """Resume only the new shared-host contract, never an old bundle pending."""
+        if state.get('pending_execution_mode') != 'host' or not state.get('pending_version'):
+            return False
+        try:
+            version = state['pending_version']
+            _numeric_version(version)
+            code = install_state._path(self.plugin_root, 'versions/' + version)
+            module = install_state._read_json(install_state._path(code, 'module.json'))
+            inventory = install_state._read_json(install_state._path(code, 'release-manifest.json'))
+            return (module.get('execution_mode') == inventory.get('execution_mode') == 'host'
+                    and module.get('version') == inventory.get('version') == version
+                    and module.get('runtime') == 'host-shared' and module.get('runtimes') == {}
+                    and module.get('enabled_tools') == ['nidus'] and inventory.get('runtime') is None
+                    and inventory.get('runtimes') == [] and inventory.get('models') == [])
+        except (OSError, ValueError, TypeError, KeyError):
+            return False
+
     def request_plugin_update(self, plugin_id, action):
         if plugin_id != 'neuro-rt' or action not in ('comecar', 'esperar', 'interromper'):
             raise ValueError('Ação de atualização inválida.')
@@ -321,8 +345,8 @@ class UpdateCoordinator:
                     while self.busy():
                         time.sleep(.2)
                     state_path = self.plugin_root / 'installation.json'
-                    state = json.loads(state_path.read_text(encoding='utf-8')) if state_path.exists() else {}
-                    if not state.get('pending_version'):
+                    state = install_state._read_json(install_state._path(self.plugin_root, 'installation.json')) if state_path.exists() else {}
+                    if not self._pending_host_setup(state):
                         if offline_package is not None:
                             package = offline_package
                         else:
@@ -357,13 +381,15 @@ def main(argv=None):
     parser.add_argument('--host-version', required=True)
     parser.add_argument('--package-path')
     parser.add_argument('--package-sha256')
+    parser.add_argument('--transaction-id')
     args = parser.parse_args(argv)
     try:
         from . import plugin_consent
         if not plugin_consent.accepted(plugin_consent.config_for_suite(args.suite_root), 'installation'):
             raise ValueError('Aceite do termo do plugin ausente.')
         coordinator = UpdateCoordinator(args.suite_root, host_version=args.host_version,
-            hold=lambda _: None, busy=lambda: False, cancel=lambda: None, restart=None)
+            hold=lambda _: None, busy=lambda: False, cancel=lambda: None, restart=None,
+            host_python=sys.executable)
         if args.package_path:
             package = {'path': args.package_path, 'sha256': args.package_sha256}
         else:
@@ -372,14 +398,18 @@ def main(argv=None):
             selected = coordinator.client.check_plugin_release('neuro-rt', state.get('active_version'))
             if selected['state'] != 'available':
                 raise ReleaseUnavailable(selected.get('reason') or 'Não há release nova disponível.')
+            coordinator._selected = dict(selected)
             destination = coordinator.plugin_root / 'staging/downloads' / (uuid.uuid4().hex + '.zip')
             package = coordinator.client.download(selected, destination)
-        print(json.dumps(coordinator.prepare(package), ensure_ascii=True))
+        print(json.dumps(coordinator.prepare(package, require_host=True,
+                                            transaction_id=args.transaction_id), ensure_ascii=True))
         return 0
     except (ValueError, OSError, zipfile.BadZipFile):
         error = sys.exc_info()[1]
-        print(json.dumps({'state': 'failed', 'reason': str(error) if isinstance(error, ReleaseUnavailable)
-            else 'Instalação interrompida; versão ativa e dados preservados.'}, ensure_ascii=True))
+        diagnostic = install_state.sanitize_install_error(error, 'preparing')
+        if isinstance(error, ReleaseUnavailable):
+            diagnostic['reason'] = str(error)
+        print(json.dumps({'state': 'failed', **diagnostic}, ensure_ascii=True))
         return 1
 
 

@@ -6,6 +6,7 @@ Activation is called by the host's coordinated reopen flow, never by install.
 See installer/PACKAGE_FORMAT.md for the complete release-package/1 contract.
 """
 import argparse
+import codecs
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 import errno
@@ -21,7 +22,8 @@ import time
 import uuid
 import zipfile
 
-from .plugin_manifest import _numeric_version, _relative_path, read_manifest
+from .plugin_manifest import (_numeric_version, _relative_path, read_manifest,
+                              validate_host_runtime, HostRuntimeUnavailable)
 from .model_registry import load_catalog
 
 SCHEMA = 'neuro-rt/release-package/1'
@@ -32,7 +34,12 @@ MAX_TOTAL_SIZE = 64 * 1024 ** 3
 MAX_COMPRESSION_RATIO = 1000
 SPACE_MARGIN = 16 * 1024 * 1024
 CODE_ROOTS = {'module.json', 'neuro_rt', 'web', 'integration', 'app', 'catalog',
-              'licenses', 'LICENSE', 'NOTICE', 'requirements.txt', 'models.lock.json'}
+              'licenses', 'LICENSE', 'NOTICE', 'requirements.txt', 'models.lock.json', 'installer'}
+HOST_CODE_SUFFIXES = {
+    'neuro_rt': {'.py'}, 'integration': {'.py'}, 'app': {'.py'},
+    'web': {'.html', '.js', '.css', '.svg', '.json'}, 'catalog': {'.json'},
+    'licenses': {'.txt', '.md', '.html'}, 'installer': {'.ps1'},
+}
 
 
 @dataclass(frozen=True)
@@ -226,6 +233,7 @@ class InstallFailure(ValueError):
 
 
 _ERROR_REASONS = {
+    'HOST_INCOMPATIBLE': 'Atualize ou repare a base do Local Suite antes de instalar o plugin.',
     'INSTALL_BUSY': 'Outra preparação do plugin está em andamento. Aguarde sua conclusão antes de tentar novamente.',
     'INSUFFICIENT_SPACE': 'Espaço livre insuficiente para preparar o NEURO RT.',
     'PACKAGE_INTEGRITY': 'A integridade do pacote ou de um componente não confere. Baixe novamente o pacote autorizado.',
@@ -248,7 +256,7 @@ def sanitize_install_error(error, stage):
     number = number if type(number) is int else None
     windows = getattr(error, 'winerror', None)
     windows = windows if type(windows) is int else None
-    code = error.error_code if isinstance(error, InstallFailure) else None
+    code = error.error_code if isinstance(error, (InstallFailure, HostRuntimeUnavailable)) else None
     if code not in _ERROR_REASONS:
         if isinstance(error, KeyboardInterrupt):
             code = 'CANCELLED'
@@ -405,6 +413,12 @@ def _manifest_shape(data):
     if not isinstance(data, dict) or data.get('schema') != SCHEMA or data.get('plugin_id') != 'neuro-rt':
         raise ValueError('Manifesto de release inválido.')
     _numeric_version(data.get('version'))
+    execution_mode = data.get('execution_mode', 'isolated')
+    if execution_mode not in ('isolated', 'host'):
+        raise ValueError('Modo de execução da release inválido.')
+    if execution_mode == 'host' and any(
+            key in data for key in ('host_python', 'python_executable', 'worker_python')):
+        raise ValueError('O pacote não pode fornecer o binding do Python da suíte.')
     files = data.get('files')
     if not isinstance(files, list) or not files or len(files) > MAX_FILES:
         raise ValueError('Inventário de arquivos inválido.')
@@ -422,8 +436,15 @@ def _manifest_shape(data):
         if parts[0] == 'code':
             if len(parts) < 2 or parts[1] not in CODE_ROOTS:
                 raise ValueError('Payload de código contém diretório privado/não autorizado.')
+            if execution_mode == 'host' and (
+                    (parts[1] in HOST_CODE_SUFFIXES and (len(parts) < 3 or
+                     Path(parts[-1]).suffix.lower() not in HOST_CODE_SUFFIXES[parts[1]])) or
+                    (parts[1] not in HOST_CODE_SUFFIXES and len(parts) != 2)):
+                raise ValueError('Modo host permite somente código, instaladores e textos autorizados.')
         elif parts[0] not in ('models', 'runtimes') or len(parts) < 4:
             raise ValueError('Payload deve separar code, runtimes e models.')
+        if execution_mode == 'host' and parts[0] != 'code':
+            raise ValueError('Modo host não distribui runtimes, bibliotecas ou pesos.')
         if type(record.get('size')) is not int or not 0 <= record['size'] <= MAX_FILE_SIZE:
             raise ValueError('Tamanho de arquivo inválido.')
         _sha(record.get('sha256'))
@@ -432,7 +453,10 @@ def _manifest_shape(data):
         raise ValueError('Payload excede o limite de extração.')
     components = [('code', None)]
     runtimes = data.get('runtimes')
-    if not isinstance(runtimes, list) or not runtimes:
+    if execution_mode == 'host' and (
+            'runtime' not in data or data['runtime'] is not None or runtimes != [] or data.get('models') != []):
+        raise ValueError('Modo host deve usar apenas o Python da suíte, sem componentes científicos.')
+    if not isinstance(runtimes, list) or (not runtimes and execution_mode != 'host'):
         raise ValueError('Release deve fixar runtimes completos.')
     runtime_keys = set()
     for runtime in runtimes:
@@ -444,8 +468,8 @@ def _manifest_shape(data):
         _validate_name(runtime.get('python'))
         components.append((prefix, runtime))
     selected = data.get('runtime')
-    if not isinstance(selected, dict) or not any(
-            all(selected.get(k) == runtime.get(k) for k in ('id', 'lock_digest', 'python')) for runtime in runtimes):
+    if execution_mode != 'host' and (not isinstance(selected, dict) or not any(
+            all(selected.get(k) == runtime.get(k) for k in ('id', 'lock_digest', 'python')) for runtime in runtimes)):
         raise ValueError('Runtime principal não pertence aos runtimes fixados.')
     models = data.get('models')
     if not isinstance(models, list):
@@ -476,6 +500,19 @@ def _manifest_shape(data):
     if 'code/module.json' not in names:
         raise ValueError('Manifesto do plugin ausente.')
     return components, total
+
+
+def _verify_host_source(stream):
+    """Host CODE is UTF-8 text, never a renamed executable, wheel or weight."""
+    decoder = codecs.getincrementaldecoder('utf-8-sig')()
+    try:
+        for block in iter(lambda: stream.read(64 * 1024), b''):
+            text = decoder.decode(block)
+            if any(ord(char) < 32 and char not in '\t\r\n' for char in text):
+                raise ValueError('Payload binário não é permitido no código do modo host.')
+        decoder.decode(b'', final=True)
+    except UnicodeError as error:
+        raise ValueError('Modo host permite somente fontes e textos UTF-8.') from error
 
 
 def _inspect_zip(zipped):
@@ -517,6 +554,10 @@ def _inspect_zip(zipped):
     for name in records:
         if name.startswith('code/') and name not in files:
             raise ValueError('Código precisa estar completo dentro do ZIP.')
+    if data.get('execution_mode', 'isolated') == 'host':
+        for name in records:
+            with zipped.open(files[name]) as stream:
+                _verify_host_source(stream)
     return data, components, size, files
 
 
@@ -549,13 +590,21 @@ def _verify_catalog(code, data):
     names = {r['path']: r for r in data['files']}
     if 'code/' + manifest.catalog not in names or 'code/' + manifest.adapter.split(':')[0] not in names:
         raise ValueError('Catálogo/adaptador não está fixado no payload.')
+    if manifest.execution_mode != data.get('execution_mode', 'isolated'):
+        raise ValueError('Modo de execução do plugin difere da release.')
+    models = load_catalog(_path(code, manifest.catalog))
+    if manifest.execution_mode == 'host':
+        if manifest.enabled_tools != ('nidus',):
+            raise ValueError('Modo host desta entrega permite somente Nidus RT.')
+        # Future specifications remain validated documentation, not installed models.
+        return
     runtimes = {r['id']: r for r in data['runtimes']}
     if set(manifest.runtimes) != set(runtimes):
         raise ValueError('Runtimes do plugin e release diferem.')
     for runtime_id, runtime in manifest.runtimes.items():
         if runtime['python'] != runtimes[runtime_id]['python']:
             raise ValueError('Entrypoint Python difere do runtime fixado.')
-    for model in load_catalog(_path(code, manifest.catalog)):
+    for model in models:
         if model['catalog_state'] == 'candidate':
             continue
         if model.get('host_managed') is True:
@@ -612,7 +661,7 @@ def read_install_status(plugin_root) -> InstallStatus:
     return InstallStatus(**{key: value.get(key, default) for key, default in asdict(InstallStatus()).items()})
 
 
-def begin_install(host_root, package, transaction_id) -> InstallReceipt:
+def begin_install(host_root, package, transaction_id, *, host_python=None) -> InstallReceipt:
     """Install a local {'path': ZIP, 'sha256': external digest} without activation.
 
     A simultaneous caller receives following=True and polls read_install_status.
@@ -641,7 +690,9 @@ def begin_install(host_root, package, transaction_id) -> InstallReceipt:
         _refresh_cleanup_status(root, cleanup_pending, cleanup_code)
         if receipt_file.exists():
             values = _read_json(receipt_file)
-            _installed_release(root, values['version'])
+            installed = _installed_release(root, values['version'])
+            if installed.get('execution_mode', 'isolated') == 'host':
+                validate_host_runtime(host_python)
             _refresh_cleanup_status(root, cleanup_pending, cleanup_code, verified_version=values['version'])
             values['verified_artifacts'] = tuple(values['verified_artifacts'])
             return InstallReceipt(**values)
@@ -676,6 +727,8 @@ def begin_install(host_root, package, transaction_id) -> InstallReceipt:
                 raise InstallFailure('PACKAGE_INTEGRITY', 'SHA256 do pacote não corresponde ao hash externo autorizado.')
             with zipfile.ZipFile(archive) as zipped:
                 data, components, size, entries = _inspect_zip(zipped)
+                if data.get('execution_mode', 'isolated') == 'host':
+                    validate_host_runtime(host_python)
                 progress.publish(force=True, total_files=len(data['files']), total_unpacked_bytes=size)
                 if shutil.disk_usage(root).free < size + SPACE_MARGIN:
                     raise InstallFailure('INSUFFICIENT_SPACE', 'Sem espaço livre para extração e coexistência da versão anterior.')
@@ -731,7 +784,8 @@ def begin_install(host_root, package, transaction_id) -> InstallReceipt:
                 for name in ('data', 'config'):
                     _path(root, name).mkdir(exist_ok=True)
                 updated = dict(previous, state='installed_pending_restart', pending_version=version,
-                               transaction_id=transaction_id, pending_runtime=data['runtime'], package_sha256=expected)
+                               transaction_id=transaction_id, pending_runtime=data['runtime'],
+                               pending_execution_mode=data.get('execution_mode', 'isolated'), package_sha256=expected)
                 _atomic_json(state_file, updated)
                 committed = True
                 _atomic_json(receipt_file, asdict(receipt))
@@ -795,7 +849,7 @@ def _safe_remove_tree(path, boundary):
     shutil.rmtree(path, onerror=retry_readonly)
 
 
-def activate_release(plugin_root, version) -> ActivationReceipt:
+def activate_release(plugin_root, version, *, host_python=None) -> ActivationReceipt:
     """Atomically select an installed release after host coordination/reopen.
 
     Previous verified versions remain available for explicit rollback. Call before
@@ -808,13 +862,16 @@ def activate_release(plugin_root, version) -> ActivationReceipt:
         if not acquired:
             raise ValueError('Instalação ocupada; acompanhe o status da transação.')
         data = _installed_release(root, version)
+        if data.get('execution_mode', 'isolated') == 'host':
+            validate_host_runtime(host_python)
         state_file = _path(root, 'installation.json')
         previous = _read_json(state_file)
         old = previous.get('active_version')
         receipt = ActivationReceipt(old if old != version else previous.get('previous_version'), version, False, 'ready')
         updated = dict(previous, state='ready', active_version=version,
                        previous_version=receipt.previous_version, pending_version=None,
-                       pending_runtime=None, runtime=data['runtime'])
+                       pending_runtime=None, runtime=data['runtime'], pending_execution_mode=None,
+                       execution_mode=data.get('execution_mode', 'isolated'))
         _atomic_json(state_file, updated)
         transaction = previous.get('transaction_id', 'activation')
         _status(root, transaction, 'ready', 'active')
@@ -832,7 +889,8 @@ def main(argv=None):
         from . import plugin_consent
         if not plugin_consent.accepted(plugin_consent.config_for_suite(args.suite_root), 'installation'):
             raise ValueError('Aceite do termo do plugin ausente.')
-        receipt = begin_install(args.suite_root, {'path': args.package_path, 'sha256': args.package_sha256}, args.transaction_id)
+        receipt = begin_install(args.suite_root, {'path': args.package_path, 'sha256': args.package_sha256},
+                                args.transaction_id, host_python=sys.executable)
         print(json.dumps(asdict(receipt)))
         return 0
     except (ValueError, OSError, zipfile.BadZipFile, KeyError, TypeError):

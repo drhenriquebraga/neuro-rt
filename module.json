@@ -8,18 +8,12 @@
   "entrypoint": "/neuro/",
   "adapter": "integration/radai_neuro.py:montar",
   "catalog": "catalog/models.json",
-  "runtimes": {
-    "raidionics-onnx": {
-      "python": "python.exe"
-    },
-    "neuro-scientific-cpu": {
-      "python": "python.exe"
-    }
-  },
+  "execution_mode": "host",
+  "runtimes": {},
   "artifacts": [],
   "result_schema": "neuro-rt/result/2",
   "python": ">=3.10",
-  "runtime": "isolated-worker",
+  "runtime": "host-shared",
   "default_enabled": false,
   "finding_requires_explicit_request": true,
   "approval_status": "UNAPPROVED",

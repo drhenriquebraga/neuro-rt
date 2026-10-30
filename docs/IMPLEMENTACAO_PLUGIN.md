@@ -1,5 +1,15 @@
 # Implementação do plugin NEURO RT
 
+## Revisão atual 1.0.2: plugin com Python da base
+
+Distribuição somente por SETUP leve versionado e LATEST. O modo host instala
+código, termo e licenças, reutilizando o mesmo Python e capacidades do Local
+Suite 8.11. Nidus tem delta obrigatório zero; nenhum componente científico de
+card em construção é baixado. O contrato normativo está no
+[desenho de instalação](superpowers/specs/2026-10-30-installer-only-host-python-design.md).
+Os registros abaixo são históricos e não autorizam distribuir OFFLINE/PLUGIN
+nem instalar os dois ambientes privados descritos em entregas anteriores.
+
 ## Revisão 1.0.1 — 30/10/2026
 
 Somente Nidus RT fica habilitado nesta primeira disponibilização pública

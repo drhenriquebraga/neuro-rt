@@ -26,6 +26,8 @@ class Settings:
             self.data_dir = plugin_paths.data_dir
             self.host_app = plugin_paths.host_root
             self.host_python = str(self.host_app / 'python' / 'python.exe')
+            if plugin_paths.execution_mode == 'host':
+                self.host_python = self.python
             self.processing_preference = 'auto'
             return
         config = self.root / 'neuro_rt.local.json'
@@ -70,6 +72,9 @@ class Settings:
             return False
 
     def runtime_python(self, runtime_id):
+        if self.plugin_paths is not None and self.plugin_paths.execution_mode == 'host':
+            # Only Nidus is enabled; future scientific adapters have no delta yet.
+            return None
         if runtime_id == 'host-nnunet':
             return self.host_python if Path(self.host_python).is_file() else None
         if self.plugin_paths is None:
