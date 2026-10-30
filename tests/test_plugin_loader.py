@@ -6,7 +6,9 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 
-from test_pipeline import TEMP_ROOT
+# Loader contracts run before scientific packages exist on a clean CI runner.
+TEMP_ROOT = Path(__file__).resolve().parents[1] / '.research' / 'test_tmp'
+TEMP_ROOT.mkdir(parents=True, exist_ok=True)
 
 
 class PluginLoaderTests(unittest.TestCase):
@@ -89,6 +91,13 @@ class PluginLoaderTests(unittest.TestCase):
                 status = discover_plugin(base, host_info={
                     'contract':'local-suite/plugins/1','version':'8.10'})
             self.assertEqual(status['state'], 'failed')
+            real_exists = Path.exists
+            def exists_except_alias(path):
+                return False if path == cache else real_exists(path)
+            with patch.object(Path, 'lstat', stat_with_reparse), patch.object(Path, 'exists', exists_except_alias):
+                status = discover_plugin(base, host_info={
+                    'contract':'local-suite/plugins/1','version':'8.10'})
+            self.assertEqual(status['state'], 'failed', 'A broken Windows junction must still be inspected with lstat')
 
     def test_mount_is_idempotent_and_carries_host_services(self):
         from integration.plugin_loader import discover_plugin, mount_plugin

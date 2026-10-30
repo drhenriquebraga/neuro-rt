@@ -108,7 +108,7 @@ class ResourcePreparationTests(unittest.TestCase):
         self.assertFalse(self.plugin.exists())
 
     def test_wheel_cannot_escape_or_shadow_a_base_module(self):
-        for index, extra in enumerate(({'../escape.py': b'unsafe'}, {'numpy/__init__.py': b'unsafe'})):
+        for index, extra in enumerate(({'../escape.py': b'unsafe'}, {'json/__init__.py': b'unsafe'})):
             self.wheel(extra)
             with self.subTest(index=index), self.assertRaises(ValueError):
                 self.prepare()
