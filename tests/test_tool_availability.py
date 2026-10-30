@@ -66,6 +66,10 @@ class ToolAvailabilityTests(unittest.TestCase):
     @unittest.skipUnless(shutil.which('node'), 'Node requerido para verificar navegador.')
     def test_active_cards_and_explicit_test_modal_in_real_browser(self):
         from integration.testing_access import page, policy
+        playwright = os.environ.get('NEURO_PLAYWRIGHT_MODULE', 'C:/Users/henri/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright')
+        chrome = os.environ.get('NEURO_BROWSER_EXECUTABLE', 'C:/Program Files/Google/Chrome/Application/chrome.exe')
+        if not Path(playwright).is_dir() or not Path(chrome).is_file():
+            self.skipTest('Chrome/Playwright indisponíveis; executar a prova local do navegador antes da entrega.')
         tools = ('nidus','glioma','metastasis','meningioma','anatomia')
         base = ROOT/'runtime/test-tmp';base.mkdir(parents=True,exist_ok=True)
         with tempfile.TemporaryDirectory(dir=base) as tmp:

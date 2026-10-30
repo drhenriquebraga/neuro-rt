@@ -77,7 +77,7 @@ class PluginLoaderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
             base = Path(tmp)
             _, code = self.fixture(base)
-            cache = code / 'integration/__pycache__'
+            cache = code / 'integration/redirected-cache'
             cache.mkdir()
             original = Path.lstat
             def stat_with_reparse(path, *args, **kwargs):

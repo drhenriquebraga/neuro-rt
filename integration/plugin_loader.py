@@ -27,7 +27,7 @@ def _inside(root, relative):
             or p.split('.')[0].upper() in reserved for p in parts)
             or any(ord(c) < 32 or c in '<>:"|?*' for c in relative)):
         raise ValueError('Caminho fora do contrato de instalação.')
-    root = Path(root).resolve()
+    root = Path(root).absolute()
     raw_path = root.joinpath(*parts)
     for parent in (raw_path, *raw_path.parents):
         if parent.exists() or parent.is_symlink():
@@ -37,7 +37,7 @@ def _inside(root, relative):
         if parent == root:
             break
     path = raw_path.resolve()
-    if not path.is_relative_to(root):
+    if not path.is_relative_to(root.resolve()):
         raise ValueError('Caminho escapa da instalação.')
     return path
 
@@ -136,9 +136,9 @@ def discover_plugin(suite_root, plugin_id=PLUGIN_ID, host_info=None):
         for file in code.rglob('*'):
             relative = file.relative_to(code).as_posix()
             _inside(code, relative)
+            if '__pycache__' in file.parts or file.suffix.lower() in ('.pyc', '.pyo'):
+                raise ValueError('Bytecode não é permitido no código instalado do plugin.')
             if file.is_file():
-                if '__pycache__' in file.parts or file.suffix.lower() in ('.pyc', '.pyo'):
-                    raise ValueError('Bytecode não é permitido no código instalado do plugin.')
                 actual.add(relative)
         if actual - allowed_receipts != covered:
             raise ValueError('A instalação contém arquivos não previstos no inventário.')
