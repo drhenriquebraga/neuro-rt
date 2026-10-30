@@ -1,6 +1,7 @@
 """Contract tests use only invented identifiers and metadata, never image files."""
 import copy
 import json
+from pathlib import Path
 import subprocess
 import sys
 import unittest
@@ -372,7 +373,9 @@ class LegacyContractTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, 'legacy_multichannel')
 
     def test_contract_imports_do_not_load_scientific_runtime(self):
-        code = ('import sys; import neuro_rt.contracts, neuro_rt.study_types; '
+        root = str(Path(__file__).resolve().parents[1])
+        code = (f'import sys; sys.path.insert(0, {root!r}); '
+                'import neuro_rt.contracts, neuro_rt.study_types; '
                 'assert not ({"numpy", "SimpleITK", "torch", "onnxruntime", '
                 '"raidionicsseg"} & set(sys.modules))')
         subprocess.run([sys.executable, '-c', code], check=True, capture_output=True)

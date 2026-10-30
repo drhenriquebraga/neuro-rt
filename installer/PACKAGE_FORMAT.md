@@ -99,11 +99,26 @@ importados em atendimento.
 
 `install-status.json` e `transactions/<id>/status.json` publicam os campos
 `transaction_id`, `state`, `stage`, `downloaded_bytes`, `total_bytes`, `reason`.
+Desde 1.0.2, os campos aditivos `completed_files`, `total_files`,
+`processed_bytes` e `total_unpacked_bytes` acompanham o payload; os campos
+`error_code`, `error_stage`, `os_errno` e `winerror` descrevem falhas com valores
+controlados. A gravação de progresso é limitada a quatro vezes por segundo e
+forçada nas mudanças de fase e no resultado final.
 Não contêm caminhos de exames nem texto bruto de exceções. Falha de atualização
 aparece nesse status, mas não altera `installation.json` da versão anterior.
 
+`update-status.json` registra a coordenação no host. Um preparo concluído fica
+pendente até a reabertura coordenada. Durante a conferência de ativação o estado
+é `activating`; o host mantém a reserva e bloqueia fechamento prematuro. A
+solicitação de reabertura exige callback dedicado `neuro_restart` com recibo
+`ok=true, scheduled=true`; um callback de recarregar configurações não basta.
+O status `restarting` é persistido antes de chamar esse callback. Sucesso na
+tela exige nova instância, versão esperada e montagem confirmada pelo host.
+
 Uma trava de kernel exclusiva cobre instalação e ativação. Um segundo pedido
 recebe `InstallReceipt(following=True)` e acompanha `read_install_status`.
+O coordenador de atualização informa `INSTALL_BUSY` nesse caso, sem ativar
+ou reiniciar em nome da transação concorrente.
 Repetir uma transação concluída retorna o recibo original após reverificar a
 release; o ID não pode ser usado para outro SHA-256. Transações interrompidas
 podem repetir o mesmo pacote; staging parcial é descartado somente na pasta

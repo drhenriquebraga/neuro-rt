@@ -87,7 +87,7 @@ novos. A versão anterior, modelos válidos e dados são preservados.
 
 ## Contrato do host
 
-O manifesto exige `local-suite/plugins/1` e Local Suite 8.10 ou posterior. O host
+O manifesto 1.0.2 exige `local-suite/plugins/1` e Local Suite 8.11 ou posterior. O host
 carrega a entrada conhecida e chama `montar(app, code_dir, host_services=...)` uma
 vez. HostServices fornece:
 

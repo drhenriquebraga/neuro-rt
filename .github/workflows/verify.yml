@@ -30,7 +30,7 @@ jobs:
       - name: Exercise synthetic contracts and transactional packages
         shell: pwsh
         run: |
-          $suites = @('test_study_contracts', 'test_plugin_manifest', 'test_plugin_paths', 'test_plugin_install', 'test_plugin_update', 'test_release_manifest', 'test_plugin_consent', 'test_tool_availability', 'test_installer_consent')
+          $suites = @('test_study_contracts', 'test_plugin_manifest', 'test_plugin_paths', 'test_plugin_install', 'test_plugin_update', 'test_release_manifest', 'test_plugin_consent', 'test_tool_availability', 'test_installer_consent', 'test_install_progress', 'test_update_diagnostics', 'test_install_cleanup')
           foreach ($suite in $suites) {
             python -m unittest discover -s tests -p ($suite + '.py') -v
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

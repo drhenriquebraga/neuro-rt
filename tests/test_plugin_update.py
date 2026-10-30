@@ -71,7 +71,7 @@ class UpgradeTests(unittest.TestCase):
         self.coordinator = update.UpdateCoordinator(self.host, host_version='8.10',
             hold=lambda held: self.events.append(('hold', held)), busy=lambda: self.busy,
             cancel=lambda: self.events.append(('cancel', True)),
-            restart=lambda: self.events.append(('restart', True)))
+            restart=lambda: (self.events.append(('restart', True)) or {'ok': True, 'scheduled': True}))
 
     def test_offline_install_and_update_preserve_old_code_data_and_hold_before_restart(self):
         for version in ('1.0.0', '2.0.0'):
@@ -115,10 +115,12 @@ class UpgradeTests(unittest.TestCase):
         self.coordinator.finish_restart()
         self.coordinator.prepare(fixture_package(self.root, '2.0.0'))
         self.coordinator.restart = lambda: (_ for _ in ()).throw(OSError('restart failed'))
-        with self.assertRaises(OSError):
-            self.coordinator.finish_restart()
+        result = self.coordinator.finish_restart()
+        self.assertEqual(result['state'], 'installed_pending_restart')
+        self.assertEqual(result['error_code'], 'RESTART_NOT_CONFIRMED')
         state = json.loads((self.plugin / 'installation.json').read_text())
         self.assertEqual(state['active_version'], '1.0.0')
+        self.assertEqual(state['pending_version'], '2.0.0')
 
     def test_download_verify_install_activate_uses_one_pinned_release(self):
         import io

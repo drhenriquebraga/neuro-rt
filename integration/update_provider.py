@@ -85,7 +85,7 @@ def build_provider(suite_root, host_info, cfg):
             if coordinator is None:
                 update = _load_private_installer()
                 coordinator = update.UpdateCoordinator(root, host_version=host_info['version'],
-                    hold=hold, busy=busy, cancel=cancel, restart=cfg.get('recarregar'),
+                    hold=hold, busy=busy, cancel=cancel, restart=cfg.get('neuro_restart'),
                     client=cfg.get('neuro_release_client'), package=cfg.get('neuro_package'))
             return coordinator
     def consent():

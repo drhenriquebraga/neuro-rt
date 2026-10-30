@@ -1,10 +1,14 @@
 # NEURO RT — plugin do Local Suite
 
-Primeiro plugin opcional da suíte. Na versão 1.0.1, **Nidus RT está habilitado**;
+Primeiro plugin opcional da suíte. Na versão 1.0.2, **Nidus RT está habilitado**;
 Glioma RT, Metastasis RT, Meningioma RT e Anatomia RT aparecem desativados com
 `[em construção]`. Seus motores ficam preservados para desenvolvimento, com
 novas execuções bloqueadas nesta entrega. A instalação fica em `Plugins/NEURO RT`; navegação,
 fila, carregamento de séries, configurações e visores pertencem ao Local Suite.
+
+A revisão 1.0.2 exige Local Suite 8.11 e corrige preparo, acompanhamento e
+reabertura da instalação. As [notas de instalação](docs/RELEASE_NOTES_v1.0.2.md)
+descrevem o contrato e a validação desta revisão.
 
 O [handoff 1.0.1](docs/HANDOFF_LOCAL_SUITE_2026-10-30.md) registra o recorte de
 disponibilidade, o aceite comum e a situação efetiva da publicação.
@@ -17,7 +21,7 @@ registrada no handoff e nas [notas da versão](docs/RELEASE_NOTES_v1.0.1.md).
 ## Uso e comportamento
 
 1. Abra NEURO RT na home da suíte compatível (contrato `local-suite/plugins/1`,
-   versão mínima 8.10 com bootstrap desta revisão). Se ausente, leia e aceite o
+   versão mínima 8.11 com bootstrap desta revisão). Se ausente, leia e aceite o
    termo do plugin antes de confirmar a instalação.
 2. Na primeira abertura, confirme o mesmo documento versionado. O aceite da
    instalação e o primeiro uso são atos distintos; nenhum deles aprova resultados.
