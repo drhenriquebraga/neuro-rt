@@ -1,0 +1,69 @@
+--- a/app/radai_plugins.py
++++ b/app/radai_plugins.py
+@@ -372,6 +372,7 @@
+ 
+     def public_status():
+         current = entry['installation']
++        consent = provider.consent_status()
+         return {'plugin_id': PLUGIN_ID, 'state': current['state'],
+                 'reason': current.get('reason', ''),
+                 'active_version': current.get('active_version'),
+@@ -379,7 +380,10 @@
+                 'install_available': callable(cfg.get('neuro_install')),
+                 'token': entry['token'],
+                 'release_check': entry.get('release_check'),
+-                'update': provider.status()}
++                'update': provider.status(),
++                'consent': {'policy': provider.consent_policy(),
++                            'installation_accepted': consent.get('installation_accepted') is True,
++                            'first_use_accepted': consent.get('first_use_accepted') is True}}
+ 
+     def landing():
+         import html
+@@ -420,6 +424,19 @@
+         ensure_background_work()
+         return JSONResponse(public_status(), headers={'Cache-Control': 'no-store'})
+ 
++    async def accept_installation_terms(payload):
++        # Same versioned policy as the trusted installer and first-use screen.
++        # This is an installation acknowledgement; it never approves results.
++        try:
++            current = await run_in_threadpool(provider.consent_status)
++            if current.get('installation_accepted') is not True or 'consent' in payload:
++                acknowledgement = payload.get('consent')
++                if not isinstance(acknowledgement, dict):
++                    raise ValueError('Aceite explícito ausente.')
++                await run_in_threadpool(provider.accept_consent, acknowledgement)
++        except (ValueError, TypeError, OSError):
++            raise HTTPException(400, 'Leia e aceite a versão atual do termo do plugin NEURO RT.')
++
+     @app.post('/api/plugins/neuro-rt/install')
+     async def install(request: Request):
+         local(request)
+@@ -434,12 +451,13 @@
+             payload = json.loads(body)
+         except (ValueError, UnicodeError):
+             raise HTTPException(400, 'Pedido inválido.')
+-        if (not isinstance(payload, dict) or set(payload) != {'confirm'}
++        if (not isinstance(payload, dict) or set(payload) not in ({'confirm'}, {'confirm', 'consent'})
+                 or payload['confirm'] is not True):
+             raise HTTPException(400, 'Confirmação explícita obrigatória.')
+         callback = cfg.get('neuro_install')
+         if not callable(callback):
+             raise HTTPException(501, 'Instalação ainda não conectada nesta versão do Local Suite.')
++        await accept_installation_terms(payload)
+         result = await run_in_threadpool(callback)
+         if not isinstance(result, dict):
+             raise HTTPException(500, 'O instalador não devolveu um estado válido.')
+@@ -456,8 +474,10 @@
+             raise HTTPException(400, 'Pedido inválido.')
+         try:
+             payload = json.loads(body)
+-            if not isinstance(payload, dict) or set(payload) != {'action'}:
++            if (not isinstance(payload, dict) or set(payload) not in ({'action'}, {'action', 'consent'})
++                    or payload.get('action') not in ('comecar', 'esperar', 'interromper')):
+                 raise ValueError()
++            await accept_installation_terms(payload)
+             result = await run_in_threadpool(provider.request_plugin_update, PLUGIN_ID, payload['action'])
+         except (ValueError, TypeError, UnicodeError):
+             raise HTTPException(400, 'Ação de atualização inválida.')

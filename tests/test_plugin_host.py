@@ -68,6 +68,13 @@ class PluginHostTests(unittest.TestCase):
         (client or TestClient(self.app)).get('/api/plugins/neuro-rt')
         self.assertTrue(entry['load_complete'].wait(10), 'background discovery did not finish')
 
+    def confirmed_install_payload(self, status):
+        # Successful synthetic requests acknowledge the exact policy published by
+        # the current trusted host bootstrap; security/refusal cases stay bare.
+        policy = status['consent']['policy']
+        return {'confirm': True, 'consent': {'accepted': True,
+                'version': policy['version'], 'digest': policy['digest']}}
+
     def test_absent_startup_never_imports_neuro_or_science_and_is_idempotent(self):
         before = set(sys.modules)
         first = HOST.montar(self.app, self.cfg)
@@ -138,14 +145,16 @@ class PluginHostTests(unittest.TestCase):
         client = TestClient(self.app)
         endpoint = '/api/plugins/neuro-rt/install'
         self.assertEqual(403, client.post(endpoint, json={'confirm': True}).status_code)
-        token = client.get('/api/plugins/neuro-rt').json()['token']
+        status = client.get('/api/plugins/neuro-rt').json()
+        token = status['token']
         headers = {'X-Neuro-Plugin-Token': token, 'Origin': 'https://external.test'}
         self.assertEqual(403, client.post(endpoint, headers=headers, json={'confirm': True}).status_code)
         headers['Origin'] = 'http://testserver'
         self.assertEqual(400, client.post(endpoint, headers=headers, json={'confirm': 1}).status_code)
         with patch('radai_queue_state.quem_tem_a_vez', return_value={'dono': None}), \
                 patch('radai_queue_state.pedir_fechar_ao_fim'), patch('radai_atualizar._status', return_value={}):
-            self.assertEqual(202, client.post(endpoint, headers=headers, json={'confirm': True}).status_code)
+            self.assertEqual(202, client.post(endpoint, headers=headers,
+                json=self.confirmed_install_payload(status)).status_code)
         self.assertEqual(403, client.get('/api/plugins/neuro-rt', headers={'Host': 'external.test'}).status_code)
 
     def test_confirmed_install_delegates_without_claiming_download_progress(self):
@@ -155,7 +164,7 @@ class PluginHostTests(unittest.TestCase):
         client = TestClient(self.app)
         status = client.get('/api/plugins/neuro-rt').json()
         self.assertTrue(status['install_available'])
-        result = client.post('/api/plugins/neuro-rt/install', json={'confirm': True},
+        result = client.post('/api/plugins/neuro-rt/install', json=self.confirmed_install_payload(status),
                              headers={'X-Neuro-Plugin-Token': status['token']})
         self.assertEqual(202, result.status_code)
         self.assertEqual({'state': 'preparing'}, result.json())
@@ -164,9 +173,10 @@ class PluginHostTests(unittest.TestCase):
     def test_plugin_update_waits_while_the_base_updater_is_running(self):
         HOST.montar(self.app, self.cfg)
         client = TestClient(self.app)
-        token = client.get('/api/plugins/neuro-rt').json()['token']
+        status = client.get('/api/plugins/neuro-rt').json()
+        token = status['token']
         with patch('radai_atualizar.etapa', return_value='baixando'):
-            result = client.post('/api/plugins/neuro-rt/install', json={'confirm': True},
+            result = client.post('/api/plugins/neuro-rt/install', json=self.confirmed_install_payload(status),
                 headers={'X-Neuro-Plugin-Token': token})
         self.assertEqual(result.status_code, 202)
         self.assertEqual(result.json()['state'], 'busy')

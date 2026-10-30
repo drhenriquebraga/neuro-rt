@@ -1,19 +1,19 @@
 # Handoff ao Local Suite — 30/10/2026
 
 Este documento passa ao responsável atual do Local Suite a fotografia auditada
-da entrega privada Neuro 1.0 e da revisão 1.0.1 preparada para publicação autorizada.
-Não declara instalação na estação de uso, publicação, merge ou disponibilidade
-online. Os SHA abaixo vêm dos recibos da construção anterior; não foram
-recalculados nesta passagem.
+da entrega privada Neuro 1.0 e da revisão pública 1.0.1. O repositório foi aberto,
+a revisão foi incorporada em main e a release foi publicada como Latest em
+30/10/2026, 12:19:56 UTC. Não declara instalação em estação de uso. Os SHA da seção
+1.0 são recibos históricos; os da seção 1.0.1 foram verificados nesta publicação.
 
 ## Responsabilidade e coordenação
 
 O agente do Local Suite é o dono de AUTO_CONTORNO nesta coordenação. O trabalho
-Neuro ocorre em NEURO_RT. O recorte autorizado para a próxima entrega é liberar
+Neuro ocorre em NEURO_RT. O recorte autorizado e entregue é liberar
 Nidus e deixar Glioma, Metastasis, Meningioma e Anatomia desativados como
 “em construção”. A entrega 1.0 abaixo antecede esse recorte e não comprova seu
-aceite. Consentimento, instalação e primeiro uso ainda serão completados pelo
-coordenador nos campos da seção 1.0.1.
+aceite. O contrato final de consentimento, instalação e primeiro uso está na
+seção 1.0.1; o responsável da suíte o incorpora no host.
 
 ## Fotografia auditada da entrega 1.0
 
@@ -159,6 +159,41 @@ Bootstrap local para inspeção, sem modificar o host:
 `dist/handoff-1.0.1/radai_neuro_install.py`. Regenerar no host com o script
 versionado é a fonte de verdade. Não copiar o bootstrap histórico do patch 1.0.
 
+Identidade exata Windows: **143.658 bytes**, SHA-256
+`1e2d53a07444bdb1d196159f09e752c8a461b297c8fa79531bb801d9ea938480`.
+Gerador SHA-256
+`cacd1ed64596ab694027deb268295fdf4b46161b6aed980b1a6697270c1f9487`.
+Fonte aprovada: commit Neuro `70140b4744e3a8feb8e15433a5c415be427b516a`;
+incorporação em main `25d7ee8d6a01cb257dd42f2bd28225fc30e42ee0`, mesma árvore.
+O arquivo embute seis fontes: plugin_consent, plugin_manifest, model_paths,
+model_registry, install_state e plugin_update; inclui provider e controlador UI
+de aceite atualizados. `BOOTSTRAP_HOST_v1.0.1.json` fornece os hashes individuais.
+São hashes dos bytes presentes neste checkout Windows; uma geração com finais
+de linha distintos terá outra identidade e deve ser registrada pelo responsável.
+
+## Núcleo de projeção real para testes de privacidade
+
+O módulo comum é **radai_projection**, em
+`C:/AI_PROJETOS/RECON_3D/app/radai_projection.py`, fornecido pelo Recon/base.
+Contém SEM_VOLUME, LIMITACAO_CLINICA, LIMITACAO_RM, incidências, projetar, tubo,
+intersecao, cortes e malhas. Seu auxiliar de reaproveitamento do osso é
+`C:/AI_PROJETOS/RECON_3D/app/radai_projection_bone.py`, com
+osso_da_segmentacao e os limites SEM_SEGMENTACAO/SEM_UID/SEM_OSSO_NA_ENTREGA.
+Ambos estão no commit local Recon `41052d873f38ebe12f3f2f7841973b3364074020`.
+Não presumir que o pin público histórico Recon v8.9 já contém esses módulos.
+
+`NEURO_RT/app/radai_nidus.py` é somente um alias Apache-2.0:
+importa radai_projection e aponta sys.modules para o **mesmo objeto**, sem cópia
+das constantes/funções. A tela e os endpoints Nidus reais foram migrados para
+`NEURO_RT/app/radai_nidus_screen.py`; esse arquivo também importa o auxiliar comum.
+Testes que observam privacidade/geometria devem inspecionar esses módulos reais
+e a tela migrada, e verificar `radai_nidus is radai_projection`. Observar apenas
+o arquivo legado removido de NIDUS_RT ou somente o alias não testa o código que
+roda na suíte. A ponte `integration/nidus_bridge.py` recusa um core/tela já
+importado de uma origem conflitante. Não houve edição de host ou Recon nesta revisão.
+
+## Verificação e artefatos 1.0.1
+
 107 testes selecionados passaram (dois skips de symlink Windows), sete HTTP e
 quatro fluxos Chrome dirigidos passaram. Revisão independente resolveu quatro
 achados e não deixou bloqueante conhecido. Nenhuma nova inferência ou instalação
@@ -167,5 +202,91 @@ commit de incorporação continuam sob responsabilidade do dono da Local Suite.
 
 Os novos arquivos ficam em `dist/v1.0.1`; OFFLINE e PLUGIN têm o mesmo inventário
 de componentes científicos de 1.0. A verificação integral do ZIP passou e 80
-arquivos CODE coincidem com a fonte final. Identidades e estado da publicação
-serão registrados abaixo após o upload, sem reutilizar hashes 1.0.
+arquivos CODE coincidem com a fonte final, sem reutilizar hashes 1.0.
+
+## Publicação efetiva e contrato de download
+
+- Repositório público: https://github.com/drhenriquebraga/neuro-rt
+- Release estável e Latest: https://github.com/drhenriquebraga/neuro-rt/releases/tag/v1.0.1
+- API Latest: https://api.github.com/repos/drhenriquebraga/neuro-rt/releases/latest
+- Release ID: `428993582`; commit da tag: `70140b4744e3a8feb8e15433a5c415be427b516a`.
+- Instalador de nome fixo:
+  https://github.com/drhenriquebraga/neuro-rt/releases/latest/download/NEURO_RT_SETUP_LATEST.zip
+
+| Asset | Bytes | SHA256 |
+|---|---:|---|
+| NEURO_RT_OFFLINE_v1.0.1.zip | 1200606005 | `f2612f8c30b7f3a2151b42c36b23bc09f151154e5397526fcaa1c7ada19cc44e` |
+| NEURO_RT_PLUGIN_v1.0.1.zip | 2106927 | `9a7386e7d6914c04a9bbf098bed483aed070d7b29b3f0e26334692f29f67cbf9` |
+| NEURO_RT_SETUP_v1.0.1.zip | 1837462 | `297f360b850bbdcc48c5f161e2c45d5d8529b46eb749d858ac8494f5354eb25e` |
+| NEURO_RT_SETUP_LATEST.zip | 1837462 | `297f360b850bbdcc48c5f161e2c45d5d8529b46eb749d858ac8494f5354eb25e` |
+| release-manifest.json | 9058159 | `faf3ba28b4865c29489c17950e18d95a02d4110e1d79076a518d9256ee495e1b` |
+| SHA256SUMS.txt | 558 | `6138c34c3c61e55a366381ad69d87929f4658e12a485631f15e87b901a3f20bf` |
+| NEURO_RT_SOURCE_v1.0.1.zip | 769776 | `988bc0e15d0a5abb70438b8b5d0aa05aec5fe388a257a93f0d579b8af503e1cc` |
+
+O asset OFFLINE ID `692020525` está em
+https://api.github.com/repos/drhenriquebraga/neuro-rt/releases/assets/692020525
+e o download público versionado é
+https://github.com/drhenriquebraga/neuro-rt/releases/download/v1.0.1/NEURO_RT_OFFLINE_v1.0.1.zip
+O conector usa o ID, tamanho e digest SHA256 fornecidos pela API e não troca a
+seleção por uma segunda consulta Latest durante o download.
+
+A API confirmou digest/tamanho dos oito assets (incluindo .sha256 das fontes).
+Repositório e sete assets menores já passaram por HTTP 200 sem Authorization,
+com hash/tamanho conferidos. O alias estável Latest também passou, idêntico ao
+SETUP versionado. O download completo anônimo do OFFLINE pelo ReleaseClient real
+**concluiu: 1.200.606.005 bytes, SHA256 f2612f8c...19cc44e**, igual à API e ao
+pacote local. O cliente reportou `available` para instalação e `current` quando
+informado 1.0.1 já instalado. Recibo público: `ANONYMOUS_RELEASE_v1.0.1.json`;
+recibo local original: `dist/v1.0.1/anonymous-download-evidence.json`.
+
+Estações não precisam de credenciais de desenvolvimento para esses downloads.
+Precisam da base 8.10 compatível, de seu próprio runtime preparado e do contrato
+de aceite descrito acima. A instalação do plugin não substitui a montagem da
+base nem deve embutir PAT. O SOURCE é snapshot do commit da tag; documentos de
+handoff posteriores em main registram a publicação sem alterar os assets imutáveis.
+
+## Host incorporado e última conferência
+
+O responsável informou ter aplicado a proposta e o bootstrap no host. Esta
+coordenação não editou AUTO_CONTORNO. A conferência final observou:
+
+- Registry `app/radai_plugins.py`: SHA256
+  `9bb5a6bd85a6366d98e2bce1a5b59d835aca6d407d436f677030031c525ab07c`.
+- Bootstrap do host reformulado para seu verificador: SHA256
+  `3065f7da443a50e7e084703f6c9b8daaeb58905b7fb7e5a6cac2182bcbb516f9`.
+- Comparação com a referência gerada Neuro: SOURCES, INSTALL_UI_SCRIPT e
+  INSTALL_UI_CATALOG idênticos; AST das funções _load_private_installer e
+  build_provider idêntica. A diferença de hash do arquivo é de representação.
+- `tests/test_plugin_host.py`: 16/16 aprovados, após adaptar somente as fixtures
+  de sucesso ao aceite obrigatório. Recusas de segurança foram preservadas.
+- `tests/test_consent_update_ui.py`: 1/1 aprovado no navegador.
+
+Uma edição concorrente foi detectada na primeira rodada; os testes foram
+repetidos com os hashes finais estáveis. Relatório reproduzível:
+`host-integration-v1.0.1/VALIDACAO_HOST_APLICADO_2026-10-30.md`.
+O patch original e seus SHAs ficam em `host-integration-v1.0.1/README.md`;
+não reaplicá-lo às cegas sobre o host já integrado.
+
+Os parâmetros de privacidade foram confirmados sem instalação na base:
+`SHA256('uid:'+UID.strip())[:24]`, desenho/parâmetros em sessionStorage;
+cache de até nove STL e 24 MiB; 600 segundos de inatividade liberam série aberta,
+tubos e malhas, **não** as quatro sessões FIFO separadas. Não há TTL de dez
+minutos para todo dado nem para o sessionStorage. Valores, linhas, testes
+sintéticos e recomendações aos testes-base estão em `PRIVACIDADE_NIDUS_v1.0.1.md`.
+
+## Recomendações ao dono da base
+
+1. Finalizar seus testes de termo 2.3, templates, menu e rotas usando o core real
+   radai_projection e a tela do plugin. Não recolocar NIDUS_RT no integrador para
+   satisfazer referências antigas dos testes-base.
+2. Manter o runtime e os helpers Recon efetivos da base 8.10 no bundle; o SETUP
+   pequeno da suíte não é, sozinho, uma instalação científica offline completa.
+3. Ajustar a frequência de consulta de Latest no host: o snapshot examinado
+   repete a cada 60 segundos enquanto o status é consultado. Cada consulta real
+   também baixa o manifesto de cerca de 9 MB para compatibilidade. Recomenda-se
+   consultar ao entrar na minipágina e usar cache/backoff persistente, respeitando
+   Retry-After e X-RateLimit-Reset, em vez de renovar a cada minuto. O GitHub
+   limita requisições REST anônimas por IP (60/h), compartilhadas entre estações:
+   [documentação oficial](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
+   É uma recomendação de integração; nenhum token deve ser embutido e nenhum
+   código da release publicada foi alterado para isso nesta rodada.

@@ -1,0 +1,76 @@
+{
+  "repository_public": true,
+  "authorization_header_sent": false,
+  "release_id": 428993582,
+  "tag": "v1.0.1",
+  "release_url": "https://github.com/drhenriquebraga/neuro-rt/releases/tag/v1.0.1",
+  "target": "70140b4744e3a8feb8e15433a5c415be427b516a",
+  "connector_state": "available",
+  "already_installed_state": "current",
+  "assets": [
+    {
+      "name": "NEURO_RT_PLUGIN_v1.0.1.zip",
+      "bytes": 2106927,
+      "sha256": "9a7386e7d6914c04a9bbf098bed483aed070d7b29b3f0e26334692f29f67cbf9",
+      "anonymous_http": 200,
+      "url": "https://github.com/drhenriquebraga/neuro-rt/releases/download/v1.0.1/NEURO_RT_PLUGIN_v1.0.1.zip"
+    },
+    {
+      "name": "NEURO_RT_SETUP_LATEST.zip",
+      "bytes": 1837462,
+      "sha256": "297f360b850bbdcc48c5f161e2c45d5d8529b46eb749d858ac8494f5354eb25e",
+      "anonymous_http": 200,
+      "url": "https://github.com/drhenriquebraga/neuro-rt/releases/download/v1.0.1/NEURO_RT_SETUP_LATEST.zip"
+    },
+    {
+      "name": "NEURO_RT_SETUP_v1.0.1.zip",
+      "bytes": 1837462,
+      "sha256": "297f360b850bbdcc48c5f161e2c45d5d8529b46eb749d858ac8494f5354eb25e",
+      "anonymous_http": 200,
+      "url": "https://github.com/drhenriquebraga/neuro-rt/releases/download/v1.0.1/NEURO_RT_SETUP_v1.0.1.zip"
+    },
+    {
+      "name": "NEURO_RT_SOURCE_v1.0.1.zip",
+      "bytes": 769776,
+      "sha256": "988bc0e15d0a5abb70438b8b5d0aa05aec5fe388a257a93f0d579b8af503e1cc",
+      "anonymous_http": 200,
+      "url": "https://github.com/drhenriquebraga/neuro-rt/releases/download/v1.0.1/NEURO_RT_SOURCE_v1.0.1.zip"
+    },
+    {
+      "name": "NEURO_RT_SOURCE_v1.0.1.zip.sha256",
+      "bytes": 94,
+      "sha256": "69e12e71c4e090100f112fe0e447ac0dff9c48ef67b07f8040d9d2b180eca017",
+      "anonymous_http": 200,
+      "url": "https://github.com/drhenriquebraga/neuro-rt/releases/download/v1.0.1/NEURO_RT_SOURCE_v1.0.1.zip.sha256"
+    },
+    {
+      "name": "release-manifest.json",
+      "bytes": 9058159,
+      "sha256": "faf3ba28b4865c29489c17950e18d95a02d4110e1d79076a518d9256ee495e1b",
+      "anonymous_http": 200,
+      "url": "https://github.com/drhenriquebraga/neuro-rt/releases/download/v1.0.1/release-manifest.json"
+    },
+    {
+      "name": "SHA256SUMS.txt",
+      "bytes": 558,
+      "sha256": "6138c34c3c61e55a366381ad69d87929f4658e12a485631f15e87b901a3f20bf",
+      "anonymous_http": 200,
+      "url": "https://github.com/drhenriquebraga/neuro-rt/releases/download/v1.0.1/SHA256SUMS.txt"
+    },
+    {
+      "name": "NEURO_RT_OFFLINE_v1.0.1.zip",
+      "bytes": 1200606005,
+      "sha256": "f2612f8c30b7f3a2151b42c36b23bc09f151154e5397526fcaa1c7ada19cc44e",
+      "anonymous_http": 200,
+      "api_url": "https://api.github.com/repos/drhenriquebraga/neuro-rt/releases/assets/692020525",
+      "asset_id": 692020525
+    }
+  ],
+  "checked_at_utc": "2026-10-30T12:38:43.509978+00:00",
+  "latest_alias": {
+    "url": "https://github.com/drhenriquebraga/neuro-rt/releases/latest/download/NEURO_RT_SETUP_LATEST.zip",
+    "anonymous_http": 200,
+    "bytes": 1837462,
+    "sha256": "297f360b850bbdcc48c5f161e2c45d5d8529b46eb749d858ac8494f5354eb25e"
+  }
+}

@@ -9,3 +9,4 @@ docs/nidus/** -text -eol whitespace=-trailing-space,-space-before-tab,-blank-at-
 docs/aprendizado/** -text whitespace=-trailing-space,-space-before-tab,-blank-at-eof,cr-at-eol
 licenses/NIDUS_RT_APACHE_2.txt -text whitespace=-trailing-space,-space-before-tab,-blank-at-eof,cr-at-eol
 integration/host_updates/*.patch -text whitespace=-trailing-space,-space-before-tab,-blank-at-eof,cr-at-eol
+docs/host-integration-v1.0.1/*.patch -text whitespace=-trailing-space,-space-before-tab,-blank-at-eof,cr-at-eol

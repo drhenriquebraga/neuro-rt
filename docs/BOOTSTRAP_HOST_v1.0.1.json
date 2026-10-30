@@ -1,0 +1,56 @@
+{
+  "schema": "neuro-rt/host-bootstrap-handoff/1",
+  "plugin_version": "1.0.1",
+  "source_commit": "70140b4744e3a8feb8e15433a5c415be427b516a",
+  "generator": {
+    "path": "scripts/build_host_bootstrap.py",
+    "sha256": "cacd1ed64596ab694027deb268295fdf4b46161b6aed980b1a6697270c1f9487"
+  },
+  "provider": {
+    "path": "integration/update_provider.py",
+    "sha256": "e1952d83b03a187d609c6d37232fa5ade0ffdfe0774c1b58cb697cc911e1de1e"
+  },
+  "generated_windows_file": {
+    "local_path": "dist/handoff-1.0.1/radai_neuro_install.py",
+    "host_destination": "app/radai_neuro_install.py",
+    "size": 143658,
+    "sha256": "1e2d53a07444bdb1d196159f09e752c8a461b297c8fa79531bb801d9ea938480"
+  },
+  "sources": {
+    "plugin_consent": "5658cf885aa2668c0887c88b6049e305541f72db6197a4273ebfb67f2b4a73b8",
+    "plugin_manifest": "ae2b107a7ae1aaf1172865ea4706d5c9a3223bdee6e608a332e57381823759f0",
+    "model_paths": "a54a3aba9cad1d1a30751abeafea39719638372322b952bcae7a8cce7da96f58",
+    "model_registry": "6b13fb6a60133a874241b5eb060ac5da2e1804d2a252d5594f33e25fc7978d10",
+    "install_state": "5dff42c93c8cc8ef29bf24d8a41b4b477d2776a1cfa0adcace60b3a47b780cd4",
+    "plugin_update": "6da74578e6179e738bf0330a6291d091548ac2d3273e983dbfa2f432338e588a"
+  },
+  "consent_document": {
+    "version": "1.0",
+    "canonical_document_sha256": "ae6fd4434ec42a08ffe6a4be6eaf002940a903de15a516a1b5fce3275ab772b0",
+    "provider_methods": [
+      "consent_policy",
+      "consent_status",
+      "accept_consent"
+    ]
+  },
+  "shared_projection": {
+    "repository_local_commit": "41052d873f38ebe12f3f2f7841973b3364074020",
+    "core_path": "C:/AI_PROJETOS/RECON_3D/app/radai_projection.py",
+    "core_sha256": "bad5aa99c2fc04fde018d7c5441d6e9b131c0225e9fc6ba90f1da2191a03b19a",
+    "bone_path": "C:/AI_PROJETOS/RECON_3D/app/radai_projection_bone.py",
+    "bone_sha256": "285587ba50b33f81c4af6be10dc65b1c8011456b3053e5e929536a0bee51bf12",
+    "plugin_screen": "app/radai_nidus_screen.py",
+    "compatibility_alias": "app/radai_nidus.py",
+    "alias_identity": "radai_nidus is radai_projection"
+  },
+  "host_integration_verified": {
+    "registry_sha256": "9bb5a6bd85a6366d98e2bce1a5b59d835aca6d407d436f677030031c525ab07c",
+    "bootstrap_sha256": "3065f7da443a50e7e084703f6c9b8daaeb58905b7fb7e5a6cac2182bcbb516f9",
+    "sources_equal": true,
+    "ui_equal": true,
+    "catalog_equal": true,
+    "provider_function_ast_equal": true,
+    "host_tests_passed": 16,
+    "consent_browser_tests_passed": 1
+  }
+}
