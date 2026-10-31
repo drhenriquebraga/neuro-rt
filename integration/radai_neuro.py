@@ -22,11 +22,12 @@ def montar(app, module_root, *, host_services=None):
         host_root = Path(host_services.host_info['suite_root']).resolve()
         state_file = host_root / 'Plugins/NEURO RT/installation.json'
         if state_file.is_file():
-            plugin_paths = resolve_plugin_paths(host_root, json.loads(state_file.read_text(encoding='utf-8')))
+            plugin_paths = resolve_plugin_paths(host_root, json.loads(state_file.read_text(encoding='utf-8')),
+                host_python=host_services.host_info.get('python_executable'))
             if plugin_paths.code_dir != root:
                 raise ValueError('O código montado não corresponde à versão ativa do plugin.')
     settings = Settings(root, plugin_paths=plugin_paths)
-    if host_services is not None:
+    if host_services is not None and (plugin_paths is None or plugin_paths.execution_mode != 'host'):
         settings.host_app = Path(host_services.host_info['suite_root']).resolve()
         embedded = settings.host_app / 'python/python.exe'
         development = settings.host_app / '.venv/Scripts/python.exe'
@@ -67,6 +68,9 @@ def montar(app, module_root, *, host_services=None):
             raise HTTPException(409, 'Este fluxo requer integração com o Local Suite.')
         return service.studies
 
+    def require_testing_models(request, model_ids):
+        service.testing_access.require_models(request, model_ids, studies().catalog)
+
     def fail(exc):
         if isinstance(exc, (KeyError, FileNotFoundError)):
             return HTTPException(404, 'Resultado não encontrado.')
@@ -87,6 +91,11 @@ def montar(app, module_root, *, host_services=None):
     @router.post('/api/selection')
     async def selection(request: Request):
         body = await action(request)
+        category = body.get('category')
+        if category not in ('glioma', 'metastasis', 'meningioma', 'anatomia'):
+            raise HTTPException(400, 'Escolha uma ferramenta de segmentação.')
+        if not service.testing_access.allowed(request, category):
+            raise HTTPException(428, 'Confirme a fase de testes da ferramenta antes de carregar séries.')
         try:
             value = await run_in_threadpool(studies().selection, body.get('tickets'), body.get('category'))
             return JSONResponse(value, headers={'Cache-Control': 'no-store'})
@@ -96,6 +105,10 @@ def montar(app, module_root, *, host_services=None):
     @router.post('/api/studies', status_code=202)
     async def submit_study(request: Request):
         body = await action(request)
+        items = body.get('studies', [])
+        model_ids = [mid for item in items if isinstance(item, dict) and isinstance(item.get('model_ids'), list)
+                     for mid in item.get('model_ids', []) if isinstance(mid, str)] if isinstance(items, list) else []
+        require_testing_models(request, model_ids)
         try:
             value = await run_in_threadpool(studies().submit, body)
             return JSONResponse(value, status_code=202, headers={'Cache-Control': 'no-store'})
@@ -118,6 +131,7 @@ def montar(app, module_root, *, host_services=None):
     async def retry_study(request: Request, study_id: str):
         body = await action(request, 4096)
         try:
+            require_testing_models(request, studies().job(study_id).get('model_ids', []))
             result = await run_in_threadpool(studies().retry, study_id,
                                             explicit_request=body.get('explicit_request'))
             return JSONResponse(result, status_code=202, headers={'Cache-Control': 'no-store'})
@@ -181,7 +195,11 @@ def montar(app, module_root, *, host_services=None):
         if not 0 < len(body) <= 16384:
             raise HTTPException(400, 'Pedido JSON inválido.')
         try:
-            return await run_in_threadpool(service.submit, await request.json())
+            payload = await request.json()
+            from neuro_rt.model_registry import load_catalog
+            service.testing_access.require_models(request, [payload['model']] if isinstance(payload, dict) and isinstance(payload.get('model'), str) else [],
+                {m['id']: m for m in load_catalog()})
+            return await run_in_threadpool(service.submit, payload)
         except (ValueError, RuntimeError, TypeError) as exc:
             raise fail(exc)
 

@@ -1,5 +1,28 @@
 # Pacote offline NeuroRT: release-package/1
 
+## Distribuição atual 1.0.2: SETUP leve / host compartilhado
+
+O formato transacional também aceita o modo fechado `execution_mode="host"`:
+`runtime=null`, `runtimes=[]`, `models=[]`, somente arquivos de texto/código e
+PowerShell sob `code/`. O módulo deve declarar `runtime="host-shared"`,
+`runtimes={}` e somente `enabled_tools=["nidus"]`. Arquivos executáveis,
+wheels, pesos ou campos que tentem escolher um Python são recusados.
+
+`begin_install(..., host_python=...)` e `activate_release(..., host_python=...)`
+recebem o binding interno confiável do host. O caminho não vem do pacote nem
+do estado. Metadados da base são verificados sem pip/imports científicos.
+Só os arquivos do plugin entram no inventário de integridade; bibliotecas
+pertencentes à suíte são reutilizadas. Nenhum runtime privado é criado.
+
+São publicados somente `NEURO_RT_SETUP_v1.0.2.zip` e `NEURO_RT_SETUP_LATEST.zip`,
+idênticos. O cliente fixa release/asset/tamanho/digest API, exige SETUP <=3 MiB
+e recusa fallback OFFLINE/PLUGIN. A versão exata e compatibilidade são
+confirmadas no SETUP autenticado, antes da promoção. Pendência de bundle
+legado provoca obtenção do SETUP novo, preservando dados e caches antigos.
+
+As seções seguintes documentam também o formato isolado legado usado nos
+testes locais; ele não é a distribuição pública atual.
+
 O instalador recebe **somente ZIP local autorizado**, com SHA-256 obtido externamente
 ao ZIP. `begin_install(host_root, {'path': caminho_zip, 'sha256': hash_externo},
 transaction_id)` não baixa URLs, não resolve latest, não executa payload e não chama
@@ -99,11 +122,39 @@ importados em atendimento.
 
 `install-status.json` e `transactions/<id>/status.json` publicam os campos
 `transaction_id`, `state`, `stage`, `downloaded_bytes`, `total_bytes`, `reason`.
+Desde 1.0.2, os campos aditivos `completed_files`, `total_files`,
+`processed_bytes` e `total_unpacked_bytes` acompanham o payload; os campos
+`error_code`, `error_stage`, `os_errno` e `winerror` descrevem falhas com valores
+controlados. A gravação de progresso é limitada a quatro vezes por segundo e
+forçada nas mudanças de fase e no resultado final.
 Não contêm caminhos de exames nem texto bruto de exceções. Falha de atualização
 aparece nesse status, mas não altera `installation.json` da versão anterior.
 
+Limpeza após o commit é manutenção. `cleanup_pending` e `cleanup_error_code`
+registram sua pendência, e `transactions/<id>/cleanup.json` contém somente a
+identidade da transação, um código controlado e o estado do retry. Sob a trava,
+a mesma transação ou um próximo preparo tenta novamente apenas
+`staging/<id>`, depois de validar ID, identidade e contenção. Nunca segue um
+caminho de exclusão fornecido pelo journal nem inclui `staging/downloads`.
+No Windows, somente o atributo ReadOnly do item temporário autorizado pode
+ser retirado para repetir a remoção; ACLs não são alteradas.
+`rollback_cleanup_pending` informa que a retirada de um componente promovido
+antes da falha também não pôde concluir. Essa falha secundária não substitui
+o erro original e não autoriza apagar automaticamente componentes persistentes
+em uma tentativa posterior.
+
+`update-status.json` registra a coordenação no host. Um preparo concluído fica
+pendente até a reabertura coordenada. Durante a conferência de ativação o estado
+é `activating`; o host mantém a reserva e bloqueia fechamento prematuro. A
+solicitação de reabertura exige callback dedicado `neuro_restart` com recibo
+`ok=true, scheduled=true`; um callback de recarregar configurações não basta.
+O status `restarting` é persistido antes de chamar esse callback. Sucesso na
+tela exige nova instância, versão esperada e montagem confirmada pelo host.
+
 Uma trava de kernel exclusiva cobre instalação e ativação. Um segundo pedido
 recebe `InstallReceipt(following=True)` e acompanha `read_install_status`.
+O coordenador de atualização informa `INSTALL_BUSY` nesse caso, sem ativar
+ou reiniciar em nome da transação concorrente.
 Repetir uma transação concluída retorna o recibo original após reverificar a
 release; o ID não pode ser usado para outro SHA-256. Transações interrompidas
 podem repetir o mesmo pacote; staging parcial é descartado somente na pasta

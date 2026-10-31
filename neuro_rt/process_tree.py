@@ -12,9 +12,17 @@ class ManagedProcess:
         self._job = None
         self._closed = False
         self.process = None
+        payload = list(command[1:])
+        interpreter_flags = ['-B', '-u']
+        # These fixed interpreter switches belong to the real interpreter,
+        # before child_entry waits for ownership; they are not worker argv.
+        while payload and payload[0] in ('-I', '-B', '-u'):
+            flag = payload.pop(0)
+            if flag not in interpreter_flags:
+                interpreter_flags.append(flag)
         if os.name == 'nt': self._create_job()
-        wrapped = [command[0], '-B', '-u', str(Path(__file__).with_name('child_entry.py')),
-                   '--', *command[1:]]
+        wrapped = [command[0], *interpreter_flags, str(Path(__file__).with_name('child_entry.py')),
+                   '--', *payload]
         try:
             self.process = subprocess.Popen(wrapped, cwd=cwd, env=env, stdout=stdout,
                 stderr=subprocess.STDOUT, stdin=subprocess.PIPE,

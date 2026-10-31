@@ -1,0 +1,155 @@
+{
+  "schema": "neuro-rt/install-verification/2",
+  "version": "1.0.2",
+  "host_min_version": "8.11",
+  "source_commit": "61c5695f66f5fcc71d41b4fb65c407db04c4e598",
+  "recorded_at_utc": "2026-10-30T19:51:56.495587+00:00",
+  "core_gates": [
+    {
+      "python": "3.10.11",
+      "tests": 172,
+      "skipped": 2,
+      "receipt_sha256": "3ddfcf97b9d93c06d6fdfdbf5333d87cdf12ade04c7628db5587409f0fe0341a"
+    },
+    {
+      "python": "3.12.10",
+      "tests": 172,
+      "skipped": 4,
+      "receipt_sha256": "ce800a5bbff8e3526f88dd0ced79ee831749fb2417c86b66138067af2e9bf496"
+    }
+  ],
+  "browser_progress_tests": 3,
+  "real_validation": {
+    "success": true,
+    "new_pid": true,
+    "new_token": true,
+    "version": "1.0.2",
+    "mounted": true,
+    "runtime_ready": true,
+    "runtime_dir_is_none": true,
+    "same_base_python": true,
+    "execution_mode": "host",
+    "host_calls": {
+      "discover": 1,
+      "mount": 1
+    },
+    "http_consent": true,
+    "child_setup_downloads": 0,
+    "private_components_created": false,
+    "base_snapshot_unchanged": true,
+    "inference_executed": false,
+    "final_proof": true,
+    "smoke_only": false,
+    "setup_sha256": "ce966b1b9780097c1eed97e76e9b5324322b355007905400d54e35d3dd9118b3",
+    "setup_bytes": 323156,
+    "code_files": 83,
+    "setup_downloads": 1,
+    "python_downloads": 0,
+    "wheel_downloads": 0,
+    "model_downloads": 0,
+    "external_network_used": false,
+    "api_install_post_real": true,
+    "provider_real": true,
+    "restart_real_workstation": false,
+    "github_transport_mocked": true,
+    "critical_base_files_compared": 10,
+    "base_snapshot": {
+      "python": {
+        "present": true,
+        "relative": "python.exe",
+        "sha256": "3cce33d75d6fdae4e004d0bdf149320b3147482a9caf370079dcb9c191a1b260",
+        "size": 103192
+      },
+      "python_pth": {
+        "present": true,
+        "relative": "python310._pth",
+        "sha256": "ab6360b616075c74a65f9c21f840a72a098969bf8bd828d5e47224d35fe2ff4b",
+        "size": 100
+      },
+      "numpy": {
+        "present": true,
+        "relative": "Lib/site-packages/numpy/__init__.py",
+        "sha256": "150b19558caf78c0e3cc6994ec652399e972595ca649cea1a69c801ef23e4b1c",
+        "size": 17798,
+        "version": "1.26.4"
+      },
+      "scipy": {
+        "present": true,
+        "relative": "Lib/site-packages/scipy/__init__.py",
+        "sha256": "68d789d0eea2912c40cb75119b50579aac07ab30814f551c8ab24876bb3d724a",
+        "size": 4614,
+        "version": "1.15.3"
+      },
+      "SimpleITK": {
+        "present": true,
+        "relative": "Lib/site-packages/SimpleITK/__init__.py",
+        "sha256": "9b549c80ec6687c9dde3f6bfa964ce4c6eab6ad57c721598a402e9040196cd41",
+        "size": 867,
+        "version": "2.5.6"
+      },
+      "pydicom": {
+        "present": true,
+        "relative": "Lib/site-packages/pydicom/__init__.py",
+        "sha256": "1b5e9bd8528924058e19a7b29ac430bfd7e0b84565cc680edeaa81542b55f876",
+        "size": 1563,
+        "version": "3.0.2"
+      },
+      "torch": {
+        "present": true,
+        "relative": "Lib/site-packages/torch/__init__.py",
+        "sha256": "b6639a0441d7c404443ba90901caaff93f07790d9357e65abe715cad1e897b2d",
+        "size": 97855,
+        "version": "2.5.1+cu121"
+      },
+      "monai": {
+        "present": true,
+        "relative": "Lib/site-packages/monai/__init__.py",
+        "sha256": "ed1cfee86ce7b98e9d01480bb88bde4f1237b2ee933cf77ec1d19f29415273e4",
+        "size": 4036,
+        "version": "1.4.0"
+      },
+      "dipy": {
+        "present": true,
+        "relative": "Lib/site-packages/dipy/__init__.py",
+        "sha256": "2d0cf8c7325df4b26e2c9e6697ec40dc19179b8a2a4c7618d4b774b60a4c0762",
+        "size": 1946,
+        "version": "1.11.0"
+      },
+      "nibabel": {
+        "present": true,
+        "relative": "Lib/site-packages/nibabel/__init__.py",
+        "sha256": "30f7a4b98584d3a733aef0708b19819f9342c5f3f0288ddc07680b63bca2db73",
+        "size": 4978,
+        "version": "5.4.2"
+      }
+    }
+  },
+  "real_evidence_sha256": "3043e43bcca69f342f8f0fbf771e982c77cd49c4eaa4c3ef7a2b33d6d67e5343",
+  "harness_sha256": "509672fbc1a66d339334cbdefb8a6ed1e789b174739d9235eae73bc63406d2a6",
+  "expected_public_assets": [
+    "NEURO_RT_SETUP_v1.0.2.zip",
+    "NEURO_RT_SETUP_LATEST.zip"
+  ],
+  "bootstrap_sha256": "9d134c47eefa51cfd74d3e9aca04659b1a61277a2d33239016f54d11f8017109",
+  "distribution": "installer-only; existing Local Suite Python; Nidus delta zero",
+  "motion": "Free Polish completed with no eligible changes; existing animations preserved.",
+  "host_bootstrap_equivalence": {
+    "freeze_sha256": "9d134c47eefa51cfd74d3e9aca04659b1a61277a2d33239016f54d11f8017109",
+    "host_sha256": "5430ac292025506342c75bb8bfe3aeeb421c5c51cc357971c63c68924bbef15d",
+    "sources": {
+      "plugin_consent": "5658cf885aa2668c0887c88b6049e305541f72db6197a4273ebfb67f2b4a73b8",
+      "plugin_manifest": "9556c7ca492bf0d1ffbf3570da8365aa5c80e98636217946912f6b06d8b60ee3",
+      "model_paths": "a54a3aba9cad1d1a30751abeafea39719638372322b952bcae7a8cce7da96f58",
+      "model_registry": "6b13fb6a60133a874241b5eb060ac5da2e1804d2a252d5594f33e25fc7978d10",
+      "install_state": "323a926a546a6b0394c148cf6c91d865814acc562eb38b45e8db155e645a2f81",
+      "plugin_update": "2ad2ed096bfec72ca39026afa5aa20b1dabd0b3587b5a7955d3987979ff17f23"
+    },
+    "catalog_languages": 12,
+    "ui_sha256": "d43fd04d717bcb8eaec6af0d72370e4b771f8e39364b79cebd037a7df533b00e",
+    "full_ast_identical_after_representation": true,
+    "host_files": {
+      "radai_plugins.py": "9e908a79484bda4b18ca0dc9074fde95121a7c7d2c455bc787ebebf7ef424f79",
+      "radai_shutdown.py": "fb0f42db2a2a6630d0f1e8ab02ee122ebb3548d5ce44c2af9eb4c15be8d17052"
+    }
+  }
+}

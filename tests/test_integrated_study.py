@@ -45,7 +45,10 @@ class IntegratedStudyTests(unittest.TestCase):
             settings = Settings(ROOT)
             settings.data_dir = directory / 'data'
             app = FastAPI()
-            with patch('neuro_rt.service.Settings', return_value=settings):
+            from integration.plugin_access import attach as real_attach
+            def isolated_attach(app,router,service,config,local,action,*,integrated):
+                return real_attach(app,router,service,directory/'consent',local,action,integrated=integrated)
+            with patch('neuro_rt.service.Settings', return_value=settings), patch('integration.plugin_access.attach', side_effect=isolated_attach):
                 service = montar(app, ROOT, host_services=services)
             def phantom(spec, context, event):
                 image = sitk.ReadImage(str(context.authorized_inputs[context.reference.ticket]))
@@ -61,6 +64,10 @@ class IntegratedStudyTests(unittest.TestCase):
             with TestClient(app) as client:
                 token = client.get('/neuro/api/status').json()['token']
                 headers = {'X-Neuro-Token': token, 'Origin': 'http://testserver'}
+                current = client.get('/neuro/api/consent').json()['policy']
+                self.assertEqual(client.post('/neuro/api/consent',json=dict(current,accepted=True),headers=headers).status_code,200)
+                testing = client.get('/neuro/api/testing/glioma').json()['policy']
+                self.assertEqual(client.post('/neuro/api/testing/glioma',json=dict(testing,accepted=True),headers=headers).status_code,200)
                 payload = {'schema': 'neuro-rt/request/2', 'explicit_request': True,
                     'request_id': 'integrated', 'export_rtstruct': True,
                     'studies': [{'study_id': 'integrated', 'reference': ticket,

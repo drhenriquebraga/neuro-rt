@@ -18,6 +18,9 @@ class Settings:
     def __init__(self, root, *, plugin_paths=None):
         self.root = Path(root).resolve()
         self.plugin_paths = plugin_paths
+        self.resources = getattr(plugin_paths, 'resources', None)
+        self.extras_dir = getattr(plugin_paths, 'extras_dir', None)
+        self.resources_file = getattr(plugin_paths, 'resources_file', None)
         if plugin_paths is not None:
             if self.root != plugin_paths.code_dir:
                 raise ValueError('Raiz do código difere da versão ativa da instalação.')
@@ -26,6 +29,8 @@ class Settings:
             self.data_dir = plugin_paths.data_dir
             self.host_app = plugin_paths.host_root
             self.host_python = str(self.host_app / 'python' / 'python.exe')
+            if plugin_paths.execution_mode == 'host':
+                self.host_python = self.python
             self.processing_preference = 'auto'
             return
         config = self.root / 'neuro_rt.local.json'
@@ -70,6 +75,13 @@ class Settings:
             return False
 
     def runtime_python(self, runtime_id):
+        if self.plugin_paths is not None and self.plugin_paths.execution_mode == 'host':
+            adapters = {'raidionics-onnx': ('raidionics', 'raidionics_postop'),
+                        'neuro-scientific-cpu': ('attention_unet', 'synthseg', 'cerebra_ants'),
+                        'host-nnunet': ('buti_host',)}
+            capabilities = (self.resources or {}).get('capabilities', {})
+            ready = any(capabilities.get(name, {}).get('available') is True for name in adapters.get(runtime_id, ()))
+            return self.host_python if ready and Path(self.host_python).is_file() else None
         if runtime_id == 'host-nnunet':
             return self.host_python if Path(self.host_python).is_file() else None
         if self.plugin_paths is None:
@@ -91,6 +103,31 @@ class Settings:
         base = _relative_path(self.plugin_paths.runtimes_dir, runtime_id + '/' + digest)
         candidate = _relative_path(base, runtime['python'])
         return str(candidate) if candidate.is_file() else None
+
+    def model_runtime_status(self, spec):
+        if self.plugin_paths is not None and self.plugin_paths.execution_mode == 'host':
+            status = (self.resources or {}).get('capabilities', {}).get(spec.get('adapter_id'))
+            if not status or status.get('available') is not True:
+                return {'available': False, 'reason': 'Prepare os complementos verificados deste modelo.'}
+            if spec.get('adapter_id') == 'synthseg' and not (self.root / 'neuro_rt/compat_synthseg.py').is_file():
+                return {'available': False, 'reason': 'A compatibilidade local do SynthSeg ainda não está preparada.'}
+            return {'available': self.runtime_python(spec.get('runtime_id')) is not None,
+                    'reason': status.get('reason', '')}
+        ready = self.runtime_python(spec.get('runtime_id')) is not None
+        return {'available': ready, 'reason': '' if ready else 'O ambiente deste modelo precisa ser preparado.'}
+
+    def worker_command(self, module, arguments, *, runtime_id=None, preparation=False):
+        if module not in ('study', 'legacy', 'export', 'views', 'legacy-export', 'legacy-views'):
+            raise ValueError('Worker fora do registro autorizado.')
+        python = self.host_python if preparation else self.runtime_python(runtime_id) if runtime_id else self.python
+        if not python:
+            raise RuntimeError('O Python do motor não está preparado.')
+        entry = ('import sys,runpy;sys.path.insert(0,sys.argv.pop(1));'
+                 'runpy.run_module("neuro_rt.worker_bootstrap",run_name="__main__")')
+        command = [str(python), '-I', '-B', '-c', entry, str(self.root), '--module', module]
+        if not preparation and self.resources:
+            command += ['--plugin-root', str(self.plugin_paths.plugin_root), '--resources', json.dumps(dict(self.resources))]
+        return command + ['--', *map(str, arguments)]
 
 
 class Service:
@@ -210,10 +247,10 @@ class Service:
             return dict(job)
 
     def worker_command(self, request, job_dir):
-        return [self.settings.python, '-u', '-m', 'neuro_rt.worker',
-                '--request', str(job_dir / 'request.json'), '--job-dir', str(job_dir),
-                '--models-dir', str(self.settings.models_dir)] + (
-                ['--installed-models'] if self.settings.plugin_paths is not None else [])
+        arguments = ['--request', str(job_dir / 'request.json'), '--job-dir', str(job_dir),
+                     '--models-dir', str(self.settings.models_dir)] + (
+                     ['--installed-models'] if self.settings.plugin_paths is not None else [])
+        return self.settings.worker_command('legacy', arguments, runtime_id='raidionics-onnx')
 
     def _execute(self, command, job_dir, logfile, cwd):
         env = dict(os.environ)
@@ -250,14 +287,16 @@ class Service:
                 raise ValueError('Contrato de resultado inválido.')
             if self.settings.export_available:
                 self._update(job_id,status='visualizing',message='Montando cortes e reconstruções.')
-                self._execute([self.settings.host_python,str(self.settings.root/'neuro_rt/build_views.py'),
-                    '--job-dir',str(job_dir),'--host-app',str(self.settings.host_app)],job_dir,
+                command = self.settings.worker_command('legacy-views',
+                    ['--job-dir', str(job_dir), '--host-app', str(self.settings.host_app)], preparation=True)
+                self._execute(command, job_dir,
                     job_dir/'views.log',self.settings.host_app)
                 result=json.loads((job_dir/'manifest.json').read_text(encoding='utf-8'))
             if request['export_rtstruct'] and result['status'] != 'empty':
                 self._update(job_id, status='exporting', message='Gravando pelo motor do Local Suite.')
-                self._execute([self.settings.host_python, str(self.settings.root / 'neuro_rt' / 'export.py'),
-                               '--job-dir', str(job_dir), '--host-app', str(self.settings.host_app)],
+                command = self.settings.worker_command('legacy-export',
+                    ['--job-dir', str(job_dir), '--host-app', str(self.settings.host_app)], preparation=True)
+                self._execute(command,
                               job_dir, job_dir / 'export.log', self.settings.host_app)
                 result = json.loads((job_dir / 'manifest.json').read_text(encoding='utf-8'))
             public = {k: result[k] for k in ('model_id', 'backend_version', 'status', 'masks', 'approval_status')}

@@ -141,6 +141,10 @@ class StudyService:
             python = self.settings.runtime_python(ident)
             runtimes[ident] = {'available': python is not None and Path(python).is_file(),
                               'reason': 'O ambiente deste modelo precisa ser preparado.'}
+            status = self.settings.model_runtime_status(spec)
+            if not status['available']:
+                models[spec['id']].update(status='missing')
+                models[spec['id']]['errors'].append(status['reason'])
         if 'cranio_buti' in self.catalog:
             from integration.buti_host import capabilities as host_capabilities
             info = host_capabilities(self.settings.host_app, self.settings.host_python)['cranio_buti']
@@ -337,8 +341,8 @@ class StudyService:
             {item.reference, *(b.series_ticket for bs in item.bindings_by_model.values() for b in bs)}},
             'host_app': str(self.settings.host_app)}
         atomic_json(directory / 'input-sources.json', private)
-        self._execute([self.settings.host_python, '-m', 'neuro_rt.study_worker', '--task', 'prepare',
-            '--job-dir', str(directory)], directory, 'prepare.log', event, item.study_id)
+        command = self.settings.worker_command('study', ['--task', 'prepare', '--job-dir', str(directory)], preparation=True)
+        self._execute(command, directory, 'prepare.log', event, item.study_id)
         prepared = json.loads((directory / 'prepared-inputs.json').read_text(encoding='utf-8'))
         return ({t: SeriesDescriptor(**d) for t, d in prepared['series_index'].items()},
                 {t: Path(p) for t, p in prepared['authorized_inputs'].items()},
@@ -356,11 +360,12 @@ class StudyService:
             'study_id': context.study_id,
             'allow_legacy_models': self.settings.plugin_paths is None}
         atomic_json(context.job_dir / 'model-context.json', data)
-        python = self.settings.runtime_python(spec['runtime_id'])
-        if not python: raise RuntimeError('Ambiente do modelo não preparado.')
+        status = self.settings.model_runtime_status(spec)
+        if not status['available']: raise RuntimeError(status['reason'])
         ident = context.study_id
-        self._execute([python, '-m', 'neuro_rt.study_worker', '--task', 'model', '--job-dir',
-            str(context.job_dir)], context.job_dir, 'model.log', event, ident, on_progress=context.progress)
+        command = self.settings.worker_command('study', ['--task', 'model', '--job-dir', str(context.job_dir)],
+                                               runtime_id=spec['runtime_id'])
+        self._execute(command, context.job_dir, 'model.log', event, ident, on_progress=context.progress)
         return validate_model_result(json.loads((context.job_dir / 'model-result.json').read_text(encoding='utf-8')), spec)
 
     def _run(self, request, item, sources):
@@ -412,9 +417,9 @@ class StudyService:
             if request.export_rtstruct and any(r.masks for r in result.results) and not event.is_set():
                 self._report_stage(ident, 'exporting', 'Gravando os contornos pelo Local Suite.')
                 try:
-                    self._execute([self.settings.host_python, '-m', 'neuro_rt.export_study',
-                        '--job-dir', str(directory), '--host-app', str(self.settings.host_app)],
-                        directory, 'export.log', event, ident)
+                    command = self.settings.worker_command('export',
+                        ['--job-dir', str(directory), '--host-app', str(self.settings.host_app)], preparation=True)
+                    self._execute(command, directory, 'export.log', event, ident)
                 except (RunCancelled, ProcessTreeUnconfirmed): raise
                 except Exception as error:
                     error_sink('export', error)
@@ -477,9 +482,9 @@ class StudyService:
             self._update(ident, status=outcome)
 
     def build_views(self, ident, directory, event):
-        self._execute([self.settings.host_python, '-m', 'neuro_rt.build_study_views',
-            '--job-dir', str(directory), '--host-app', str(self.settings.host_app)],
-            directory, 'views.log', event, ident)
+        command = self.settings.worker_command('views',
+            ['--job-dir', str(directory), '--host-app', str(self.settings.host_app)], preparation=True)
+        self._execute(command, directory, 'views.log', event, ident)
 
     def _report_stage(self, ident, stage, message):
         progress = {'status': stage, 'fraction': 0.}

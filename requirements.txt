@@ -1,10 +1,4 @@
-raidionicsseg==1.5.2
-numpy==1.26.4
-SimpleITK==2.4.1
-nibabel==5.3.2
-pydicom==3.0.2
-onnxruntime==1.20.1
-scipy==1.14.1
-scikit-image==0.24.0
-pandas==2.2.3
-h5py==3.12.1
+# Production is a plugin of a complete Local Suite >=8.11 installation.
+# The NEURO RT installer never runs pip on this file or installs another Python.
+# Nidus reuses the base's numpy, SimpleITK, scipy, pydicom, FastAPI and Pillow.
+# Research locks for disabled tools must not be applied to the base environment.

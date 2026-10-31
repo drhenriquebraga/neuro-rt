@@ -1,0 +1,525 @@
+{
+  "schema": "neuro-rt/code-ledger/2",
+  "version": "1.1.0",
+  "source_commit": "f30abe1f8f7eead794b684e18b3e020b6f20b1f4",
+  "execution_mode": "host",
+  "runtime": null,
+  "runtimes": [],
+  "models": [],
+  "code": [
+    {
+      "path": "code/LICENSE",
+      "size": 1085,
+      "sha256": "5bb305f881052964af21d593ff57ee879e63d9d2aae07dca72c35ee0f6d44206"
+    },
+    {
+      "path": "code/NOTICE",
+      "size": 2789,
+      "sha256": "cc6de37ee9eea30dfcab9b6a465d5cee7bf457b1d6c61c6a6c3ef7d206766021"
+    },
+    {
+      "path": "code/app/radai_nidus.py",
+      "size": 139,
+      "sha256": "868c6a782be1f6f949a58eec2490a36f01071a5c922db86b96af5d9c01b2a8a9"
+    },
+    {
+      "path": "code/app/radai_nidus_screen.py",
+      "size": 150087,
+      "sha256": "e0521d66c17ba56cbf9ab057ac20b15602720b84a698e40b61c0bd4a366a92fd"
+    },
+    {
+      "path": "code/catalog/atlas_assets.json",
+      "size": 2412,
+      "sha256": "3a1b1f762330e29fd5abe754f52f92ba198eda23c28b66a9c1e326316d0dd547"
+    },
+    {
+      "path": "code/catalog/model_assets_v1_manifest.json",
+      "size": 38642,
+      "sha256": "a073828b2109638230375b1dbdf0afce4f52f56e5bf8b7a49771d9769720db88"
+    },
+    {
+      "path": "code/catalog/models.json",
+      "size": 52242,
+      "sha256": "adb05636bc9b62c9b69c8bc4b090947d1688ae357dc95ef975bf4362de986f36"
+    },
+    {
+      "path": "code/catalog/resource_recipe.json",
+      "size": 268485,
+      "sha256": "646448fa58efe33435ebba60c9248626fcb61529b2db678ab6bec00ad9bf39cc"
+    },
+    {
+      "path": "code/installer/INSTALL.ps1",
+      "size": 4161,
+      "sha256": "818c43107afa6449b08baa1bd4ffe1836a39bebc9e9db3d956a4bf30cba20b13"
+    },
+    {
+      "path": "code/installer/PREPARE_LATEST.ps1",
+      "size": 1882,
+      "sha256": "3bbda77c55331b83812a1b1b0b747d0a3794de13c07b46ee0d43ed8f649b0ae1"
+    },
+    {
+      "path": "code/installer/START_HERE.cmd",
+      "size": 352,
+      "sha256": "40bbabfa44bcb07755a9025fc91b9dd1e3e54e43541061d42b4feb02fff762ea"
+    },
+    {
+      "path": "code/installer/START_HERE.ps1",
+      "size": 26510,
+      "sha256": "baf8563d54d8d7afe21a5ef933ced337d3eacfcef3f6353b46132cf97a87e82d"
+    },
+    {
+      "path": "code/installer/UPDATE.ps1",
+      "size": 1019,
+      "sha256": "7d6bb71dd7416ccde85106606a91eb548225d9f22803128f447ce1c155a4c508"
+    },
+    {
+      "path": "code/integration/buti_host.py",
+      "size": 4131,
+      "sha256": "ae9df7e88b1807b238adad92f18e6d99616cacd0a0545d3c76476dc5334b98f0"
+    },
+    {
+      "path": "code/integration/default_host_services.py",
+      "size": 3795,
+      "sha256": "5593ca2fbf14bbbfe52a896bf94adb4e0d2b606d1d7e5cd6de378c604ac33636"
+    },
+    {
+      "path": "code/integration/demo_host.py",
+      "size": 1193,
+      "sha256": "d59999bf85d85dd674b8db26304c3ea8d7f04064aefb273c41628dbf80d52198"
+    },
+    {
+      "path": "code/integration/host_imports.py",
+      "size": 1784,
+      "sha256": "a3995e4c5b29730b1d6e405eb51c8a4d878477f72685c35ac27766356372a10d"
+    },
+    {
+      "path": "code/integration/host_services.py",
+      "size": 2551,
+      "sha256": "3f99c3cf2be9e7224ef4c1cd366d60c37dc1cdf1abf3a9c791b60368b9dd13e3"
+    },
+    {
+      "path": "code/integration/nidus_bridge.py",
+      "size": 1458,
+      "sha256": "48b963042821dafb953d71e8695654885f60d73e07ee55df5cfc6eaef37dcceb"
+    },
+    {
+      "path": "code/integration/nidus_consensus.py",
+      "size": 8472,
+      "sha256": "add361037a049f44b49d9df3c9b7f105c261eff3f61b9594fac0efdfc72f5401"
+    },
+    {
+      "path": "code/integration/plugin_access.py",
+      "size": 9910,
+      "sha256": "b85e749214096b774cdf4cd85f8c6c6bd3e608acc980c3b2682d7e2393364902"
+    },
+    {
+      "path": "code/integration/plugin_loader.py",
+      "size": 8524,
+      "sha256": "89e5951253b5cc371fdc4cddb0aa38de4dbd862fcc0c8582b739a88b30994de9"
+    },
+    {
+      "path": "code/integration/queue_bridge.py",
+      "size": 5887,
+      "sha256": "67e6416ddf5018db66819552d6f1081441af4b5ac000733a0a8a7ece8006b0d8"
+    },
+    {
+      "path": "code/integration/radai_neuro.py",
+      "size": 11922,
+      "sha256": "1ffda55b20782d3013865b759414d6678c06a2b53dfa90397581386c2855ce54"
+    },
+    {
+      "path": "code/integration/radai_neuro_screen.py",
+      "size": 5335,
+      "sha256": "c30238661d0bb215efbd5fdc276af29d77180ecfd57669c37e02921e4fd9e155"
+    },
+    {
+      "path": "code/integration/testing_access.py",
+      "size": 6125,
+      "sha256": "084155ef81b77ff6f53f01c908d10c4ea857ae072cee422eaddc21cf09f36c43"
+    },
+    {
+      "path": "code/integration/update_provider.py",
+      "size": 11230,
+      "sha256": "d2e6013915067dab8aa82f4f47ab70b6bb63ef286466f7a889c018a05dd87c3a"
+    },
+    {
+      "path": "code/licenses/DIPY_SYNTHSEG_COMPAT_BSD.txt",
+      "size": 1671,
+      "sha256": "1d59889e299a5bfcd152f0561ced0bcb19d1682c72634e44ecb4910841a3d009"
+    },
+    {
+      "path": "code/licenses/NIDUS_RT_APACHE_2.txt",
+      "size": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "code/licenses/RAIDIONICS_ENGINE.txt",
+      "size": 1342,
+      "sha256": "ccdf3f37df568abc4e9e83f58f2ea59d2fc22663ee01d4e6d8723c36fe355c68"
+    },
+    {
+      "path": "code/licenses/RAIDIONICS_MODELS.txt",
+      "size": 1301,
+      "sha256": "3842856c4f19ef762a7a7fcc82bfb65e9258b1cef809e04af80c0ca80deef55c"
+    },
+    {
+      "path": "code/licenses/SYNTHSEG_ARCHITECTURE_APACHE_2.txt",
+      "size": 11358,
+      "sha256": "c95bae1d1ce0235ecccd3560b772ec1efb97f348a79f0fbe0a634f0c2ccefe2c"
+    },
+    {
+      "path": "code/licenses/SYNTHSEG_COMPAT_NOTICE.md",
+      "size": 1902,
+      "sha256": "25a105732db88887a764d5ccf026c972bb9916ad011e0bf72b519738603f3a2b"
+    },
+    {
+      "path": "code/models.lock.json",
+      "size": 4680,
+      "sha256": "40387e12205b43b713b44f5321ca9f58f52af1f30c389970717d47afb829360b"
+    },
+    {
+      "path": "code/module.json",
+      "size": 911,
+      "sha256": "847e466362d8c5fb947fdbc35a4d33561e4e2d24513f226f4dde603e8654f095"
+    },
+    {
+      "path": "code/neuro_rt/__init__.py",
+      "size": 84,
+      "sha256": "e2335fa7918061981dbfdc0cffec40c4fb9a44855942e0500f0218b5455e7e93"
+    },
+    {
+      "path": "code/neuro_rt/adapter_registry.py",
+      "size": 913,
+      "sha256": "822275b0b1b20f110d4881e1d139327c75f4587aa310578b9d446e1e004a5e2e"
+    },
+    {
+      "path": "code/neuro_rt/adapters/_scientific.py",
+      "size": 6108,
+      "sha256": "79d7b8e3dd5358a8c96b9e64a17fcf200e30b9d9ea6804a6151ed30e8a22f5eb"
+    },
+    {
+      "path": "code/neuro_rt/adapters/attention_unet.py",
+      "size": 3087,
+      "sha256": "fc340b6ade9a33659063035a8918dee0e43650bc4c4f7c0b3c7777ba53bb5116"
+    },
+    {
+      "path": "code/neuro_rt/adapters/base.py",
+      "size": 2187,
+      "sha256": "7a3020479462541cebfa996bb9e1b8cdacf95bf4501b583b8983b3d110958d25"
+    },
+    {
+      "path": "code/neuro_rt/adapters/buti_ct.py",
+      "size": 5055,
+      "sha256": "a15671ce7a36ebfe56806f3edd87ecc2f375a9f9e92aef1c912a2c2050897a07"
+    },
+    {
+      "path": "code/neuro_rt/adapters/cerebra_ants.py",
+      "size": 4373,
+      "sha256": "f4106f0ed96ba607dcee76db2ff2f4709a3e56f693d0a273ea368bcc6ca078c5"
+    },
+    {
+      "path": "code/neuro_rt/adapters/raidionics.py",
+      "size": 3355,
+      "sha256": "1be4e0c647c7379d13d53dc9113e8ee9fce481bd319d93ba2b1351775a15a58e"
+    },
+    {
+      "path": "code/neuro_rt/adapters/raidionics_postop.py",
+      "size": 3444,
+      "sha256": "0b3900de861fe7dc31c95dcb7d23fa89622b54d11a0c7f977b833611faa1359d"
+    },
+    {
+      "path": "code/neuro_rt/adapters/synthseg.py",
+      "size": 1788,
+      "sha256": "b982f440719cc1525ca26de61a05858c90897217e045224956d4509806d31f81"
+    },
+    {
+      "path": "code/neuro_rt/build_study_views.py",
+      "size": 7983,
+      "sha256": "e8bdab77fa03ff7d14aa351ed0eb12e8c43e0e8fd1a1c8bed4ad7a7f7481a17a"
+    },
+    {
+      "path": "code/neuro_rt/build_views.py",
+      "size": 5209,
+      "sha256": "eb1a8b16c9b09ca5e5077539814504ef740ae59568f898478561c48a155f47c9"
+    },
+    {
+      "path": "code/neuro_rt/catalog.py",
+      "size": 4383,
+      "sha256": "338c9364d754e1ec1638a9b801b518f8a53329575712144a9cf20c7b5caae2fc"
+    },
+    {
+      "path": "code/neuro_rt/child_entry.py",
+      "size": 1206,
+      "sha256": "5076c388b2f74666acf22f48c18516c9eef49a102a2bd5d507d149a08ce7b65f"
+    },
+    {
+      "path": "code/neuro_rt/compat_synthseg.py",
+      "size": 23099,
+      "sha256": "f8a03e2280565077a3d42c399003d1b7b212a2ba4d38ff2d7be075d2e17c1497"
+    },
+    {
+      "path": "code/neuro_rt/compat_synthseg_utils.py",
+      "size": 13575,
+      "sha256": "16790e4bbd1a7a8e7d99709fcf6486467c71e19cf036936b677de34115cf552a"
+    },
+    {
+      "path": "code/neuro_rt/contracts.py",
+      "size": 24358,
+      "sha256": "71614a67586b96eed036e49603020415c1c12f6186d74d5917b893dec9bced80"
+    },
+    {
+      "path": "code/neuro_rt/execution_errors.py",
+      "size": 324,
+      "sha256": "7e1d095822d1681943951415c2087f73bc3a1db5944f751ade0f7df2978b6b84"
+    },
+    {
+      "path": "code/neuro_rt/export.py",
+      "size": 5987,
+      "sha256": "18ca5f654de478676b874e1db7868d2eb4f72ff20cff83c8ba962bc5af59e803"
+    },
+    {
+      "path": "code/neuro_rt/export_study.py",
+      "size": 14106,
+      "sha256": "5eac98cc40fadb9cbf97f1a9fe7ed54c8db1aab2f73d33faba1640969a10f338"
+    },
+    {
+      "path": "code/neuro_rt/external_install.py",
+      "size": 18212,
+      "sha256": "39d547346f8463e5850ef7dfe41faea455d1325dcdc755319253673fc30220ac"
+    },
+    {
+      "path": "code/neuro_rt/geometry_pipeline.py",
+      "size": 11499,
+      "sha256": "3144c20cbf8ad808273649247d59cc84571e697938f3e49348ca095d12d5a90a"
+    },
+    {
+      "path": "code/neuro_rt/imaging.py",
+      "size": 5774,
+      "sha256": "b2542cd33d5fa9e69db69f37e6675c8c445064583b2fb228581036dd4bcd1366"
+    },
+    {
+      "path": "code/neuro_rt/install_state.py",
+      "size": 47052,
+      "sha256": "4a3177c181bcdf0f02954130fc458131913f93b19ee8d1515ce0df6f6d5302e1"
+    },
+    {
+      "path": "code/neuro_rt/integrity.py",
+      "size": 343,
+      "sha256": "f1244d68b2f19ccfafeb1850e01b6903720841f998c083a35853dcc047512edc"
+    },
+    {
+      "path": "code/neuro_rt/model_paths.py",
+      "size": 2311,
+      "sha256": "a54a3aba9cad1d1a30751abeafea39719638372322b952bcae7a8cce7da96f58"
+    },
+    {
+      "path": "code/neuro_rt/model_registry.py",
+      "size": 9592,
+      "sha256": "6b13fb6a60133a874241b5eb060ac5da2e1804d2a252d5594f33e25fc7978d10"
+    },
+    {
+      "path": "code/neuro_rt/nidus_geometry.py",
+      "size": 12086,
+      "sha256": "c7b7aa62cd266ec3da2fae9287544ad9d96b70cd17cb79bb2a3b0a50e108e890"
+    },
+    {
+      "path": "code/neuro_rt/orchestrator.py",
+      "size": 7283,
+      "sha256": "92028e4d1ed70c787bfa6b3898b90827e3f5f058240500c22bb41d50d24185b1"
+    },
+    {
+      "path": "code/neuro_rt/plugin_consent.py",
+      "size": 6661,
+      "sha256": "dc40871345e6aa54c2d7a28fe27b85a5de5a5f4b05c0da1d4e79bc6200aab629"
+    },
+    {
+      "path": "code/neuro_rt/plugin_manifest.py",
+      "size": 9460,
+      "sha256": "6eb9ff7c20cdd4e1b9e83e3130157ed405cb6e2228349fe39d8681851f9db834"
+    },
+    {
+      "path": "code/neuro_rt/plugin_paths.py",
+      "size": 5102,
+      "sha256": "d83942e5492280145bc2bf10ed0297d56b85af66f88974c2e039e41e760a48c3"
+    },
+    {
+      "path": "code/neuro_rt/plugin_update.py",
+      "size": 24859,
+      "sha256": "bbf473ecdf834a48fbcd4f4fda3dfc2ee07cb066afcb6cd8091375b47d2977a6"
+    },
+    {
+      "path": "code/neuro_rt/process_tree.py",
+      "size": 6399,
+      "sha256": "02b61d19a5b4d5678caa0e4835c8ccd1f2c7931c429f8a348db981d249451b1e"
+    },
+    {
+      "path": "code/neuro_rt/resource_paths.py",
+      "size": 4918,
+      "sha256": "919b220742e1b1a6d42c972abc9ce7b3e8489f3fea60bdcbf823978d17823535"
+    },
+    {
+      "path": "code/neuro_rt/resource_preparation.py",
+      "size": 25416,
+      "sha256": "eae310671c1e651a8ea59b0a48d7d82ea82863762b98088f43fbcfcfcdca0225"
+    },
+    {
+      "path": "code/neuro_rt/result_store.py",
+      "size": 22445,
+      "sha256": "15c89431df69554fbeeaabbd15e3a94881e36f3ee3fccc1b2c2c8df75cb22979"
+    },
+    {
+      "path": "code/neuro_rt/roi_registry.py",
+      "size": 2666,
+      "sha256": "b29d8f11dcf91017d0ad347003c5fbc08fc687df94798bf9ed2f9234aed86571"
+    },
+    {
+      "path": "code/neuro_rt/scientific_io.py",
+      "size": 1526,
+      "sha256": "d9ca050eb13a90926e8970b65ec2cfce744bb888592f50f3dfc556b5d99c0cc0"
+    },
+    {
+      "path": "code/neuro_rt/series_selection.py",
+      "size": 14805,
+      "sha256": "1700acb26a486534e3ef17485f2234f343705d230f87df16a1a45e334389c217"
+    },
+    {
+      "path": "code/neuro_rt/server.py",
+      "size": 6011,
+      "sha256": "169f61188d44b804c6a9b7bf8ba2a449454d3a7f04c79bf50ac854b1e41a242a"
+    },
+    {
+      "path": "code/neuro_rt/service.py",
+      "size": 18177,
+      "sha256": "0f48ac3d8fd08c333c95463ba936ef39bdfdf4bd76aa636a3a1e4df3dd9952d0"
+    },
+    {
+      "path": "code/neuro_rt/setup_wizard.py",
+      "size": 17229,
+      "sha256": "a4fd2317e8de7be33a50a2816fcbbfd3221fe3d64d816e5c36ddc80f5fe153e1"
+    },
+    {
+      "path": "code/neuro_rt/study_service.py",
+      "size": 38421,
+      "sha256": "8f98b19dcbc2f30bd1e9105cd9a73ca271f47ba2eed80316dac386abf38c7235"
+    },
+    {
+      "path": "code/neuro_rt/study_types.py",
+      "size": 4530,
+      "sha256": "515feb105c3be5d1aeae58f2f614a7c3ec295c8d158d80377ed1fdda55e6bada"
+    },
+    {
+      "path": "code/neuro_rt/study_worker.py",
+      "size": 11354,
+      "sha256": "549bbdd06d8eebf9f1ba378801847d23af60f0a82eae173cdd8474e006cacdc5"
+    },
+    {
+      "path": "code/neuro_rt/tool_availability.py",
+      "size": 1608,
+      "sha256": "b897c638c21bb9956e09d7777181dd76a570b203c4b31f0d90498478e02e825f"
+    },
+    {
+      "path": "code/neuro_rt/worker.py",
+      "size": 7564,
+      "sha256": "bcdd474eb4b2a2f4764a06de6a2a94c323ac22a3d3f8a3e88c99e0a5d7b29734"
+    },
+    {
+      "path": "code/neuro_rt/worker_bootstrap.py",
+      "size": 2055,
+      "sha256": "11098fc6e5c4c6510abeed9274cb4769c2510d5d68390f57a892177c023919ec"
+    },
+    {
+      "path": "code/requirements.txt",
+      "size": 314,
+      "sha256": "7d483ab06ca6659b57a9ca4cba2f69dfbd153bb0fdace743b838fccccde3c357"
+    },
+    {
+      "path": "code/web/app.js",
+      "size": 8224,
+      "sha256": "961d3887bd2e42c33b4883c4c99a8081dbdd9e94a2f3a8d7bce4932284eaeabc"
+    },
+    {
+      "path": "code/web/bibliografia.html",
+      "size": 2637,
+      "sha256": "3e87e8e5d9f59ee22ff72d5ca67c8733834b9ed53afd1a33b5edbac710b347bb"
+    },
+    {
+      "path": "code/web/index.html",
+      "size": 6150,
+      "sha256": "2df12779faa760d2a5fb3fefa62057d3453b4162f7a8e6da33c5af78241c3991"
+    },
+    {
+      "path": "code/web/mesh-view.css",
+      "size": 803,
+      "sha256": "06145fa6607a644aa61db21d62e92a9f74eeb6d9c4ece224c90f995d59d2404a"
+    },
+    {
+      "path": "code/web/mesh-view.html",
+      "size": 853,
+      "sha256": "3f4beb02db773b1737d423570a6ab1801ce86fad7ed9472e82a1016580ae4cb9"
+    },
+    {
+      "path": "code/web/mesh-view.js",
+      "size": 3315,
+      "sha256": "ce954d1774543003bc7ab42c4622fa88472a9f537251c37ef5acd0c4fd0be9a4"
+    },
+    {
+      "path": "code/web/plugin-update-i18n.json",
+      "size": 57551,
+      "sha256": "9c332820e7427869e9f273ba14529a55194fe4c3ebf512c8c358665a1c02ef71"
+    },
+    {
+      "path": "code/web/plugin-update.js",
+      "size": 24727,
+      "sha256": "fe656ef532d18c77a3396e25aa05ade062ad23731f4710bd7a01564d5aee3992"
+    },
+    {
+      "path": "code/web/study-i18n.json",
+      "size": 148760,
+      "sha256": "69852d29c9eb27f86092501ed80cdddb3b051184f0afd871cf12eced63517522"
+    },
+    {
+      "path": "code/web/study.css",
+      "size": 4469,
+      "sha256": "6fee4fc33bbb7fc2d570e5a8390c48da389b25a9b03232c64ca96c4712f24e77"
+    },
+    {
+      "path": "code/web/study.html",
+      "size": 4756,
+      "sha256": "2534dc3e246701df413cfd16dec43fffd57021135d87ec891f33f6b04183fa82"
+    },
+    {
+      "path": "code/web/study.js",
+      "size": 33977,
+      "sha256": "0b43e3129a2d113ee33688329b07e204e184b189af052c9f4a28d2e95d9c8f35"
+    },
+    {
+      "path": "code/web/style.css",
+      "size": 7710,
+      "sha256": "43b06e47111334b4f711af092365d2ee184d032d7bb5ca4904c719e8b1b01601"
+    },
+    {
+      "path": "code/web/viewer.js",
+      "size": 3015,
+      "sha256": "9a00493035499add58679dcc38822af4406ce648555a5c3fb8f5787db0abf3e9"
+    }
+  ],
+  "setup_sha256": "6ab9b9af7c3b4233fc11fe369410debf805087fd4931a4bacac8b13b176910e7",
+  "code_inventory_sha256": "7956e22d512593be49caabd30a19761370b21016f30ecdf8dfe4c5dece405914",
+  "manifest_sha256": "8114d248ccf2a0e31b3312a8e57fcbcf6cdf342df935e0a0d52289cc01283a51",
+  "public_assets": [
+    {
+      "local_path": "dist/v1.1.0/NEURO_RT_SETUP_v1.1.0.zip",
+      "size": 487660,
+      "sha256": "6ab9b9af7c3b4233fc11fe369410debf805087fd4931a4bacac8b13b176910e7"
+    },
+    {
+      "local_path": "dist/v1.1.0/NEURO_RT_SETUP_LATEST.zip",
+      "size": 487660,
+      "sha256": "6ab9b9af7c3b4233fc11fe369410debf805087fd4931a4bacac8b13b176910e7"
+    }
+  ],
+  "offline_verification": {
+    "receipt_sha256": "339c126c448775f07a38311c3d0ba4cd8fb19b74d575d212d893896bc42ace40",
+    "state": "ready"
+  }
+}

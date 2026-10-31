@@ -16,26 +16,14 @@ const {chromium} = require(process.env.NEURO_PLAYWRIGHT_MODULE || 'C:/Users/henr
     const cards = page.locator('.md-grade > .md-fer');
     assert.equal(await cards.count(), 5);
     const disabled = page.locator('.md-grade > .md-fer[aria-disabled="true"]');
-    assert.equal(await disabled.count(), 4);
-    for (let i = 0; i < 4; i++) {
-      assert(await disabled.nth(i).textContent().then(value => value.includes('[em construção]')));
-      const values = await disabled.nth(i).evaluate(el => ({
-        tag: el.tagName, link: el.getAttribute('href'), tab: el.tabIndex,
-        focusable: el.querySelectorAll('a,button,input,[tabindex]').length,
-        opacity: Number(getComputedStyle(el).opacity)
-      }));
-      assert.equal(values.tag, 'DIV');
-      assert.equal(values.link, null);
-      assert.equal(values.tab, -1);
-      assert.equal(values.focusable, 0);
-      assert(values.opacity >= 0.6 && values.opacity < 1);
+    assert.equal(await disabled.count(), 0);
+    for (const tool of ['nidus','glioma','metastasis','meningioma','anatomia']) {
+      const card=page.locator('.md-grade > a.md-fer[href="/neuro/testing/'+tool+'"]');
+      assert.equal(await card.count(),1);
+      assert((await card.textContent()).includes('[fase de testes]'));
+      await card.focus();assert(await card.evaluate(el=>el===document.activeElement));
     }
-    const nidus = page.locator('.md-grade > a.md-fer');
-    assert.equal(await nidus.count(), 1);
-    assert.equal(await nidus.getAttribute('href'), '/neuro/nidus');
-    await nidus.focus();
-    assert(await nidus.evaluate(el => el === document.activeElement));
-    console.log('PASS: Nidus active, four inert construction cards, host styling and keyboard focus.');
+    console.log('PASS: five active test-phase cards, acknowledgement links, host styling and keyboard focus.');
   } finally {
     await browser.close();
   }

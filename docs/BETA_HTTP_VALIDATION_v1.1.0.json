@@ -1,0 +1,19 @@
+{
+  "schema": "neuro-rt/beta-http-validation/1",
+  "python": "3.10.11",
+  "shared_interpreter": true,
+  "first_use": true,
+  "five_tool_acknowledgements": true,
+  "protected_post": true,
+  "no_clinical_data": true,
+  "models_or_dicom_processed": false,
+  "tool_pages_synthetic": true,
+  "harness_sha256": "b00dd5f4a37fb18616c2e10d0e773d886cefa70094e4a7df98820ed4cebfb32e",
+  "httpx_installed_or_used": false,
+  "sources": {
+    "integration/plugin_access.py": "b85e749214096b774cdf4cd85f8c6c6bd3e608acc980c3b2682d7e2393364902",
+    "integration/testing_access.py": "084155ef81b77ff6f53f01c908d10c4ea857ae072cee422eaddc21cf09f36c43",
+    "integration/radai_neuro.py": "1ffda55b20782d3013865b759414d6678c06a2b53dfa90397581386c2855ce54",
+    "neuro_rt/plugin_consent.py": "dc40871345e6aa54c2d7a28fe27b85a5de5a5f4b05c0da1d4e79bc6200aab629"
+  }
+}

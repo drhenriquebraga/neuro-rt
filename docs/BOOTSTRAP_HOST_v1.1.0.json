@@ -1,0 +1,45 @@
+{
+  "schema": "neuro-rt/host-bootstrap-handoff/2",
+  "plugin_version": "1.1.0",
+  "host_min_version": "8.12",
+  "source_commit": "f30abe1f8f7eead794b684e18b3e020b6f20b1f4",
+  "generated_windows_file": {
+    "local_path": "dist/host-bootstrap-v1.1.0/radai_neuro_install.py",
+    "host_destination": "app/radai_neuro_install.py",
+    "sha256": "891bb27d0e70c9afa5de9bc6c1fa5262d96f6edab011b3ad872dcfb8ab7c3955",
+    "size": 291783
+  },
+  "sources": {
+    "plugin_consent": "dc40871345e6aa54c2d7a28fe27b85a5de5a5f4b05c0da1d4e79bc6200aab629",
+    "plugin_manifest": "6eb9ff7c20cdd4e1b9e83e3130157ed405cb6e2228349fe39d8681851f9db834",
+    "model_paths": "a54a3aba9cad1d1a30751abeafea39719638372322b952bcae7a8cce7da96f58",
+    "model_registry": "6b13fb6a60133a874241b5eb060ac5da2e1804d2a252d5594f33e25fc7978d10",
+    "install_state": "4a3177c181bcdf0f02954130fc458131913f93b19ee8d1515ce0df6f6d5302e1",
+    "resource_paths": "919b220742e1b1a6d42c972abc9ce7b3e8489f3fea60bdcbf823978d17823535",
+    "resource_preparation": "eae310671c1e651a8ea59b0a48d7d82ea82863762b98088f43fbcfcfcdca0225",
+    "external_install": "39d547346f8463e5850ef7dfe41faea455d1325dcdc755319253673fc30220ac",
+    "plugin_update": "bbf473ecdf834a48fbcd4f4fda3dfc2ee07cb066afcb6cd8091375b47d2977a6"
+  },
+  "execution_mode": "host",
+  "required_host_binding": "host_info.python_executable = sys.executable",
+  "ui": {
+    "plugin-update.js": "fe656ef532d18c77a3396e25aa05ade062ad23731f4710bd7a01564d5aee3992",
+    "plugin-update-i18n.json": "9c332820e7427869e9f273ba14529a55194fe4c3ebf512c8c358665a1c02ef71"
+  },
+  "consent_version": "1.1",
+  "consent_digest": "65a214a9a3bd2a02e3014020792f671b2d6d7b45825c0ab80704bafec91308d0",
+  "code_inventory_sha256": "7956e22d512593be49caabd30a19761370b21016f30ecdf8dfe4c5dece405914",
+  "trusted_code_inventories": [
+    "7956e22d512593be49caabd30a19761370b21016f30ecdf8dfe4c5dece405914"
+  ],
+  "provider": {
+    "path": "integration/update_provider.py",
+    "sha256": "d2e6013915067dab8aa82f4f47ab70b6bb63ef286466f7a889c018a05dd87c3a"
+  },
+  "sdk_sources_match_final_code": true,
+  "bootstrap_ui_matches_final_code": true,
+  "offline_verification": {
+    "receipt_sha256": "339c126c448775f07a38311c3d0ba4cd8fb19b74d575d212d893896bc42ace40",
+    "state": "ready"
+  }
+}

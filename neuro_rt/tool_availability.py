@@ -1,4 +1,4 @@
-"""Public tool availability for the staged Nidus-only delivery.
+"""Public tool availability for the explicitly authorized test phase.
 
 Keep this gate separate from the scientific catalogue: possessing model assets
 does not make a tool available in the current product delivery.
@@ -18,15 +18,15 @@ class Tool:
 
 
 TOOLS = (
-    Tool('nidus', 'nidus', 'Nidus RT', '/neuro/nidus', True, 'ready', ''),
-    Tool('glioma', 'neuro_glioma', 'Glioma RT', '/neuro/glioma', False,
-         'under_construction', '[em construção]'),
-    Tool('metastasis', 'neuro_metastasis', 'Metastasis RT', '/neuro/metastasis', False,
-         'under_construction', '[em construção]'),
-    Tool('meningioma', 'neuro_meningioma', 'Meningioma RT', '/neuro/meningioma', False,
-         'under_construction', '[em construção]'),
-    Tool('anatomia', 'neuro_anatomia', 'Anatomia RT', '/neuro/anatomia', False,
-         'under_construction', '[em construção]'),
+    Tool('nidus', 'nidus', 'Nidus RT', '/neuro/nidus', True, 'testing', '[fase de testes]'),
+    Tool('glioma', 'neuro_glioma', 'Glioma RT', '/neuro/glioma', True,
+         'testing', '[fase de testes]'),
+    Tool('metastasis', 'neuro_metastasis', 'Metastasis RT', '/neuro/metastasis', True,
+         'testing', '[fase de testes]'),
+    Tool('meningioma', 'neuro_meningioma', 'Meningioma RT', '/neuro/meningioma', True,
+         'testing', '[fase de testes]'),
+    Tool('anatomia', 'neuro_anatomia', 'Anatomia RT', '/neuro/anatomia', True,
+         'testing', '[fase de testes]'),
 )
 
 

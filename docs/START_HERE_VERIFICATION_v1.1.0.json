@@ -1,0 +1,36 @@
+{
+  "scope": "START HERE WinForms",
+  "powershell": "Windows PowerShell 5.1",
+  "encoding": "UTF-8 BOM",
+  "tests": 3,
+  "seconds": 3.308,
+  "checks": [
+    "PS5.1 parser",
+    "unchecked consent before downloads",
+    "real button events",
+    "real timer progress and elapsed time",
+    "valid counters and progress below100 until final success",
+    "cooperative cancellation and close awaiting child",
+    "persistent error without raw paths",
+    "new destination only",
+    "same Suite Python",
+    "real argument quoting unicode/quotes/backslashes/empty",
+    "interactive CLI inherited console",
+    "resize without clipped controls",
+    "real backend describe loads policy and licenses without preparation"
+  ],
+  "limits": [
+    "offline operation/process states simulated in GUI smoke",
+    "only describe and harmless JSON echo executed in the real interpreter",
+    "full SDK offline and maintenance integration are separate gates"
+  ],
+  "schema": "neuro-rt/start-here-gui-verification/1",
+  "version": "1.1.0",
+  "sources": {
+    "installer/START_HERE.ps1": "baf8563d54d8d7afe21a5ef933ced337d3eacfcef3f6353b46132cf97a87e82d",
+    "tests/test_start_here_gui.py": "f54ef2ba3058a5aeba4d42fb4800b049c86424c36bfeaf5b78c745e921cbe446",
+    "tests/start_here_gui_smoke.ps1": "0b73417e58a37c8bb10cad9766c72f1cde71b43079bf3022a64d2d8ba19f2447"
+  },
+  "root_rerun_seconds": 3.563,
+  "root_visual_review": true
+}

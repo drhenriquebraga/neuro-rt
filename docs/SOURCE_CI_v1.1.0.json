@@ -1,0 +1,17 @@
+{
+  "schema": "neuro-rt/source-ci/1",
+  "version": "1.1.0",
+  "source_commit": "f30abe1f8f7eead794b684e18b3e020b6f20b1f4",
+  "pull_request": "https://github.com/drhenriquebraga/neuro-rt/pull/3",
+  "provider": "GitHub Actions",
+  "workflow": "Verify source and installer contracts",
+  "windows_runner": true,
+  "success": true,
+  "checks": [
+    {"id": 124375954295, "python": "3.10", "conclusion": "success", "url": "https://github.com/drhenriquebraga/neuro-rt/actions/runs/41147505834/job/124375954295"},
+    {"id": 124375954120, "python": "3.12", "conclusion": "success", "url": "https://github.com/drhenriquebraga/neuro-rt/actions/runs/41147505834/job/124375954120"},
+    {"id": 124375879689, "python": "3.10", "conclusion": "success", "url": "https://github.com/drhenriquebraga/neuro-rt/actions/runs/41147483534/job/124375879689"},
+    {"id": 124375879623, "python": "3.12", "conclusion": "success", "url": "https://github.com/drhenriquebraga/neuro-rt/actions/runs/41147483534/job/124375879623"}
+  ],
+  "scope": "Source compilation and 26 contract families on fresh Windows runners. Scientific inference and full Suite maintenance have separate receipts."
+}

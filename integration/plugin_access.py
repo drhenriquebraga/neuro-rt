@@ -1,4 +1,4 @@
-"""Nidus-only product gate and explicit first-use acknowledgement."""
+"""Explicit first-use and test-phase guards, safe for a late plugin mount."""
 import html
 import json
 from urllib.parse import parse_qs
@@ -55,28 +55,29 @@ class PluginAccessGate(BaseRoute):
     Allowed requests return Match.NONE and use the original host/plugin route.
     No live middleware stack or FastAPI internal included-router is replaced.
     """
-    def __init__(self, config_dir, integrated, authorize):
+    def __init__(self, config_dir, integrated, authorize, testing):
         self.config_dir, self.integrated = config_dir, integrated
         self.authorize = authorize
+        self.testing = testing
 
     def matches(self, scope):
         if scope['type'] != 'http':
             return Match.NONE, {}
         path = scope.get('path', '')
         query = parse_qs(scope.get('query_string', b'').decode('utf-8', errors='replace'))
-        disabled = next((tool for tool in TOOLS if not tool.enabled and
-                         (path.rstrip('/') == tool.route or
-                          path.rstrip('/') == '/neuro' and query.get('category', [''])[-1] == tool.id)), None)
-        if disabled:
-            return Match.FULL, {'neuro_access_denial': ('construction', disabled.title)}
-        if scope.get('method') == 'POST' and (path in (
+        execution = scope.get('method') == 'POST' and (path in (
                 '/neuro/api/jobs', '/neuro/api/selection', '/neuro/api/studies') or
-                path.startswith('/neuro/api/studies/') and path.endswith('/retry')):
-            return Match.FULL, {'neuro_access_denial': ('execution', '')}
-        if (path.rstrip('/') in ('/neuro/nidus', '/nidus', '/nidus/projecao')
-              or path.startswith('/api/nidus/')
-              or self.integrated and path.rstrip('/') == '/neuro') and not plugin_consent.accepted(self.config_dir, 'first_use'):
+                path.startswith('/neuro/api/studies/') and path.endswith('/retry'))
+        tool = next((t for t in TOOLS if path.rstrip('/') == t.route or
+                     path.rstrip('/') == '/neuro' and query.get('category', [''])[-1] == t.id), None)
+        if path.rstrip('/') in ('/nidus', '/nidus/projecao') or path.startswith('/api/nidus/'):
+            tool = next(t for t in TOOLS if t.id == 'nidus')
+        protected = (tool is not None or execution or path.startswith('/neuro/testing/')
+                     or self.integrated and path.rstrip('/') == '/neuro')
+        if protected and not plugin_consent.accepted(self.config_dir, 'first_use'):
             return Match.FULL, {'neuro_access_denial': ('consent', '')}
+        if tool and not self.testing.allowed(scope, tool.id):
+            return Match.FULL, {'neuro_access_denial': ('testing', tool.id)}
         return Match.NONE, {}
 
     def url_path_for(self, name, /, **path_params):
@@ -86,23 +87,15 @@ class PluginAccessGate(BaseRoute):
     async def handle(self, scope, receive, send):
         from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
         kind, title = scope['neuro_access_denial']
-        if kind == 'construction':
-            response = HTMLResponse('<!doctype html><html lang="pt-BR"><meta charset="utf-8">'
-                '<title>NEURO RT</title><h1>' + html.escape(title) + '</h1><p>[em construção]</p>'
-                '<a href="/neuro/">Voltar ao NEURO RT</a></html>', status_code=503)
-        elif kind == 'execution':
-            from starlette.exceptions import HTTPException
-            from starlette.requests import Request
-            try:
-                self.authorize(Request(scope))
-                response = JSONResponse({'detail': 'As ferramentas de segmentação estão em construção. '
-                                         'Nesta entrega somente Nidus RT está habilitado.'}, status_code=409)
-            except HTTPException as exc:
-                response = JSONResponse({'detail': exc.detail}, status_code=exc.status_code)
+        is_api = scope.get('path', '').startswith(('/api/', '/neuro/api/'))
+        if kind == 'testing':
+            response = (JSONResponse({'detail': 'Confirme a participação na fase de testes.',
+                'onboarding': '/neuro/testing/' + title}, status_code=428) if is_api else
+                RedirectResponse('/neuro/testing/' + title, status_code=303))
         else:
             response = (JSONResponse({'detail': 'Confirme o termo no primeiro uso do NEURO RT.',
                                       'onboarding': '/neuro/onboarding'}, status_code=428)
-                        if scope.get('path', '').startswith('/api/') else RedirectResponse('/neuro/onboarding', status_code=303))
+                        if is_api else RedirectResponse('/neuro/onboarding', status_code=303))
         response.headers['Cache-Control'] = 'no-store'
         return await response(scope, receive, send)
 
@@ -110,6 +103,42 @@ class PluginAccessGate(BaseRoute):
 def attach(app, router, service, config_dir, local, action, *, integrated):
     from fastapi import HTTPException, Request
     from fastapi.responses import HTMLResponse, JSONResponse
+    from integration.testing_access import TestingAccess, policy as testing_policy, page as testing_page
+    testing = TestingAccess()
+    service.testing_access = testing
+
+    @router.get('/testing/{tool_id}')
+    def testing_entry(request: Request, tool_id: str):
+        local(request)
+        try:
+            return HTMLResponse(testing_page(tool_id, integrated), headers={'Cache-Control': 'no-store'})
+        except ValueError as exc:
+            raise HTTPException(404, 'Ferramenta desconhecida.') from exc
+
+    @router.get('/api/testing/{tool_id}')
+    def testing_status(request: Request, tool_id: str):
+        local(request)
+        try:
+            return JSONResponse({'policy': testing_policy(tool_id), 'token': service.token},
+                                headers={'Cache-Control': 'no-store'})
+        except ValueError as exc:
+            raise HTTPException(404, 'Ferramenta desconhecida.') from exc
+
+    @router.post('/api/testing/{tool_id}')
+    async def testing_accept(request: Request, tool_id: str):
+        from neuro_rt.tool_availability import require_tool
+        payload = await action(request, 8192)
+        if not plugin_consent.accepted(config_dir, 'first_use'):
+            raise HTTPException(428, 'Confirme o termo no primeiro uso do NEURO RT.')
+        try:
+            tool = require_tool(tool_id)
+            nonce = testing.accept(tool_id, payload)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
+        response = JSONResponse({'route': tool.route}, headers={'Cache-Control': 'no-store'})
+        response.set_cookie('neuro_testing_' + tool_id, nonce, max_age=8*3600,
+                            httponly=True, samesite='strict', path='/')
+        return response
 
     @router.get('/onboarding')
     def onboarding(request: Request):
@@ -143,5 +172,5 @@ def attach(app, router, service, config_dir, local, action, *, integrated):
         # A public Starlette route supports both old FastAPI flat routes and new
         # included routers. It can be registered after startup, unlike middleware.
         if not any(isinstance(route, PluginAccessGate) for route in app.router.routes):
-            app.router.routes.insert(0, PluginAccessGate(config_dir, integrated, authorize))
+            app.router.routes.insert(0, PluginAccessGate(config_dir, integrated, authorize, testing))
     return protect_routes

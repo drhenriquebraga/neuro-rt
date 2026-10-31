@@ -1,5 +1,15 @@
 # Implementação do plugin NEURO RT
 
+## Revisão atual 1.0.2: plugin com Python da base
+
+Distribuição somente por SETUP leve versionado e LATEST. O modo host instala
+código, termo e licenças, reutilizando o mesmo Python e capacidades do Local
+Suite 8.11. Nidus tem delta obrigatório zero; nenhum componente científico de
+card em construção é baixado. O contrato normativo está no
+[desenho de instalação](superpowers/specs/2026-10-30-installer-only-host-python-design.md).
+Os registros abaixo são históricos e não autorizam distribuir OFFLINE/PLUGIN
+nem instalar os dois ambientes privados descritos em entregas anteriores.
+
 ## Revisão 1.0.1 — 30/10/2026
 
 Somente Nidus RT fica habilitado nesta primeira disponibilização pública
@@ -216,3 +226,69 @@ demonstram contratos e execução sintética; não demonstram precisão clínica
 29/10 — I04/R02 rodada 1: fechadas barreira global de imagens/licenças, interrupção do turno pela API dona e consumidores de instalação/atualização. Provas pequenas: builder 9, provider 2, host 16, UI 2 e manifest 13 (1 skip), Chrome primeira instalação/progresso/reinício/nova sessão. Relatório: .superpowers/sdd/neuro-plugin/I04-R02-R03-report.md. Aguarda revisão independente e refresh final; sem publicação ou novo ensaio pesado.
 
 29/10 — Onda final F1–F6: corrigidos bloqueio por encerramento de árvore não confirmado (com owner/concessão preservados), identidade da tentativa ativa versus histórico, aviso por classe perdida na restauração NN, ampliação/troca do plano principal, ajuda específica dos modelos nos 12 idiomas e I/O Unicode Raidionics incluindo leitor nativo interno. Provas dirigidas passaram: seis regressões finais; batches de 50 testes (48 pass/2 skips por runtime), 37 testes e 10 testes com Chrome real/JobObject/ONNX sintético. O runtime distribuído Python 3.10 também passou pelo adaptador/backend Unicode com redes sintéticas pequenas. Relatório e hashes: .superpowers/sdd/neuro-plugin/FINAL_FIX_REPORT.md e FINAL_FIX_FILES.json. Sem mudança de pesos, thresholds, interpolação, contratos clínicos, host, Recon ou Nidus; sem commits/publicação. O ZIP offline anterior é pré-correção e requer refresh após a revisão escopada.
+
+## 30/10 — motores no Python compartilhado da suíte, revisão 1.1.0
+
+O usuário autorizou os cinco cards para a fase de testes. Os motores agora usam
+o mesmo CPython 3.10.11 da base, mantendo NumPy 1.26.4, SciPy 1.15.3,
+SimpleITK 2.5.6, PyTorch 2.5.1+cu121, MONAI 1.4.0 e DIPY 1.11.0. Não foi
+criado ou baixado outro Python, venv, Torch CPU ou CUDA. A receita fixada em
+`catalog/resource_recipe.json` acrescenta somente 12 wheels ausentes, originais,
+com SHA256 e inventário de arquivos autenticado pelo CODE. São 30.856.290 bytes
+de download e 85.021.512 bytes de bibliotecas selecionadas. Os textos de licença
+originais permanecem presentes, inclusive o Apache-2.0 do FlatBuffers, que não
+vinha no wheel e foi obtido da revisão oficial fixada.
+
+`resource_preparation.prepare_resources` verifica base/ABI antes de escrever,
+reutiliza pacotes compatíveis já existentes e prepara extras e modelos em
+diretórios privados. O worker confere o inventário contra a receita protegida
+antes de acrescentar os extras ao final de `sys.path`, mantendo a prioridade da
+base. Não executa `.pth`. Bytecode não inventariado também é recusado: uma
+regressão no worker real demonstrou que `-B` sozinho permite ler `.pyc`; o gate
+agora bloqueia esse arquivo antes da importação. Downloads usam cache por
+SHA256/nome, reaproveitam legado somente quando o hash coincide e usam cópia
+temporária, verificação e promoção atômica, inclusive no modo local.
+
+O limite SimpleITK <=2.4.1 declarado pelo Raidionics 1.5.2 é uma exceção de
+compatibilidade explicitamente registrada nesta integração. O código original
+do wheel foi conservado e os seis caminhos Raidionics passaram com o SimpleITK
+2.5.6 da base, sem resolvedor ou rebaixamento. SynthSeg usa um port local
+auditado do código fixado DIPY, com arquitetura, métodos científicos,
+preparo/restauração e topologia preservados; não substitui o DIPY da suíte.
+Sua proveniência e licenças estão em `docs/SYNTHSEG_HOST_COMPAT.md` e nos textos
+correspondentes de `licenses/`.
+
+As dez opções de modelos do catálogo, incluindo Buti com os pesos já pertencentes
+à base, executaram inferência completa em fantomas inventados, com rede bloqueada
+e geometria conferida. Cinco produziram máscaras não vazias e cinco retornaram
+vazio; nenhum contorno foi fabricado. O recibo público sanitizado
+`docs/MODEL_HOST_VERIFICATION_v1.1.0.json` registra resultados, tempos, versões,
+origens e hashes das evidências privadas, sem imagens, máscaras, logs ou caminhos
+da estação. Essas provas verificam execução e geometria; não medem acurácia
+anatômica ou clínica. GPU não foi validada por essas execuções em CPU.
+
+Preparação, inferência, exportação e visores usam origens fixas do
+`worker_bootstrap`, com `-I -B`, CODE explícito e o mesmo interpretador do host.
+Os quatro comandos de entrega, incluindo os aliases legados, foram iniciados no
+Python embutido fora da pasta de código. As dez provas de adaptadores acima
+chamaram o worker interno diretamente. A prova independente da cadeia completa
+está em `docs/PRODUCTION_HOST_E2E_v1.1.0.json`: CODE instalado 1.1.0 no layout
+plano 8.12, recursos preparados, o Python existente da base e a fila real da
+suíte. Não houve substituição do modelo por uma ROI simulada.
+
+Nessa prova, 24 DICOMs MR inteiramente sintéticos, em uma pasta com Unicode,
+passaram pelo ticket real, importação original, inferência original de
+meningioma, exportação e visores em 33,694 segundos. A inferência produziu uma
+ROI. Foi publicado exatamente um RTSTRUCT `UNAPPROVED`, com referências válidas
+à série, FrameOfReference e SOPs dos cortes originais. Três planos MPR e uma
+malha foram reabertos pela API com identificadores opacos; o histórico também
+foi reaberto. Os quatro subprocessos partiram do CODE instalado com `-I -B`
+aplicados ao interpretador, todos sob JobObject, e foram encerrados antes da
+liberação da fila compartilhada. O ajuste do envelope preservou o handshake de
+propriedade e a adaptação de I/O Unicode. Regressões verificam flags reais,
+exportador real, cancelamento de filho/neto e encerramento de órfão.
+
+O recibo público contém somente métricas e hashes; exames inventados, máscaras,
+logs, identificadores DICOM e caminhos privados permanecem fora da distribuição.
+O SHA do manifesto instalado delimita o snapshot verificado; mudanças posteriores
+nos motores ou no ciclo de processos exigem uma nova prova correspondente.

@@ -1,5 +1,49 @@
 # Integração NEURO RT / Local Suite
 
+## Contrato em desenvolvimento 1.1.0 / Local Suite 8.12
+
+O desenho `superpowers/specs/2026-10-30-neuro-beta-110.md` substitui o recorte
+Nidus-only das seções históricas. Cinco cards ativos têm `[fase de testes]` e
+entrada `/neuro/testing/{tool}` com diálogo explícito a cada abertura de card.
+O termo comum passa à versão1.1; instalação e primeiro uso continuam separados.
+Os aceites de testes usam cookies opacos por ferramenta, HttpOnly, SameSiteStrict,
+válidos por até8h na instância atual. Não escrevem feedbacks nem identidade.
+
+URLs diretas de ferramentas passam pelo mesmo controle; `/api/nidus/*` exige
+primeiro uso e aceite Nidus. APIs selection/studies/retry/jobs também exigem
+aceite coerente com os grupos dos modelos, além dos controles de origem/token e
+do pedido explícito. Modelos anatômicos podem acompanhar uma ferramenta tumoral.
+
+O modo host continua sem runtime privado e sem artefatos científicos dentro do
+SETUP. O perfil1.1.0 declara os cinco tools e `resource_recipe` fixada em
+`catalog/resource_recipe.json`. O estado instalado tem um descritor `resources`
+de oito campos, vinculado ao SHA do recibo e da receita; `PluginPaths` resolve
+`resources`, `extras_dir` e `resources_file`. Caminhos de modelos devem coincidir
+com o catálogo; Buti host_managed reutiliza recursos da base. Extras são adicionados
+após os caminhos Python da suíte. Estado/pacote nunca escolhem outro interpretador.
+
+O bootstrap confiável fornece `inspect_local_source`, `prepare_external_plan` e
+`run_external`. O host fornece raiz e Python como argumentos confiáveis e possui
+fila, ack/nonce/PID, fechamento e reabertura. O SDK não reinicia o host. A fonte
+local é autenticada pelo digest canônico do inventário CODE fixado no bootstrap,
+e cada recurso pela receita fixada. Nunca executar scripts da pasta selecionada.
+START HERE cria o bundle offline local para transporte; a suíte instalada seleciona
+essa pasta em Configurações. GitHub continua com somente dois SETUPs leves.
+
+Os gates desta fase ainda estão em execução; esta seção documenta o contrato de
+desenvolvimento e não comprova publicação ou validação clínica.
+
+## Contrato publicado anterior 1.0.2
+
+O [desenho atual](superpowers/specs/2026-10-30-installer-only-host-python-design.md)
+substitui o modo isolado descrito nas seções históricas abaixo. O SETUP público
+instala somente CODE; `execution_mode=host`, `runtime=null`, `runtimes=[]` e
+`models=[]`. O binding `host_info['python_executable']` vem de `sys.executable`
+da suíte e é usado pelo adapter/Settings. Nidus não baixa Python, dependências
+ou pesos na base completa. Os demais quatro cards continuam em construção.
+Os paths de runtimes privados abaixo valem para compatibilidade local legada,
+nunca como fallback do instalador remoto. O host mínimo atual é 8.11.
+
 Este é o contrato do plugin 1.0, com o recorte de disponibilidade 1.0.1 descrito
 abaixo. O protótipo iframe/API v1 está preservado em
 LEGADO_V02_INTEGRACAO.md; ele não define a instalação integrada atual.
@@ -87,7 +131,7 @@ novos. A versão anterior, modelos válidos e dados são preservados.
 
 ## Contrato do host
 
-O manifesto exige `local-suite/plugins/1` e Local Suite 8.10 ou posterior. O host
+O manifesto 1.0.2 exige `local-suite/plugins/1` e Local Suite 8.11 ou posterior. O host
 carrega a entrada conhecida e chama `montar(app, code_dir, host_services=...)` uma
 vez. HostServices fornece:
 
@@ -132,10 +176,13 @@ modalidade. Classificação incerta não é ausência de volume. Preparação us
 do host; registros são explícitos em coordenadas físicas LPS. As máscaras voltam à
 grade completa da referência e são verificadas antes da entrega.
 
-A fila dá uma concessão por item; os modelos rodam sequencialmente. Workers usam
-runtimes fixados, processo oculto e, no Windows, JobObject com handshake antes da
-entrada científica. O cancelamento encerra e confirma os descendentes antes de
-liberar a vez. Falhas independentes não descartam saídas válidas dos demais.
+A fila dá uma concessão por item; os modelos rodam sequencialmente. Na fase1.1.0,
+os workers usam o mesmo Python da suíte completa, CODE explícito e flags -I/-B.
+Somente extras ausentes e compatíveis são acrescentados ao final dos caminhos de
+importação; bibliotecas da base mantêm prioridade. O processo científico é oculto
+e, no Windows, recebe JobObject com handshake antes da entrada científica.
+O cancelamento encerra e confirma os descendentes antes de liberar a vez.
+Falhas independentes não descartam saídas válidas dos demais.
 
 O store publica revisões completas, preserva anteriores e resolve artefatos por
 IDs opacos. Retry só reutiliza entradas/máscaras íntegras e fingerprints iguais.
@@ -171,7 +218,11 @@ explícito; nenhum token viaja no código. Sem rede, uma versão íntegra contin
 utilizável. A atualização respeita a fila e a reabertura controlada do host. Consulte
 `installer/PACKAGE_FORMAT.md` e `docs/IMPLEMENTACAO_PLUGIN.md` para estado e provas.
 
-O contrato comum exige Python 3.10 ou posterior. Os runtimes científicos são
-separados e têm versões próprias fixadas; essa exigência não autoriza atualizar o
-Python do host para satisfazer um motor. GPU e outras estações/Windows precisam
-de suas provas próprias antes de serem anunciadas como compatíveis.
+O contrato comum exige Python3.10 ou posterior e a fase1.1.0 requer Local Suite8.12.
+O plugin não baixa outro Python, não cria venv e não sobrescreve ou rebaixa as
+bibliotecas da suíte. Receitas fixam fontes, versões, tamanhos, SHA256 e licenças
+dos extras e pesos. Um conflito com a base é apresentado antes da preparação.
+O modo legado de runtimes privados pertence às revisões anteriores; sua presença
+no contrato de compatibilidade não descreve a instalação1.1.0. GPU e outras
+estações/Windows precisam de suas provas próprias antes de serem anunciadas como
+compatíveis. Consulte `docs/FINAL_VALIDATION_v1.1.0.json` para os escopos testados.

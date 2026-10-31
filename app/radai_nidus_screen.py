@@ -327,6 +327,28 @@ CSS = u"""
  .nd-inc{width:auto}
  .nd-linha{flex-wrap:wrap}
 }
+/* Consensus/MPR layout adds no motion and preserves all existing animations. */
+.nd-consenso{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0}
+.nd-consenso small{flex-basis:100%;color:var(--text-muted)}
+.nd-consenso input[type=range]{flex:1 1 180px;min-width:100px}
+.nd-mpr-title{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.nd-consenso-linha{stroke:var(--success,#6fd08c);stroke-width:2;vector-effect:non-scaling-stroke}
+.nd-legenda .l.consenso{color:var(--success,#6fd08c)}
+.nd-consenso-vazio{flex-basis:100%;color:var(--text-muted);font-size:12px}
+.nd-consenso [hidden],#nd_layout_original[hidden],#nd_estado[hidden]{display:none}
+.nd-colB{overflow-y:auto;scrollbar-gutter:stable}
+.nd-colB > .nd-cima{flex:1 0 210px;min-height:210px}
+@media(max-width:1100px){.nd-colB > .nd-cima{flex:0 0 auto}}
+.nd-edit-trace{fill:none;stroke:var(--accent,#7fd1d6);stroke-width:2;vector-effect:non-scaling-stroke}
+.nd-palco .nd-edit-surface{pointer-events:none}
+.nd-palco.nd-editavel .nd-edit-surface{pointer-events:auto;cursor:crosshair}
+#nd_mpr_main{grid-column:1 / 3;grid-row:2;min-width:0;height:var(--nd-q,480px)}
+#nd_mpr_main > .p{height:100%;display:flex;flex-direction:column;gap:6px}
+#nd_mpr_main .nd-palco{width:100%;flex:1 1 auto;height:auto;min-height:0}
+#nd_mpr_main input[type=range]{width:100%}
+.nd-colA.nd-mpr-principal{grid-template-rows:20px var(--nd-q,480px)}
+.nd-colA.nd-mpr-principal > #nd_palco,.nd-colA.nd-mpr-principal > .nd-barra-v,
+.nd-colA.nd-mpr-principal > .nd-barra-h{display:none}
 @media (prefers-reduced-motion:reduce){.nd-estado.previa i{animation:none}}
 """
 
@@ -346,6 +368,8 @@ var ND = {b:'', chave:'', desc:'', porB:{}, lado:@LADO@, tem_osso:false,
           tabela:null, escolhendo:false,
           geo:null, ver:{lao:0, cra:0}, seguir:true, previa:false,
           previaNoAr:false, previaDepois:false, hu:true};
+ND.temperatura=50; ND.consensoEditavel=false; ND.consensoBusy=false;
+ND.consIndices={}; ND.consSeq={}; ND.principal=null; ND.consOperacao='add';
 ndPadroes();
 var ND_MODALIDADES = @MODALIDADES@;
 var ND_MIN_CORTES = @MIN_CORTES@;
@@ -387,7 +411,7 @@ function ndCopia(o){ return JSON.parse(JSON.stringify(o)) }
 function ndFoto(){
  return ndCopia({lao:ND.lao, cra:ND.cra, modo:ND.modo, jan:ND.jan, laje:ND.laje,
   inverter:ND.inverter, osso:ND.osso, caixa:ND.caixa, guardadas:ND.guardadas,
-  pontos:ND.pontos, sessao:ND.sessao});
+  pontos:ND.pontos, sessao:ND.sessao, temperatura:ND.temperatura, planos:ND.planos});
 }
 function ndPadroes(){
  for(var k in ND_PADROES) ND[k]=ND_PADROES[k];
@@ -401,7 +425,7 @@ function ndRegistrar(acao){
  var f=ndFoto();
  ND.historico.push({acao:acao, foto:f});
  while(ND.historico.length>ND_TETO_HISTORICO) ND.historico.shift();
- // GUARDA: só na aba (sessionStorage): o desenho não vai a disco nem a outra máquina.
+ // Este snapshot fica na aba; preparar/editar/exportar salva a sugestão privada explicitamente.
  try{ var s=window.sessionStorage; if(s) s.setItem(ndChaveSalva(), JSON.stringify(f)) }
  catch(e){}
 }
@@ -417,6 +441,8 @@ function ndAplicar(f, comDesenho){
  if(!f) return;
  ['lao','cra','modo','jan','laje','inverter','osso'].forEach(function(k){
   if(f[k]!==undefined && f[k]!==null) ND[k]=f[k] });
+ if(Number.isFinite(f.temperatura) && f.temperatura>=0 && f.temperatura<=100) ND.temperatura=f.temperatura;
+ if(f.planos) [0,1,2].forEach(function(axis){var p=f.planos[axis];if(Number.isFinite(p) && p>=0 && p<=1) ND.planos[axis]=p});
  ND.caixa=f.caixa?f.caixa.slice():null;
  if(comDesenho){
   ND.guardadas=(f.guardadas||[]).filter(Boolean).map(function(g){
@@ -1360,6 +1386,7 @@ function ndNomeDaIncidencia(g){
 }
 
 function ndPintarGuardadas(){
+ ndConsControles();
  var e=ndEl('nd_guardadas'); if(!e) return;
  if(!ND.guardadas.length){
   e.innerHTML='<span class="nd-vazio" data-radai-frase>'
@@ -1402,6 +1429,7 @@ function ndPintarLegenda(){
    h+='<span class="l '+ndCor(i)+'"><i></i><span translate="no">'+(i+1)+' · '+ndRotulo(g)+'</span></span>' });
   if(ND.guardadas.length>=2)
    h+='<span class="l inter"><i></i><span data-radai-frase>onde se cruzam</span></span>';
+  if(ND.sessao) h+='<span class="l consenso"><i></i><span data-radai-frase>sugestão geométrica</span></span>';
  }
  e.innerHTML=h;
  if(window.radaiRetraduzir) window.radaiRetraduzir();
@@ -1424,6 +1452,7 @@ function ndCalcular(refazer){
    ND.cruzando=false;
    if(!d || d.erro){ ndFalhaDaRetro((d && d.erro) ? String(d.erro) : 'sem resposta'); return }
    ND.sessao=d.sessao; ND.teto=d.teto||12;
+   ND.consensoEditavel=false; ND.consIndices={}; ndConsControles();
    g.forEach(function(x){ x.pendente=false });
    ndMarcarBom(); ndRegistrar('cruzar');
    var n=d.incidencias||g.length;
@@ -1486,10 +1515,11 @@ function ndLinhas(eixo){
  var g=ndEl('nd_lin'+eixo); if(!g) return;
  if(!ND.sessao){ g.innerHTML=''; return }
  var s=ND.sessao;
+ ND.consSeq[eixo]=(ND.consSeq[eixo]||0)+1; var seq=ND.consSeq[eixo], pos=ND.planos[eixo];
  fetch('/api/nidus/linhas?s='+encodeURIComponent(s)
-   +'&eixo='+eixo+'&pos='+ND.planos[eixo])
+   +'&eixo='+eixo+'&pos='+pos+'&temperatura='+ND.temperatura+'&editado='+(ND.consensoEditavel?'true':'false'))
   .then(function(r){return r.json()}).then(function(d){
-   if(s!==ND.sessao) return;
+   if(s!==ND.sessao || seq!==ND.consSeq[eixo] || pos!==ND.planos[eixo]) return;
    if(!d || d.erro){
     if(ND.cruzando) return;
     // GUARDA: a sessão que falha é refeita das incidências salvas UMA vez por ato; a segunda falha avisa e para.
@@ -1499,9 +1529,12 @@ function ndLinhas(eixo){
     return;
    }
    g.setAttribute('viewBox','0 0 '+d.largura+' '+d.altura);
+   ND.consIndices[eixo]=d.indice;
+   ndConsVazio(d.consenso_vazio===true);
+   var ed=ndEl('nd_ed'+eixo); if(ed) ed.setAttribute('viewBox','0 0 '+d.largura+' '+d.altura);
    var h='';
    (d.camadas||[]).forEach(function(cam){
-    var cls = cam.qual==='inter' ? 'nd-inter' : ('nd-tubo '+ndCor(cam.i||0));
+    var cls = cam.qual==='consenso' ? 'nd-consenso-linha' : cam.qual==='inter' ? 'nd-inter' : ('nd-tubo '+ndCor(cam.i||0));
     (cam.segmentos||[]).forEach(function(sg){
      h+='<line x1="'+sg[0][0]+'" y1="'+sg[0][1]+'" x2="'+sg[1][0]
        +'" y2="'+sg[1][1]+'" class="'+cls+'"/>';
@@ -1942,6 +1975,129 @@ function nd3Atraves(){
 }
 function nd3SalaPadrao(){ ND3.cam={yaw:120, pitch:16, dist:3050}; nd3Pedir() }
 
+function ndMaximizar(eixo){
+ if(eixo!==null && (!ND.sessao || ND.cruzando || ND.consensoBusy)) return;
+ var host=ndEl('nd_mpr_main'), box=ndEl('nd_proj_cx'); if(!host || !box) return;
+ if(ND.principal!==null){
+  var old=ndEl('nd_pane'+ND.principal), home=ndEl('nd_home'+ND.principal);
+  if(old && home) home.parentNode.insertBefore(old, home);
+ }
+ ND.principal=eixo;
+ if(eixo!==null){ var pane=ndEl('nd_pane'+eixo); if(pane) host.appendChild(pane) }
+ host.hidden=eixo===null; box.classList.toggle('nd-mpr-principal', eixo!==null);
+ var title=ndEl('nd_principal_t'); if(title) ndTexto(title, eixo===null?'projeção':['axial','coronal','sagital'][eixo]);
+ var rotation=ndEl('nd_rot_proj'); if(rotation) rotation.hidden=eixo!==null;
+ var state=ndEl('nd_estado'); if(state) state.hidden=eixo!==null;
+ var back=ndEl('nd_layout_original'); if(back) back.hidden=eixo===null;
+ ndAjustarTela(); nd3Pedir();
+}
+function ndConsControles(){
+ var ready=!!ND.sessao && !ND.cruzando && !ND.consensoBusy;
+ ['nd_cons_editar','nd_cons_exportar'].forEach(function(id){ var e=ndEl(id); if(e) e.disabled=!ready });
+ [0,1,2].forEach(function(axis){
+  var b=ndEl('nd_max'+axis); if(b) b.disabled=!ready;
+  var pane=ndEl('nd_pp'+axis); if(pane) pane.classList.toggle('nd-editavel', !!(ready && ND.consensoEditavel));
+ });
+ var slider=ndEl('nd_temperatura'); if(slider) slider.disabled=!ready || ND.consensoEditavel;
+ var temperature=ndEl('nd_temperatura_v'); if(temperature) temperature.textContent=String(ND.temperatura);
+ ['nd_cons_add','nd_cons_remove','nd_cons_undo','nd_cons_temperatura'].forEach(function(id){
+  var button=ndEl(id); if(button){ button.hidden=!ND.consensoEditavel; button.disabled=!ready } });
+ var add=ndEl('nd_cons_add'), remove=ndEl('nd_cons_remove');
+ if(add) add.setAttribute('aria-pressed', ND.consOperacao==='add'?'true':'false');
+ if(remove) remove.setAttribute('aria-pressed', ND.consOperacao==='remove'?'true':'false');
+ var exp=ndEl('nd_cons_exportar'); if(exp) ndTexto(exp, ND.consensoEditavel?'Exportar contorno editado':'Exportar sugestão');
+ if(!ND.sessao && ND.principal!==null) ndMaximizar(null);
+}
+function ndTemperatura(value){
+ if(ND.consensoEditavel || ND.consensoBusy) return;
+ ND.temperatura=Math.max(0,Math.min(100,+value||0)); ndConsControles();
+ ndConsVazio(false);ndRegistrar('temperatura');
+ clearTimeout(ND.consTimer); ND.consTimer=setTimeout(function(){[0,1,2].forEach(ndLinhas)},150);
+}
+function ndConsVazio(empty){var e=ndEl('nd_cons_vazio');if(e)e.hidden=!empty}
+async function ndConsPost(path, payload){
+ var response=await fetch('/neuro/api/status',{cache:'no-store'});
+ if(!response.ok) throw Error('A sessão da suíte não está disponível.');
+ var status=await response.json();
+ var result=await fetch('/api/nidus/consenso'+path,{method:'POST',
+  headers:{'Content-Type':'application/json','X-Neuro-Token':status.token},body:JSON.stringify(payload)});
+ var data=await result.json();
+ if(!result.ok) throw Error(data.detail||'Não foi possível concluir o consenso.');
+ return data;
+}
+async function ndEditarConsenso(){
+ if(!ND.sessao || ND.consensoBusy) return;
+ var session=ND.sessao; ND.consensoBusy=true; ndConsControles();
+ ndMsg('preparando o contorno na fila da suíte…','');
+ try{
+  var candidate=await ndConsPost('',{s:session,temperatura:ND.temperatura});
+  if(session!==ND.sessao) return;
+  ND.consensoEditavel=true;
+  ndConsVazio(candidate.empty===true);
+  ndMsg('sugestão pronta para editar: desenhe no axial, coronal ou sagital; o contorno continua não aprovado','ok');
+  [0,1,2].forEach(ndLinhas);
+ }catch(error){if(session===ND.sessao) ndMsg(String(error.message||error),'erro')}
+ finally{ND.consensoBusy=false;ndConsControles()}
+}
+function ndConsOperacao(operation){ND.consOperacao=operation;ndConsControles()}
+function ndVoltarTemperatura(){
+ if(ND.consensoBusy) return;
+ ND.consensoEditavel=false;ndConsControles();[0,1,2].forEach(ndLinhas);
+ ndMsg('o contorno editado foi conservado; preparar outra sugestão cria uma nova revisão','');
+}
+async function ndConsDesfazer(){
+ if(!ND.consensoEditavel || ND.consensoBusy) return;
+ ND.consensoBusy=true;ndConsControles();
+ try{await ndConsPost('/desfazer',{s:ND.sessao});[0,1,2].forEach(ndLinhas)}
+ catch(error){ndMsg(String(error.message||error),'erro')}
+ finally{ND.consensoBusy=false;ndConsControles()}
+}
+async function ndExportarConsenso(){
+ if(!ND.sessao || ND.consensoBusy) return;
+ var session=ND.sessao;ND.consensoBusy=true;ndConsControles();ndMsg('gravando RTSTRUCT na fila da suíte…','');
+ try{
+  var data=await ndConsPost('/exportar',{s:session,temperatura:ND.temperatura,editado:!!ND.consensoEditavel});
+  if(session!==ND.sessao) return;
+  var link=document.createElement('a');link.href=data.url;link.download='RS_Nidus_Sugestao.dcm';
+  document.body.appendChild(link);link.click();link.remove();
+  ndMsg('RTSTRUCT de sugestão não aprovada conferido na referência original','ok');
+ }catch(error){if(session===ND.sessao)ndMsg(String(error.message||error),'erro')}
+ finally{ND.consensoBusy=false;ndConsControles()}
+}
+function ndEditPoint(svg,event){
+ var point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;
+ point=point.matrixTransform(svg.getScreenCTM().inverse());var vb=svg.viewBox.baseVal;
+ return [Math.max(0,Math.min(1,point.x/vb.width)),Math.max(0,Math.min(1,point.y/vb.height))];
+}
+function ndEditPaint(trace){
+ var svg=ndEl('nd_ed'+trace.axis), vb=svg.viewBox.baseVal;
+ var points=trace.points.map(function(p){return (p[0]*vb.width)+','+(p[1]*vb.height)}).join(' ');
+ svg.innerHTML='<rect width="100%" height="100%" fill="transparent"/><polyline class="nd-edit-trace" points="'+points+'"/>';
+}
+function ndEditStart(axis,event){
+ if(!ND.consensoEditavel || ND.consensoBusy || event.button!==0 || !ND.forma) return;
+ var index=Math.round(ND.planos[axis]*(ND.forma[axis]-1));
+ if(ND.consIndices[axis]!==index) return;
+ var svg=ndEl('nd_ed'+axis);event.preventDefault();
+ if(svg.setPointerCapture)svg.setPointerCapture(event.pointerId);
+ ND.consTrace={axis:axis,index:index,points:[ndEditPoint(svg,event)],session:ND.sessao};ndEditPaint(ND.consTrace);
+}
+function ndEditMove(axis,event){
+ var trace=ND.consTrace;if(!trace || trace.axis!==axis || trace.points.length>=120)return;
+ var point=ndEditPoint(ndEl('nd_ed'+axis),event),last=trace.points[trace.points.length-1];
+ if(Math.hypot(point[0]-last[0],point[1]-last[1])>.005){trace.points.push(point);ndEditPaint(trace)}
+}
+async function ndEditEnd(axis,event){
+ var trace=ND.consTrace;if(!trace || trace.axis!==axis)return;ND.consTrace=null;
+ var svg=ndEl('nd_ed'+axis);svg.innerHTML='<rect width="100%" height="100%" fill="transparent"/>';
+ if(trace.points.length<3 || trace.session!==ND.sessao)return;
+ ND.consensoBusy=true;ndConsControles();
+ try{await ndConsPost('/editar',{s:trace.session,eixo:axis,indice:trace.index,pontos:trace.points,operacao:ND.consOperacao});
+  if(trace.session===ND.sessao)[0,1,2].forEach(ndLinhas)}
+ catch(error){ndMsg(String(error.message||error),'erro')}
+ finally{ND.consensoBusy=false;ndConsControles()}
+}
+
 // GUARDA: o visor quadrado e os três MPR cabem na altura que sobra, sem rolar a 1280 × 800.
 function ndAjustarTela(){
  var t=ndEl('nd_trabalho');
@@ -1971,7 +2127,8 @@ function ndAjustarTela(){
  if(sobra>0){ alto=Math.max(360, alto-sobra-1); t.style.setProperty('height', alto+'px');
   q=Math.floor(Math.max(240, Math.min(alto-89, rt.width*0.47))); t.style.setProperty('--nd-q', q+'px');
   p=lado(alto); t.style.setProperty('--nd-p', p+'px') }
- ndPadAjustar(); nd3Pedir(); ndZoomPrender(); ndZoomAplicar(); ndEnquadrar();
+ ndPadAjustar(); nd3Pedir();
+ if(ND.principal===null){ndZoomPrender();ndZoomAplicar();ndEnquadrar()}
 }
 
 window.addEventListener('DOMContentLoaded', function(){
@@ -2032,6 +2189,10 @@ window.addEventListener('DOMContentLoaded', function(){
   var s=ndEl('nd_pos'+eixo);
   if(s) s.addEventListener('input', function(){
    ND.planos[eixo]=+s.value/100; ndCorte(eixo, false) });
+  var edit=ndEl('nd_ed'+eixo);
+  if(edit){edit.addEventListener('pointerdown',function(e){ndEditStart(eixo,e)});
+   edit.addEventListener('pointermove',function(e){ndEditMove(eixo,e)});
+   edit.addEventListener('pointerup',function(e){ndEditEnd(eixo,e)})}
  });
  var ls=ndEl('nd_series');
  if(ls) ls.addEventListener('click', function(ev){
@@ -2085,7 +2246,13 @@ AJUDA_3D = (
 
 AJUDA_LINHAS = (
     u"A cor de cada linha diz de qual incidência ela veio. A linha mais forte "
-    u"é onde as duas se cruzam.")
+    u"é onde todas se cruzam. A linha verde é uma sugestão geométrica: "
+    u"temperatura 0 usa a união estrelada, e 100 usa a interseção total. "
+    u"Os ajustes intermediários reduzem a máscara por distâncias no plano "
+    u"das projeções, sem indicar probabilidade ou precisão clínica. "
+    u"Após gravar as incidências, cada MPR pode ocupar o visor principal. "
+    u"A sugestão pode ser editada por plano e exportada em RTSTRUCT não "
+    u"aprovado, na referência original, para revisão do usuário no TPS.")
 
 
 def _cabeca():
@@ -2215,11 +2382,13 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
 <div class="nd-trabalho" id="nd_trabalho">
 
  <section class="nd-cx nd-colA" id="nd_proj_cx" aria-label="proje&ccedil;&atilde;o">
-  <div class="nd-rot"><span data-radai-frase>proje&ccedil;&atilde;o</span>
+  <div class="nd-rot"><span id="nd_principal_t" data-radai-frase>proje&ccedil;&atilde;o</span>
    <b class="nd-leitura" id="nd_rot_proj" translate="no"><span id="nd_lao_v">LAO 0&deg;</span>
     &middot; <span id="nd_cra_v">CRA 0&deg;</span></b>
-   <span class="dir"><span class="nd-estado" id="nd_estado" role="status"><i></i><span
+   <span class="dir"><button type="button" class="nd-bt" id="nd_layout_original" onclick="ndMaximizar(null)" hidden
+    data-radai-frase>Layout original</button><span class="nd-estado" id="nd_estado" role="status"><i></i><span
     id="nd_estado_t" data-radai-frase>proje&ccedil;&atilde;o cheia</span></span></span></div>
+  <div id="nd_mpr_main" hidden></div>
   <div class="nd-palco inv" id="nd_palco">
    <div class="nd-zoom" id="nd_zoom">
     <img id="nd_proj" alt="" draggable="false">
@@ -2316,25 +2485,41 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
       aria-pressed="false">@ICO_CAIXA@<span data-radai-frase>Caixa de recorte</span></button>
      <button type="button" class="nd-bt" id="nd_caixa_limpar" onclick="ndCaixaLimpar()"
       data-radai-frase>Limpar recorte</button></span></div>
+   <div class="nd-consenso" aria-label="consenso geométrico">
+    <label for="nd_temperatura" data-radai-frase>Temperatura do consenso</label>
+    <input type="range" id="nd_temperatura" min="0" max="100" step="1" value="50" disabled oninput="ndTemperatura(this.value)">
+    <output id="nd_temperatura_v" for="nd_temperatura">50</output>
+    <small data-radai-frase>0: união estrelada · 100: interseção de todas. Critério geométrico de estudo, não probabilidade clínica.</small>
+     <span class="nd-consenso-vazio" id="nd_cons_vazio" role="status" hidden data-radai-frase>Consenso vazio: as incidências não deixam voxels em comum neste ajuste. Revise a temperatura ou edite a sugestão; não há contorno para exportar.</span>
+    <button type="button" class="nd-bt" id="nd_cons_editar" onclick="ndEditarConsenso()" disabled data-radai-frase>Editar sugestão</button>
+    <button type="button" class="nd-bt" id="nd_cons_add" onclick="ndConsOperacao('add')" hidden aria-pressed="true" data-radai-frase>Adicionar</button>
+    <button type="button" class="nd-bt" id="nd_cons_remove" onclick="ndConsOperacao('remove')" hidden aria-pressed="false" data-radai-frase>Remover</button>
+    <button type="button" class="nd-bt" id="nd_cons_undo" onclick="ndConsDesfazer()" hidden data-radai-frase>Desfazer edição</button>
+    <button type="button" class="nd-bt" id="nd_cons_temperatura" onclick="ndVoltarTemperatura()" hidden data-radai-frase>Voltar à temperatura</button>
+    <button type="button" class="nd-bt" id="nd_cons_exportar" onclick="ndExportarConsenso()" disabled data-radai-frase>Exportar sugestão</button>
+   </div>
    <div class="nd-planos">
-    <div class="p"><span data-radai-frase>axial</span>
+    <div class="p" id="nd_pane0"><div class="nd-mpr-title"><span data-radai-frase>axial</span><button type="button" class="nd-bt" id="nd_max0" onclick="ndMaximizar(0)" disabled data-radai-frase>Ampliar</button></div>
      <div class="nd-palco" id="nd_pp0"><img id="nd_pl0" alt="" draggable="false">
       <svg id="nd_lin0" preserveAspectRatio="xMidYMid meet"></svg>
-      <svg class="nd-cx-svg" id="nd_cx0" preserveAspectRatio="xMidYMid meet"></svg></div>
+      <svg class="nd-cx-svg" id="nd_cx0" preserveAspectRatio="xMidYMid meet"></svg>
+      <svg class="nd-edit-surface" id="nd_ed0" preserveAspectRatio="xMidYMid meet"><rect width="100%" height="100%" fill="transparent"/></svg></div>
      <input type="range" id="nd_pos0" min="0" max="100" value="50"
-      aria-label="corte axial"></div>
-    <div class="p"><span data-radai-frase>coronal</span>
+      aria-label="corte axial"></div><span id="nd_home0" hidden></span>
+    <div class="p" id="nd_pane1"><div class="nd-mpr-title"><span data-radai-frase>coronal</span><button type="button" class="nd-bt" id="nd_max1" onclick="ndMaximizar(1)" disabled data-radai-frase>Ampliar</button></div>
      <div class="nd-palco" id="nd_pp1"><img id="nd_pl1" alt="" draggable="false">
       <svg id="nd_lin1" preserveAspectRatio="xMidYMid meet"></svg>
-      <svg class="nd-cx-svg" id="nd_cx1" preserveAspectRatio="xMidYMid meet"></svg></div>
+      <svg class="nd-cx-svg" id="nd_cx1" preserveAspectRatio="xMidYMid meet"></svg>
+      <svg class="nd-edit-surface" id="nd_ed1" preserveAspectRatio="xMidYMid meet"><rect width="100%" height="100%" fill="transparent"/></svg></div>
      <input type="range" id="nd_pos1" min="0" max="100" value="50"
-      aria-label="corte coronal"></div>
-    <div class="p"><span data-radai-frase>sagital</span>
+      aria-label="corte coronal"></div><span id="nd_home1" hidden></span>
+    <div class="p" id="nd_pane2"><div class="nd-mpr-title"><span data-radai-frase>sagital</span><button type="button" class="nd-bt" id="nd_max2" onclick="ndMaximizar(2)" disabled data-radai-frase>Ampliar</button></div>
      <div class="nd-palco" id="nd_pp2"><img id="nd_pl2" alt="" draggable="false">
       <svg id="nd_lin2" preserveAspectRatio="xMidYMid meet"></svg>
-      <svg class="nd-cx-svg" id="nd_cx2" preserveAspectRatio="xMidYMid meet"></svg></div>
+      <svg class="nd-cx-svg" id="nd_cx2" preserveAspectRatio="xMidYMid meet"></svg>
+      <svg class="nd-edit-surface" id="nd_ed2" preserveAspectRatio="xMidYMid meet"><rect width="100%" height="100%" fill="transparent"/></svg></div>
      <input type="range" id="nd_pos2" min="0" max="100" value="50"
-      aria-label="corte sagital"></div>
+      aria-label="corte sagital"></div><span id="nd_home2" hidden></span>
     <div class="nd-legenda" id="nd_legenda" aria-label="legenda do MPR"
      title="linhas finas: o que foi retroprojetado"></div>
    </div>
@@ -2453,7 +2638,7 @@ TETO_MALHAS = 9
 TETO_MALHAS_MB = 24
 
 
-def montar(app):
+def montar(app, host_services=None):
     if getattr(app, "_neuro_nidus_screen_mounted", False):
         return app
     import threading
@@ -2559,6 +2744,11 @@ def montar(app):
                     _RECUSADAS.popitem(last=False)
                 raise
             serie.chave_estavel = chave_da_serie(pasta, uid or u"")
+            try:
+                from neuro_rt.nidus_geometry import source_signature
+                serie.nidus_source_signature = source_signature(pasta, uid)
+            except (OSError, ValueError):
+                serie.nidus_source_signature = None
             _ler_osso(serie, pasta, uid or u"")
             _ABERTA.update({"chave": chave, "serie": serie,
                             "visto": time.time()})
@@ -2874,6 +3064,9 @@ def montar(app):
             chave = "%s|%d" % (b, next(_PROXIMA))
             _SESSOES[chave] = {"tubos": masc, "angulos": angulos,
                                "forma": serie.forma, "mm": serie.mm,
+                               "b": b, "consenso": await radai_web.no_threadpool(
+                                   lambda: N.consenso(serie.img, incs, lado=lado)),
+                               'source_signature': getattr(serie, 'nidus_source_signature', None),
                                "inter": (N.intersecao(masc)
                                          if len(masc) > 1 else None)}
             _ORDEM.append(chave)
@@ -2888,7 +3081,8 @@ def montar(app):
             return {"erro": _falhou(u"retroprojeção", b, e)}
 
     @app.get("/api/nidus/linhas")
-    def _linhas(s: str = "", eixo: int = 0, pos: float = 0.5):
+    def _linhas(s: str = "", eixo: int = 0, pos: float = 0.5,
+                temperatura: float = 50., editado: bool = False):
         try:
             import radai_nidus as N
             ses = _SESSOES.get(s)
@@ -2912,11 +3106,31 @@ def montar(app):
                 camadas.append({"qual": "inter", "i": -1,
                                 "segmentos": N.escalar(N.contorno_do_tubo(
                                     ses["inter"], eixo, i), fl, fc)})
+            if ses.get("consenso") is not None:
+                from neuro_rt.nidus_geometry import contour_segments
+                candidato = ses.get('candidato') if editado else None
+                plano = (candidato.plane(eixo, i) if candidato is not None else
+                         ses['consenso'].plane(temperatura, eixo, i))
+                camadas.append({'qual': 'consenso', 'i': -2,
+                    'segmentos': N.escalar(contour_segments(plano), fl, fc)})
+            empty = None
+            if editado and ses.get('candidato') is not None:
+                empty = not bool(ses['candidato'].packed.bits.any())
+            elif temperatura == 100:
+                common = ses.get('inter') if len(ses['tubos']) > 1 else ses['tubos'][0]
+                empty = common is not None and not bool(common.bits.any())
             return {"altura": alt, "largura": larg,
                     "camadas": camadas, "corte": i, "n": n,
-                    "incidencias": len(ses["tubos"])}
+                    "incidencias": len(ses["tubos"]), 'indice': i,
+                    'temperatura': temperatura, 'consenso_vazio': empty}
         except Exception as e:
             return {"erro": u"%s: %s" % (type(e).__name__, str(e)[:200])}
 
+    if host_services is not None:
+        from integration.nidus_consensus import attach_consensus_api
+        def resolver_consenso(b):
+            import radai_thumbnail
+            return radai_thumbnail.resolver(b)
+        attach_consensus_api(app, _SESSOES, resolver_consenso)
     app._neuro_nidus_screen_mounted = True
     return app

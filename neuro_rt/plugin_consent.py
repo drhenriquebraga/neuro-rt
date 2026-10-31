@@ -12,15 +12,17 @@ from pathlib import Path
 import stat
 import tempfile
 
-VERSION = '1.0'
+VERSION = '1.1'
 STAGES = ('installation', 'first_use')
 CLAUSES = (
     ('scope', 'NEURO RT é um plugin de estudo e pesquisa da Local Suite. Nesta entrega, '
-     'somente Nidus RT está habilitado. Glioma, Metastasis, Meningioma e Anatomia '
-     'permanecem em construção.'),
+     'Nidus, Glioma, Metastasis, Meningioma e Anatomia estão em fase de testes. '
+     'As ferramentas ainda estão sendo moldadas; a participação é voluntária e '
+     'cada entrada solicita a confirmação desta fase.'),
     ('nidus', 'Nidus RT realiza construção geométrica a partir das entradas escolhidas '
-     'pelo usuário. Não detecta lesões. A interseção é uma referência visual e não é '
-     'exportada como volume alvo, GTV ou CTV.'),
+     'pelo usuário. Não detecta lesões. O consenso ajustável entre união e interseção '
+     'das projeções é uma sugestão geométrica; sua exportação para RTSTRUCT exige '
+     'ação explícita, permanece UNAPPROVED e não cria CTV.'),
     ('clinical', 'Não é software médico registrado e não substitui o fluxo clínico do '
      'serviço. Resultados são sugestões não aprovadas (UNAPPROVED). Nenhuma tela '
      'aprova contornos. Revisão e aprovação para tratamento são atos do profissional '

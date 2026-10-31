@@ -48,7 +48,7 @@ class PluginConsentTests(unittest.TestCase):
 
     def test_policy_keeps_boundaries_and_does_not_replace_component_licenses(self):
         text = json.dumps(consent.policy(), ensure_ascii=False)
-        for term in ('Nidus', 'UNAPPROVED', 'TPS', 'MIT', 'Apache', 'licenças', 'interseção', 'em construção'):
+        for term in ('Nidus', 'UNAPPROVED', 'TPS', 'MIT', 'Apache', 'licenças', 'interseção', 'fase de testes'):
             self.assertIn(term, text)
         self.assertEqual(consent.policy()['digest'], consent.policy()['digest'])
 

@@ -1,0 +1,68 @@
+{
+  "schema": "neuro-rt/delivery/1",
+  "version": "1.1.0",
+  "phase": "testing",
+  "verified_at_utc": "2026-10-31T00:26:08.360126+00:00",
+  "source_commit": "f30abe1f8f7eead794b684e18b3e020b6f20b1f4",
+  "release_tag_commit": "9933668b4739b94790179ddb46643bd36ed3390d",
+  "suite": {
+    "id": 429610974,
+    "tag": "v8.12",
+    "url": "https://github.com/drhenriquebraga/local-suite/releases/tag/v8.12",
+    "target_commitish": "5540207ec79632a4e743031b7f14ad1f15deadb9",
+    "draft": false,
+    "prerelease": false,
+    "latest_verified_anonymously": true,
+    "assets": [
+      {
+        "id": 693856161,
+        "name": "RADIOTERAPIA_AI_LOCAL_SUITE_SETUP_LATEST.zip",
+        "size": 6163855,
+        "digest": "sha256:f9a988b794653865ead71257e15a357d4960b87d16d4f2c4d3db860c7a34d708"
+      },
+      {
+        "id": 693856163,
+        "name": "RADIOTERAPIA_AI_LOCAL_SUITE_SETUP_v8.12.zip",
+        "size": 6163855,
+        "digest": "sha256:f9a988b794653865ead71257e15a357d4960b87d16d4f2c4d3db860c7a34d708"
+      }
+    ]
+  },
+  "neuro": {
+    "id": 429610123,
+    "tag": "v1.1.0",
+    "url": "https://github.com/drhenriquebraga/neuro-rt/releases/tag/v1.1.0",
+    "target_commitish": "9933668b4739b94790179ddb46643bd36ed3390d",
+    "draft": false,
+    "prerelease": false,
+    "latest_verified_anonymously": true,
+    "assets": [
+      {
+        "id": 693852477,
+        "name": "NEURO_RT_SETUP_LATEST.zip",
+        "size": 487660,
+        "digest": "sha256:6ab9b9af7c3b4233fc11fe369410debf805087fd4931a4bacac8b13b176910e7"
+      },
+      {
+        "id": 693852476,
+        "name": "NEURO_RT_SETUP_v1.1.0.zip",
+        "size": 487660,
+        "digest": "sha256:6ab9b9af7c3b4233fc11fe369410debf805087fd4931a4bacac8b13b176910e7"
+      }
+    ]
+  },
+  "default_sdk_latest_lookup_verified": true,
+  "selected_asset_id": 693852476,
+  "promotion_order": "Local Suite 8.12 Latest was confirmed before NEURO RT 1.1.0 was promoted.",
+  "offline_bundle_publication": false,
+  "python_included_in_neuro_setup": false,
+  "latest_alias_redirect_peer_check": "verified",
+  "install_verification_sha256": "74e30a7623b77ad0892ebdb33ea90c385a3afd7a4e8de91e895d46b405e84bce",
+  "post_promotion_verification": {
+    "success": true,
+    "peer_receipt_sha256": "c7fb802307169d6a1d279df163f1959fc86a9658868c56b673936993e870ba59",
+    "default_sdk_real_download": true,
+    "neuro_latest_alias_identical": true,
+    "suite_owner_and_repository_alias_downloads_verified": true
+  }
+}
