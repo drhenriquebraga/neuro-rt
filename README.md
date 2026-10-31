@@ -2,10 +2,11 @@
 
 Primeiro plugin opcional da suíte. A versão **1.1.0 está em fase de testes e exige
 Local Suite 8.12**. Inclui Nidus RT, Glioma RT, Metastasis RT, Meningioma RT e
-Anatomia RT. Os resultados dos gates estão na
-[validação consolidada](docs/FINAL_VALIDATION_v1.1.0.json); a publicação dos
-instaladores permanece uma etapa separada no
-[plano desta fase](docs/superpowers/plans/2026-10-30-neuro-beta-110.md).
+Anatomia RT. Os [instaladores 1.1.0](https://github.com/drhenriquebraga/neuro-rt/releases/tag/v1.1.0)
+estão publicados e disponíveis pela atualização da suíte. Instale primeiro a
+[Local Suite 8.12](https://github.com/drhenriquebraga/local-suite/releases/tag/v8.12).
+Os resultados e limites estão na [validação consolidada](docs/FINAL_VALIDATION_v1.1.0.json)
+e no [registro da entrega](docs/DELIVERY_v1.1.0.json).
 A instalação fica em `Plugins/NEURO RT`; navegação,
 fila, carregamento de séries, configurações e visores pertencem ao Local Suite.
 

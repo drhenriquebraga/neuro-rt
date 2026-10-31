@@ -4,7 +4,7 @@
   "date": "2026-10-30",
   "phase": "testing",
   "host_minimum_version": "8.12",
-  "publication_status": "pending",
+  "publication_status": "published",
   "scope": "Functional and geometry verification on synthetic data, final installer identities and separately scoped source, inference and isolated host-maintenance checks. Browser launch in the maintenance fixture is instrumented; no clinical accuracy or workstation restart is claimed.",
   "contract_matrices": [
     {
@@ -484,7 +484,15 @@
     },
     {
       "file": "docs/INSTALL_VERIFICATION_v1.1.0.json",
-      "sha256": "eced6272b3fd9ab66b912280c3abb718b0485293839ca384a937c5c4e30994bf"
+      "sha256": "74e30a7623b77ad0892ebdb33ea90c385a3afd7a4e8de91e895d46b405e84bce"
+    },
+    {
+      "file": "docs/ANONYMOUS_RELEASE_v1.1.0.json",
+      "sha256": "4064b473378664b9536e3be3fc5612ae0aae79c7852eb98876c0ee019ac722d6"
+    },
+    {
+      "file": "docs/DELIVERY_v1.1.0.json",
+      "sha256": "e88625d2982cfeb5c1b8ba6dfa14e7d59a29a6a654a5d97e1ab38e7c848620cf"
     }
   ],
   "limits": [
@@ -497,10 +505,7 @@
     "GUI operation states were simulated where explicitly stated; SDK and real inference gates are separate.",
     "Tested snapshots are identified by their receipts; later affected changes require corresponding checks."
   ],
-  "pending_release_steps": [
-    "Complete the peer-host real online download/install check for the final public SETUP.",
-    "Promote Local Suite 8.12 first and NEURO RT 1.1.0 afterward; keep offline bundles local."
-  ],
+  "pending_release_steps": [],
   "final_installer_asset_hashes_included": true,
   "sanitization": {
     "patient_data": false,
@@ -608,7 +613,7 @@
       "sdk_sources_match_final_code": true,
       "ui_matches_final_code": true
     },
-    "publication_status": "pending",
+    "publication_status": "published",
     "peer_powershell_or_online_execution_confirmed": true
   },
   "source_ci": {
@@ -695,7 +700,7 @@
   "peer_installer_validation": {
     "receipt_file": "docs/INSTALL_VERIFICATION_v1.1.0.json",
     "offline_success": true,
-    "online_success": false,
+    "online_success": true,
     "browser_launch_instrumented": true,
     "base_files_unchanged": 279,
     "nine_embedded_sources_and_ui_identical": true
