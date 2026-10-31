@@ -176,10 +176,13 @@ modalidade. Classificação incerta não é ausência de volume. Preparação us
 do host; registros são explícitos em coordenadas físicas LPS. As máscaras voltam à
 grade completa da referência e são verificadas antes da entrega.
 
-A fila dá uma concessão por item; os modelos rodam sequencialmente. Workers usam
-runtimes fixados, processo oculto e, no Windows, JobObject com handshake antes da
-entrada científica. O cancelamento encerra e confirma os descendentes antes de
-liberar a vez. Falhas independentes não descartam saídas válidas dos demais.
+A fila dá uma concessão por item; os modelos rodam sequencialmente. Na fase1.1.0,
+os workers usam o mesmo Python da suíte completa, CODE explícito e flags -I/-B.
+Somente extras ausentes e compatíveis são acrescentados ao final dos caminhos de
+importação; bibliotecas da base mantêm prioridade. O processo científico é oculto
+e, no Windows, recebe JobObject com handshake antes da entrada científica.
+O cancelamento encerra e confirma os descendentes antes de liberar a vez.
+Falhas independentes não descartam saídas válidas dos demais.
 
 O store publica revisões completas, preserva anteriores e resolve artefatos por
 IDs opacos. Retry só reutiliza entradas/máscaras íntegras e fingerprints iguais.
@@ -215,7 +218,11 @@ explícito; nenhum token viaja no código. Sem rede, uma versão íntegra contin
 utilizável. A atualização respeita a fila e a reabertura controlada do host. Consulte
 `installer/PACKAGE_FORMAT.md` e `docs/IMPLEMENTACAO_PLUGIN.md` para estado e provas.
 
-O contrato comum exige Python 3.10 ou posterior. Os runtimes científicos são
-separados e têm versões próprias fixadas; essa exigência não autoriza atualizar o
-Python do host para satisfazer um motor. GPU e outras estações/Windows precisam
-de suas provas próprias antes de serem anunciadas como compatíveis.
+O contrato comum exige Python3.10 ou posterior e a fase1.1.0 requer Local Suite8.12.
+O plugin não baixa outro Python, não cria venv e não sobrescreve ou rebaixa as
+bibliotecas da suíte. Receitas fixam fontes, versões, tamanhos, SHA256 e licenças
+dos extras e pesos. Um conflito com a base é apresentado antes da preparação.
+O modo legado de runtimes privados pertence às revisões anteriores; sua presença
+no contrato de compatibilidade não descreve a instalação1.1.0. GPU e outras
+estações/Windows precisam de suas provas próprias antes de serem anunciadas como
+compatíveis. Consulte `docs/FINAL_VALIDATION_v1.1.0.json` para os escopos testados.

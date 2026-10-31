@@ -1,0 +1,44 @@
+{
+  "schema": "neuro-rt/install-verification/3",
+  "version": "1.1.0",
+  "host_min_version": "8.12",
+  "source_commit": "f30abe1f8f7eead794b684e18b3e020b6f20b1f4",
+  "setup_bytes": 487660,
+  "setup_sha256": "6ab9b9af7c3b4233fc11fe369410debf805087fd4931a4bacac8b13b176910e7",
+  "code_inventory_sha256": "7956e22d512593be49caabd30a19761370b21016f30ecdf8dfe4c5dece405914",
+  "generated_bootstrap_sha256": "891bb27d0e70c9afa5de9bc6c1fa5262d96f6edab011b3ad872dcfb8ab7c3955",
+  "host_formatted_bootstrap_sha256": "929827e0d79e4c7128c17ecde6892f4041968df90f91f3f8b5ce2658db79f278",
+  "nine_embedded_sources_and_ui_identical": true,
+  "peer_receipt_sha256": "cb30802ca325bef9b1a87f701f2a64e518ceb856b5774a5222578bd48c0ebb50",
+  "offline_validation": {
+    "success": true,
+    "real_powershell": true,
+    "real_parent_exit": true,
+    "real_worker": true,
+    "real_sdk": true,
+    "same_installed_python": true,
+    "python_copied": false,
+    "new_venv": false,
+    "base_files_unchanged": 279,
+    "active_version": "1.1.0",
+    "resource_recipe": "646448fa58efe33435ebba60c9248626fcb61529b2db678ab6bec00ad9bf39cc",
+    "model_directories": 10,
+    "capabilities_available": 6,
+    "offline_component_progress_observed": true,
+    "browser_mocked": true,
+    "new_window_requested": true,
+    "station_closed": false,
+    "inference_executed": false,
+    "elapsed_seconds": 72.688
+  },
+  "local_bundle": {
+    "public_asset": false,
+    "payload_files": 183,
+    "payload_bytes": 771180891,
+    "python_included": false
+  },
+  "scope": "Real PowerShell, SDK, activation, parent exit and loopback reopen verification in an isolated Suite fixture. Browser launch is instrumented; the clinical workstation was not closed. Inference has separate receipts.",
+  "online_validation": {
+    "status": "pending_public_release"
+  }
+}

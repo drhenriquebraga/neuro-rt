@@ -1,0 +1,703 @@
+{
+  "schema": "neuro-rt/final-validation/1",
+  "version": "1.1.0",
+  "date": "2026-10-30",
+  "phase": "testing",
+  "host_minimum_version": "8.12",
+  "publication_status": "pending",
+  "scope": "Functional and geometry verification on synthetic data, final installer identities and separately scoped source, inference and isolated host-maintenance checks. Browser launch in the maintenance fixture is instrumented; no clinical accuracy or workstation restart is claimed.",
+  "contract_matrices": [
+    {
+      "python": "3.10.11",
+      "success": true,
+      "families": 32,
+      "tests_run": 259,
+      "tests_passed": 257,
+      "skipped": 2,
+      "failures": 0,
+      "errors": 0,
+      "sum_suite_seconds": 110.125,
+      "workflow_sha256": "4bec5ae82aec25802da67e5da6f74f308f17ace8812b79d923dfbc796e6ad500",
+      "receipt_sha256": "f481219b2a27ccd1e98ce962ebe589ceb97904f95ad5d833240ca8435b47e798",
+      "suite_names": [
+        "test_study_contracts",
+        "test_plugin_manifest",
+        "test_plugin_paths",
+        "test_plugin_install",
+        "test_plugin_update",
+        "test_release_manifest",
+        "test_plugin_consent",
+        "test_tool_availability",
+        "test_installer_consent",
+        "test_install_progress",
+        "test_update_diagnostics",
+        "test_install_cleanup",
+        "test_host_shared_settings",
+        "test_host_install_state",
+        "test_setup_release_client",
+        "test_web_setup",
+        "test_setup_powershell",
+        "test_beta_manifest",
+        "test_resource_paths",
+        "test_resource_preparation",
+        "test_host_worker_resources",
+        "test_external_install",
+        "test_external_bootstrap",
+        "test_external_provider",
+        "test_setup_wizard",
+        "test_plugin_loader",
+        "test_beta_access",
+        "test_plugin_access",
+        "test_start_here_gui",
+        "test_settings_update_ui",
+        "test_install_progress_ui",
+        "test_consent_update_ui"
+      ],
+      "skipped_families": [
+        {
+          "suite": "test_plugin_manifest",
+          "count": 1
+        },
+        {
+          "suite": "test_plugin_paths",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "python": "3.12.10",
+      "success": true,
+      "families": 26,
+      "tests_run": 241,
+      "tests_passed": 237,
+      "skipped": 4,
+      "failures": 0,
+      "errors": 0,
+      "sum_suite_seconds": 84.11,
+      "workflow_sha256": "4bec5ae82aec25802da67e5da6f74f308f17ace8812b79d923dfbc796e6ad500",
+      "receipt_sha256": "8e8bf0a4d8d6b0abeb6ea63abb97be712309025ee8360e1f771d5a4b2e13bd99",
+      "suite_names": [
+        "test_study_contracts",
+        "test_plugin_manifest",
+        "test_plugin_paths",
+        "test_plugin_install",
+        "test_plugin_update",
+        "test_release_manifest",
+        "test_plugin_consent",
+        "test_tool_availability",
+        "test_installer_consent",
+        "test_install_progress",
+        "test_update_diagnostics",
+        "test_install_cleanup",
+        "test_host_shared_settings",
+        "test_host_install_state",
+        "test_setup_release_client",
+        "test_web_setup",
+        "test_setup_powershell",
+        "test_beta_manifest",
+        "test_resource_paths",
+        "test_resource_preparation",
+        "test_host_worker_resources",
+        "test_external_install",
+        "test_external_bootstrap",
+        "test_external_provider",
+        "test_setup_wizard",
+        "test_plugin_loader"
+      ],
+      "skipped_families": [
+        {
+          "suite": "test_plugin_manifest",
+          "count": 1
+        },
+        {
+          "suite": "test_plugin_paths",
+          "count": 1
+        },
+        {
+          "suite": "test_host_shared_settings",
+          "count": 1
+        },
+        {
+          "suite": "test_setup_powershell",
+          "count": 1
+        }
+      ]
+    }
+  ],
+  "matrix_counts_overlap": true,
+  "skip_disposition": {
+    "symlink": "Two Windows symlink-creation checks lack the required OS privilege in both interpreters; Windows junction checks passed.",
+    "python312_base_only": "FastAPI host-adapter and complete-base PowerShell checks are skipped only in the parallel Python3.12 environment; both passed in the complete Python3.10 Suite matrix."
+  },
+  "models": {
+    "full_original_weight_runs": 10,
+    "device": "cpu",
+    "nonempty_results": 5,
+    "empty_results": 5,
+    "execution_boundary": "These ten adapter checks launched Settings.worker_command directly. The installed production ManagedProcess, real shared queue, DICOM import, RTSTRUCT and MPR chain is independently verified for one real model in PRODUCTION_HOST_E2E_v1.1.0.json.",
+    "network": "Blocked during every full model worker run.",
+    "results": [
+      {
+        "id": "MRI_GBM",
+        "status": "empty",
+        "seconds": 108.65639,
+        "geometry_valid": true,
+        "returned_masks": 0,
+        "restored_classes": 0,
+        "evidence_sha256": "b36c3e7d682391ad25d2153341efb7d9401062af92cec9e74df73e3ae28e3bff"
+      },
+      {
+        "id": "MRI_LGGlioma",
+        "status": "completed",
+        "seconds": 66.422743,
+        "geometry_valid": true,
+        "returned_masks": 1,
+        "restored_classes": 1,
+        "evidence_sha256": "3e3728ba665798a9d6da7eec22753a7a76ca8716422a73b84d2bd978a61c8fa7"
+      },
+      {
+        "id": "MRI_Meningioma",
+        "status": "completed",
+        "seconds": 29.203309,
+        "geometry_valid": true,
+        "returned_masks": 1,
+        "restored_classes": 1,
+        "evidence_sha256": "03f4a224fce5e378471d03d0a40e6d6d4d8139581d3e96edd34cc5b1cd062ed9"
+      },
+      {
+        "id": "MRI_Metastasis",
+        "status": "completed",
+        "seconds": 76.796929,
+        "geometry_valid": true,
+        "returned_masks": 1,
+        "restored_classes": 1,
+        "evidence_sha256": "15e6f07f60322a3ca992359a6b7d8c61b539ef81c732fb22d524f71b57103316"
+      },
+      {
+        "id": "MRI_GBM_Postop_FV_1p",
+        "status": "empty",
+        "seconds": 28.766755,
+        "geometry_valid": true,
+        "returned_masks": 0,
+        "restored_classes": 0,
+        "evidence_sha256": "f850ba24d3eb70ea523028754c9bbf102101d7ebf2a9db082b5fd1447db4cd47"
+      },
+      {
+        "id": "MRI_GBM_Postop_FV_3p",
+        "status": "empty",
+        "seconds": 23.883577,
+        "geometry_valid": true,
+        "returned_masks": 0,
+        "restored_classes": 1,
+        "evidence_sha256": "ffc4c9b69a0fd45cdb9dbfbefe2382e783606ea78324f62f8afa52d56c5bc535"
+      },
+      {
+        "id": "glioma_attention_unet3d",
+        "status": "completed",
+        "seconds": 59.900582,
+        "geometry_valid": true,
+        "returned_masks": 3,
+        "restored_classes": 3,
+        "evidence_sha256": "e39d5cd50f12362042fb4fcde81cd79f25d10074e90cf4d66e6ed44529c855ab"
+      },
+      {
+        "id": "anatomy_synthseg",
+        "status": "empty",
+        "seconds": 113.560912,
+        "geometry_valid": true,
+        "returned_masks": 0,
+        "restored_classes": 32,
+        "evidence_sha256": "92c3f20c01803039bdf84619d353f5e73108fffc610f820792312cf32f700161"
+      },
+      {
+        "id": "anatomy_cerebra_ants",
+        "status": "completed",
+        "seconds": 39.801709,
+        "geometry_valid": true,
+        "returned_masks": 33,
+        "restored_classes": 102,
+        "evidence_sha256": "b4e23604508c7f23ea0c4d2754ada019409160a26f1d9d17d554d6ed4a6ecdaa"
+      },
+      {
+        "id": "cranio_buti",
+        "status": "empty",
+        "seconds": 52.867673,
+        "geometry_valid": true,
+        "returned_masks": 0,
+        "restored_classes": 8,
+        "evidence_sha256": "c862a3de78fa87082da85ac1c974f016dbcf4672d96d65b9829a691be817f769"
+      }
+    ],
+    "empty_result_interpretation": "An empty result means no contours were produced on that phantom; it is not evidence of anatomical accuracy or absence of disease."
+  },
+  "shared_base": {
+    "python": "3.10.11",
+    "versions": {
+      "numpy": "1.26.4",
+      "scipy": "1.15.3",
+      "SimpleITK": "2.5.6",
+      "torch": "2.5.1+cu121",
+      "monai": "1.4.0",
+      "dipy": "1.11.0"
+    },
+    "new_python_or_venv": false,
+    "base_libraries_reinstalled_or_downgraded": false,
+    "base_snapshot": {
+      "files_checked": 140,
+      "unchanged": true,
+      "scope": "Python executable/DLL, six protected package initializers and installed distribution metadata during resource preparation; not a whole-drive audit.",
+      "evidence_sha256": "2ac44abf3315bc39ab6939c685a754cc9867bac450f1315f781ca1201d47d3af"
+    },
+    "extra_wheels": 12,
+    "extra_download_bytes": 30856290,
+    "buti_uses_existing_host_weights": true,
+    "raidionics_simpleitk_exception": "Original wheel runtime code retained; upstream dependency cap is an explicit Neuro host-compatibility exception verified by these synthetic full runs. No base downgrade or resolver was invoked."
+  },
+  "installed_production_chain": {
+    "status": "completed",
+    "installed_code_version": "1.1.0",
+    "host_version": "8.12",
+    "same_host_python": true,
+    "code_imported_from_installed_release": true,
+    "real_host_queue": true,
+    "model_boundary_mocked": false,
+    "source_slices": 24,
+    "elapsed_seconds": 33.694172999996226,
+    "rtstruct_files": 1,
+    "approval_status": "UNAPPROVED",
+    "source_series_reference_valid": true,
+    "frame_of_reference_valid": true,
+    "contour_sop_references_valid": true,
+    "referenced_contour_sops": 14,
+    "returned_rois": 1,
+    "mpr_planes": 3,
+    "mesh_artifacts": 1,
+    "viewer_artifact_http_reopened": true,
+    "opaque_artifacts_no_private_paths": true,
+    "history_revision_reopened": true,
+    "queue_state": "pronto",
+    "queue_heavy_lease_released": true,
+    "workers_reaped_before_release": true,
+    "managed_processes": [
+      {
+        "same_host_python": true,
+        "isolated_flag_before_entry": true,
+        "no_bytecode_flag_before_entry": true,
+        "job_object_owned": true,
+        "entry_from_installed_code": true,
+        "observed_stage": "preparing"
+      },
+      {
+        "same_host_python": true,
+        "isolated_flag_before_entry": true,
+        "no_bytecode_flag_before_entry": true,
+        "job_object_owned": true,
+        "entry_from_installed_code": true,
+        "observed_stage": "preparing"
+      },
+      {
+        "same_host_python": true,
+        "isolated_flag_before_entry": true,
+        "no_bytecode_flag_before_entry": true,
+        "job_object_owned": true,
+        "entry_from_installed_code": true,
+        "observed_stage": "exporting"
+      },
+      {
+        "same_host_python": true,
+        "isolated_flag_before_entry": true,
+        "no_bytecode_flag_before_entry": true,
+        "job_object_owned": true,
+        "entry_from_installed_code": true,
+        "observed_stage": "visualizing"
+      }
+    ]
+  },
+  "nidus": {
+    "python_tests": 24,
+    "root_rerun_seconds": 7.202,
+    "chrome_checks": 9,
+    "chrome_page_errors": 0,
+    "viewports": [
+      "1280x800",
+      "1024x768"
+    ],
+    "synthetic_only": true,
+    "limits": [
+      "No clinical accuracy claim",
+      "No GPU or clinical study tested",
+      "Synchronous host RTSTRUCT writer cancellation checked before and after",
+      "Private candidate files do not automatically reopen a session after restart"
+    ]
+  },
+  "gui": {
+    "start_here": {
+      "tests": 3,
+      "recorded_seconds": 3.308,
+      "root_rerun_seconds": 3.563,
+      "powershell": "Windows PowerShell 5.1",
+      "root_visual_review": true,
+      "checks": [
+        "PS5.1 parser",
+        "unchecked consent before downloads",
+        "real button events",
+        "real timer progress and elapsed time",
+        "valid counters and progress below100 until final success",
+        "cooperative cancellation and close awaiting child",
+        "persistent error without raw paths",
+        "new destination only",
+        "same Suite Python",
+        "real argument quoting unicode/quotes/backslashes/empty",
+        "interactive CLI inherited console",
+        "resize without clipped controls",
+        "real backend describe loads policy and licenses without preparation"
+      ],
+      "limits": [
+        "offline operation/process states simulated in GUI smoke",
+        "only describe and harmless JSON echo executed in the real interpreter",
+        "full SDK offline and maintenance integration are separate gates"
+      ]
+    },
+    "five_card_access": {
+      "shared_interpreter": true,
+      "first_use": true,
+      "five_tool_acknowledgements": true,
+      "protected_post": true,
+      "no_clinical_data": true,
+      "models_or_dicom_processed": false,
+      "tool_pages_synthetic": true,
+      "httpx_installed_or_used": false
+    }
+  },
+  "synthseg": {
+    "revision": "407e9319cbfe3d05304682d317363ecd09a83fdc-host1",
+    "tests": 11,
+    "root_tests": 11,
+    "root_rerun_seconds": 5.228,
+    "architecture_ast_equal": true,
+    "scientific_methods_ast_equal": true,
+    "geometry_bit_equal_to_pinned_source": true,
+    "parameters": 13240641,
+    "checkpoint_tensors": 83,
+    "forward_finite": true,
+    "full192": {
+      "status": "empty",
+      "restored_classes": 32,
+      "returned_masks": 0,
+      "seconds": 113.56091180001386,
+      "python": "3.10.11",
+      "base_versions": {
+        "numpy": "1.26.4",
+        "scipy": "1.15.3",
+        "SimpleITK": "2.5.6",
+        "torch": "2.5.1+cu121",
+        "monai": "1.4.0",
+        "dipy": "1.11.0"
+      },
+      "same_host_interpreter": true,
+      "geometry_valid": true,
+      "evidence_sha256": "92c3f20c01803039bdf84619d353f5e73108fffc610f820792312cf32f700161"
+    },
+    "limits": [
+      "Synthetic phantom only; no clinical accuracy claim",
+      "No GPU validation"
+    ]
+  },
+  "offline_local_assembly": {
+    "state": "ready",
+    "seconds": 75.11,
+    "local_only": true,
+    "files": 183,
+    "payload_bytes": 771180891,
+    "categories": {
+      "code": {
+        "bytes": 1449888,
+        "files": 99
+      },
+      "launchers": {
+        "bytes": 352,
+        "files": 1
+      },
+      "metadata": {
+        "bytes": 13374,
+        "files": 1
+      },
+      "models": {
+        "bytes": 738849629,
+        "files": 69
+      },
+      "notices": {
+        "bytes": 11358,
+        "files": 1
+      },
+      "wheels": {
+        "bytes": 30856290,
+        "files": 12
+      }
+    },
+    "code_inventory_sha256": "7956e22d512593be49caabd30a19761370b21016f30ecdf8dfe4c5dece405914",
+    "python_included": false,
+    "resources_resolved_for_target": false,
+    "receipt_sha256": "339c126c448775f07a38311c3d0ba4cd8fb19b74d575d212d893896bc42ace40",
+    "scope": "Final local transport bundle assembly with all pinned resources. This is not a public upload, target installation or final-artifact reopen proof."
+  },
+  "receipts": [
+    {
+      "file": "docs/MODEL_HOST_VERIFICATION_v1.1.0.json",
+      "sha256": "0257d1eff3ce9342e61212ddd3d8addaef394f08666cea12325afae93073427e"
+    },
+    {
+      "file": "docs/PRODUCTION_HOST_E2E_v1.1.0.json",
+      "sha256": "1881a7abf7b88d221f5e7b00261ff17955f03589bb15b1e3e061e7d5fe0d288b"
+    },
+    {
+      "file": "docs/NIDUS_CONSENSUS_VERIFICATION_v1.1.0.json",
+      "sha256": "964d8e0209e741ef720269e166b4c38e330eb2054c63eeced9ce1243089d3124"
+    },
+    {
+      "file": "docs/START_HERE_VERIFICATION_v1.1.0.json",
+      "sha256": "f9cfb2170a0fb17267ed337e20bb7a6ef6ba05f8c90c081dd428de5932d28e3b"
+    },
+    {
+      "file": "docs/SYNTHSEG_HOST_VERIFICATION_v1.1.0.json",
+      "sha256": "ad52ef5c3936a2bd7d004e93264945836b428cce5b1a226a710ba525552e2b1b"
+    },
+    {
+      "file": "docs/BETA_HTTP_VALIDATION_v1.1.0.json",
+      "sha256": "872c5a4aca81f2a5361ee771e0964faae65b164b0133ce9459d691d89755f547"
+    },
+    {
+      "file": "docs/BOOTSTRAP_HOST_v1.1.0.json",
+      "sha256": "fa1d9d2a5499a52e336b3583c17051180cf7f4cad7c56d420edea8ee6d592aa5"
+    },
+    {
+      "file": "docs/RELEASE_v1.1.0_CODE_LEDGER.json",
+      "sha256": "73c3186d0d90c92d6089abf8852bb4c56a5483517399133177c22dd3b0046cf1"
+    },
+    {
+      "file": "docs/SOURCE_CI_v1.1.0.json",
+      "sha256": "c68b5fa27f7d30eb5d99cafa51631b1c7128a5968b08274eef7202ec567acb3a"
+    },
+    {
+      "file": "docs/FINAL_RUNTIME_IDENTITY_v1.1.0.json",
+      "sha256": "da09cb5422e7aae27fa9c7b6340b106812eef509a7a8b474795b40024058ad43"
+    },
+    {
+      "file": "docs/INSTALL_VERIFICATION_v1.1.0.json",
+      "sha256": "eced6272b3fd9ab66b912280c3abb718b0485293839ca384a937c5c4e30994bf"
+    }
+  ],
+  "limits": [
+    "Synthetic data only; no patient information, clinical accuracy study or disease exclusion claim.",
+    "Ten full adapter runs use the inner worker; one real model independently covers the installed production chain.",
+    "Empty outputs remain empty and are not anatomical successes.",
+    "CPU verified; CUDA/GPU execution and performance were not validated.",
+    "No validation on Windows LTSB or additional physical workstations.",
+    "The base snapshot covers 140 selected files during resource preparation, not every file on the drive.",
+    "GUI operation states were simulated where explicitly stated; SDK and real inference gates are separate.",
+    "Tested snapshots are identified by their receipts; later affected changes require corresponding checks."
+  ],
+  "pending_release_steps": [
+    "Complete the peer-host real online download/install check for the final public SETUP.",
+    "Promote Local Suite 8.12 first and NEURO RT 1.1.0 afterward; keep offline bundles local."
+  ],
+  "final_installer_asset_hashes_included": true,
+  "sanitization": {
+    "patient_data": false,
+    "images_or_masks": false,
+    "private_paths": false,
+    "raw_logs": false
+  },
+  "supplemental_stdlib_ci_verification": {
+    "scope": "CI-equivalent contract families in fresh subprocesses with site-packages removed; no scientific modules imported. This supplements, and does not replace or add unique test counts to, the original complete-base and Python3.12 matrices.",
+    "history": "Independent review found two test-fixture assumptions about installed scientific packages in loader and shadowing tests. Only those two tests were corrected to use always-available stdlib fixtures; product code was unchanged by these fixture corrections.",
+    "matrices": [
+      {
+        "python": "3.10.11",
+        "success": true,
+        "tests_run": 242,
+        "tests_passed": 238,
+        "families": 26,
+        "skipped": 4,
+        "seconds": 64.578,
+        "fresh_subprocess_per_family": true,
+        "site_packages_removed": true,
+        "scientific_modules": [],
+        "all_families_ok": true,
+        "receipt_sha256": "c68583b3326ee3425b6299fe647495e104d4b02d9edc362d5435e7e852564f54",
+        "skipped_families": [
+          {
+            "suite": "test_plugin_manifest",
+            "count": 1
+          },
+          {
+            "suite": "test_plugin_paths",
+            "count": 1
+          },
+          {
+            "suite": "test_host_shared_settings",
+            "count": 1
+          },
+          {
+            "suite": "test_setup_powershell",
+            "count": 1
+          }
+        ]
+      },
+      {
+        "python": "3.12.10",
+        "success": true,
+        "tests_run": 242,
+        "tests_passed": 238,
+        "families": 26,
+        "skipped": 4,
+        "seconds": 61.578,
+        "fresh_subprocess_per_family": true,
+        "site_packages_removed": true,
+        "scientific_modules": [],
+        "all_families_ok": true,
+        "receipt_sha256": "3b6d92232e227912ac7c8727be1b75217286d7021d0d30f5bf697efaca40ea9d",
+        "skipped_families": [
+          {
+            "suite": "test_plugin_manifest",
+            "count": 1
+          },
+          {
+            "suite": "test_plugin_paths",
+            "count": 1
+          },
+          {
+            "suite": "test_host_shared_settings",
+            "count": 1
+          },
+          {
+            "suite": "test_setup_powershell",
+            "count": 1
+          }
+        ]
+      }
+    ],
+    "skip_disposition": "Two Windows symlink privilege checks and two complete-base-only checks are skipped in each stdlib-only matrix. The original complete Python3.10 matrix covers the latter base-dependent checks.",
+    "final_installer_observability_fix_in_scope": false
+  },
+  "source_commit": "f30abe1f8f7eead794b684e18b3e020b6f20b1f4",
+  "final_asset_identities": {
+    "source_commit": "f30abe1f8f7eead794b684e18b3e020b6f20b1f4",
+    "public_assets": [
+      {
+        "file": "NEURO_RT_SETUP_v1.1.0.zip",
+        "bytes": 487660,
+        "sha256": "6ab9b9af7c3b4233fc11fe369410debf805087fd4931a4bacac8b13b176910e7"
+      },
+      {
+        "file": "NEURO_RT_SETUP_LATEST.zip",
+        "bytes": 487660,
+        "sha256": "6ab9b9af7c3b4233fc11fe369410debf805087fd4931a4bacac8b13b176910e7"
+      }
+    ],
+    "versioned_and_latest_byte_identical": true,
+    "code_files": 99,
+    "code_bytes": 1449888,
+    "code_inventory_sha256": "7956e22d512593be49caabd30a19761370b21016f30ecdf8dfe4c5dece405914",
+    "manifest_sha256": "8114d248ccf2a0e31b3312a8e57fcbcf6cdf342df935e0a0d52289cc01283a51",
+    "host_bootstrap": {
+      "file": "radai_neuro_install.py",
+      "bytes": 291783,
+      "sha256": "891bb27d0e70c9afa5de9bc6c1fa5262d96f6edab011b3ad872dcfb8ab7c3955",
+      "sources": 9,
+      "sdk_sources_match_final_code": true,
+      "ui_matches_final_code": true
+    },
+    "publication_status": "pending",
+    "peer_powershell_or_online_execution_confirmed": true
+  },
+  "source_ci": {
+    "source_commit": "f30abe1f8f7eead794b684e18b3e020b6f20b1f4",
+    "provider": "GitHub Actions",
+    "workflow": "Verify source and installer contracts",
+    "windows_runner": true,
+    "success": true,
+    "green_checks": 4,
+    "checks": [
+      {
+        "id": 124375954295,
+        "python": "3.10",
+        "conclusion": "success",
+        "url": "https://github.com/drhenriquebraga/neuro-rt/actions/runs/41147505834/job/124375954295"
+      },
+      {
+        "id": 124375954120,
+        "python": "3.12",
+        "conclusion": "success",
+        "url": "https://github.com/drhenriquebraga/neuro-rt/actions/runs/41147505834/job/124375954120"
+      },
+      {
+        "id": 124375879689,
+        "python": "3.10",
+        "conclusion": "success",
+        "url": "https://github.com/drhenriquebraga/neuro-rt/actions/runs/41147483534/job/124375879689"
+      },
+      {
+        "id": 124375879623,
+        "python": "3.12",
+        "conclusion": "success",
+        "url": "https://github.com/drhenriquebraga/neuro-rt/actions/runs/41147483534/job/124375879623"
+      }
+    ],
+    "scope": "Source compilation and 26 contract families on fresh Windows runners. Scientific inference and full Suite maintenance have separate receipts.",
+    "receipt_sha256": "c68b5fa27f7d30eb5d99cafa51631b1c7128a5968b08274eef7202ec567acb3a"
+  },
+  "final_runtime_identity": {
+    "runtime_byte_identical": true,
+    "runtime_files_compared": 46,
+    "tested_setup_sha256": "ab56e7b1552c29a04716379574b84e4183ff914944e953b81178ad2dc3d99475",
+    "final_setup_sha256": "6ab9b9af7c3b4233fc11fe369410debf805087fd4931a4bacac8b13b176910e7",
+    "changed_code_files": [
+      "code/neuro_rt/external_install.py",
+      "code/neuro_rt/setup_wizard.py"
+    ],
+    "bootstrap_sources_match_final_code": true,
+    "bootstrap_source_count": 9,
+    "bootstrap_ui_matches_final_code": true,
+    "receipt_sha256": "da09cb5422e7aae27fa9c7b6340b106812eef509a7a8b474795b40024058ad43",
+    "scope": "The 46 recorded runtime files match the installed production-chain snapshot byte for byte. Installer progress changes have their own affected tests; no final-artifact peer reopen is inferred."
+  },
+  "affected_final_installer_progress_checks": {
+    "python": "3.10.11",
+    "tests_run": 22,
+    "tests_passed": 22,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0,
+    "seconds": 12.088,
+    "suites": [
+      {
+        "suite": "test_external_install",
+        "tests": 16
+      },
+      {
+        "suite": "test_setup_wizard",
+        "tests": 6
+      }
+    ],
+    "scope": "Post-fix forwarding of resource stage, controlled model/download labels including wheel filenames, exact integer counters and rejection of invalid resource-stage types.",
+    "red_green_verified": true,
+    "verification_source": "Implementation author execution report and subsequent receipt; the old unrelated 20-test log is not used.",
+    "execution_receipt_sha256": "313008ee10e2c3633d2e411008c5ef7f9314fb7bfdf3a9ed08e437726be501c7",
+    "raw_log_available": false,
+    "source_sha256": {
+      "neuro_rt/external_install.py": "39d547346f8463e5850ef7dfe41faea455d1325dcdc755319253673fc30220ac",
+      "neuro_rt/setup_wizard.py": "a4fd2317e8de7be33a50a2816fcbbfd3221fe3d64d816e5c36ddc80f5fe153e1",
+      "tests/test_external_install.py": "e36f8089bb2dba07e374c22db541875cceafab95b2e4a99bd13f46ae3a7db37b",
+      "tests/test_setup_wizard.py": "b3a3c358bfab81ea25d16e4d550dc4c5cf49601453ae5c0c3089bab71922afc9"
+    }
+  },
+  "peer_installer_validation": {
+    "receipt_file": "docs/INSTALL_VERIFICATION_v1.1.0.json",
+    "offline_success": true,
+    "online_success": false,
+    "browser_launch_instrumented": true,
+    "base_files_unchanged": 279,
+    "nine_embedded_sources_and_ui_identical": true
+  }
+}

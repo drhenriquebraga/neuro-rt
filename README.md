@@ -1,9 +1,11 @@
 # NEURO RT — plugin do Local Suite
 
-Primeiro plugin opcional da suíte. A versão **1.1.0 em desenvolvimento** abre a
-fase de testes de Nidus RT, Glioma RT, Metastasis RT, Meningioma RT e Anatomia RT.
-A publicação depende dos gates de motores, exportação e manutenção; acompanhe
-[o plano desta fase](docs/superpowers/plans/2026-10-30-neuro-beta-110.md).
+Primeiro plugin opcional da suíte. A versão **1.1.0 está em fase de testes e exige
+Local Suite 8.12**. Inclui Nidus RT, Glioma RT, Metastasis RT, Meningioma RT e
+Anatomia RT. Os resultados dos gates estão na
+[validação consolidada](docs/FINAL_VALIDATION_v1.1.0.json); a publicação dos
+instaladores permanece uma etapa separada no
+[plano desta fase](docs/superpowers/plans/2026-10-30-neuro-beta-110.md).
 A instalação fica em `Plugins/NEURO RT`; navegação,
 fila, carregamento de séries, configurações e visores pertencem ao Local Suite.
 
@@ -95,6 +97,12 @@ substitui o pacote transacional. Não copie um ambiente `.venv` para a estação
 - [Roadmap e cinco planos](docs/superpowers/plans/2026-10-29-neuro-rt-roadmap.md)
 - [Migração do Nidus](docs/MIGRACAO_NIDUS.md)
 - [Artefatos, fontes e licenças dos modelos](docs/MODEL_ASSETS_V1.md)
+- [Validação consolidada 1.1.0 e limites](docs/FINAL_VALIDATION_v1.1.0.json)
+- [Dez modelos no Python compartilhado](docs/MODEL_HOST_VERIFICATION_v1.1.0.json)
+- [Cadeia instalada com fila, RTSTRUCT e MPR](docs/PRODUCTION_HOST_E2E_v1.1.0.json)
+- [Nidus: geometria e visores](docs/NIDUS_CONSENSUS_VERIFICATION_v1.1.0.json)
+- [SynthSeg: compatibilidade com a base](docs/SYNTHSEG_HOST_VERIFICATION_v1.1.0.json)
+- [Assistente START HERE](docs/START_HERE_VERIFICATION_v1.1.0.json)
 
 Bateria principal: `.venv/Scripts/python.exe -m unittest discover -s tests -v`.
 Testes HTTP também usam o Python do host, com FastAPI/httpx; quando há restrições
