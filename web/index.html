@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>NeuroRT · segmentação de SNC</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+  <script src="viewer.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="identity"><svg aria-hidden="true" viewBox="0 0 48 48"><path d="M23 9c-6-6-15 0-12 7-7 2-8 11-2 14-2 7 7 13 14 8V9Zm3 0c6-6 15 0 12 7 7 2 8 11 2 14 2 7-7 13-14 8V9Z"/><path d="M12 17c6 0 7 5 3 8m-6 5c6-3 11 0 11 5M36 17c-6 0-7 5-3 8m7 5c-6-3-11 0-11 5"/></svg>
+        <div><h1>NeuroRT</h1><p>Segmentação e reconstrução do SNC</p></div>
+      </div>
+      <span id="connection" role="status">Conectando ao motor local…</span>
+    </header>
+    <p class="boundary">Toda estrutura gerada é uma <strong>sugestão não aprovada</strong>. A revisão e a aprovação são atos médicos no sistema de planejamento.</p>
+    <div class="workspace">
+      <section class="input-pane" aria-labelledby="input-title">
+        <h2 id="input-title">Preparar segmentação</h2>
+        <p class="muted">Escolha o modelo adequado e a RM correspondente.</p>
+        <form id="job-form">
+          <label for="model">Modelo</label>
+          <select id="model" required><option value="">Selecione um modelo</option></select>
+          <p id="sequence" class="field-note">A sequência exigida aparece ao escolher o modelo.</p>
+          <label for="input-path">Pasta DICOM ou arquivo NIfTI da RM</label>
+          <input id="input-path" type="text" required spellcheck="false" placeholder="C:\Exames\RM ou C:\Exames\rm.nii.gz">
+          <div class="series-row"><button id="inspect" type="button" class="secondary">Identificar séries DICOM</button></div>
+          <label for="series">Série MR</label>
+          <select id="series"><option value="">Única série da pasta / entrada NIfTI</option></select>
+          <p class="field-note">Se houver mais de uma série, escolha a correta antes de executar.</p>
+          <p class="field-note" id="processing-note">Processamento: auto. Compartilhamento das configurações do Local Suite pendente.</p>
+          <button id="load-demo" type="button" class="secondary" disabled>Carregar demonstração em cache</button>
+          <div class="options">
+            <p id="export-note" class="field-note">Verificando conexão com o gravador.</p>
+            <label class="check declaration"><input id="explicit" type="checkbox" required><span>Solicito a segmentação de achado neste exame para revisão.</span></label>
+          </div>
+          <button id="run" type="submit" class="primary" disabled>Executar segmentação</button>
+          <p class="field-note">O resultado permanece no espaço da RM. A fusão com TC exige registro.</p>
+        </form>
+      </section>
+      <section class="output-pane" aria-labelledby="output-title">
+        <div class="section-heading"><h2 id="output-title">Resultado</h2><span id="job-state">Aguardando</span></div>
+        <div id="notice" role="alert" hidden></div>
+        <div id="empty"><svg aria-hidden="true" viewBox="0 0 120 100"><path d="M19 27h82v60H19zM29 17h62M39 7h42"/><ellipse cx="60" cy="57" rx="23" ry="22"/><path d="M60 35v44m-22-22h44"/></svg><p>A máscara aparecerá após o processamento.</p><p class="muted">Pesos locais. Imagens processadas nesta estação.</p></div>
+        <div id="result" hidden></div>
+        <section id="visualization" hidden aria-label="Segmentação e reconstruções">
+          <div class="main-views">
+            <div class="plane main-plane" data-plane="axial"><div class="view-heading"><h3>Axial · segmentação</h3><span id="axial-position"></span><button class="promote-plane" type="button" aria-label="Plano axial no visor principal" disabled>Principal</button></div><div class="image-stage"><img id="axial-image" alt="RM axial com a segmentação sobreposta"><span class="orientation left">R</span><span class="orientation right">L</span><span class="orientation top">A</span><span class="orientation bottom">P</span></div><input id="axial-slice" type="range" aria-label="Corte axial"></div>
+            <div class="plane mesh-plane"><div class="view-heading"><h3>Reconstrução 3D</h3><span>Segmentação e cérebro</span></div><iframe id="mesh-frame" title="Reconstrução 3D do resultado" sandbox="allow-scripts allow-same-origin"></iframe></div>
+          </div>
+          <div class="small-views">
+            <div class="plane" data-plane="sagittal"><div class="view-heading"><h3>Sagital</h3><span id="sagittal-position"></span><button class="promote-plane" type="button" aria-label="Mostrar plano sagital no visor principal">Ampliar</button></div><div class="image-stage"><img id="sagittal-image" alt="RM sagital com segmentação"><span class="orientation top">S</span><span class="orientation bottom">I</span></div><input id="sagittal-slice" type="range" aria-label="Corte sagital"></div>
+            <div class="plane" data-plane="coronal"><div class="view-heading"><h3>Coronal</h3><span id="coronal-position"></span><button class="promote-plane" type="button" aria-label="Mostrar plano coronal no visor principal">Ampliar</button></div><div class="image-stage"><img id="coronal-image" alt="RM coronal com segmentação"><span class="orientation left">R</span><span class="orientation right">L</span><span class="orientation top">S</span><span class="orientation bottom">I</span></div><input id="coronal-slice" type="range" aria-label="Corte coronal"></div>
+          </div>
+          <p class="field-note">Cor da segmentação: laranja. A reconstrução é apenas para visualização.</p>
+        </section>
+        <details class="models-status"><summary>Modelos nesta estação</summary><ul id="weights"><li>Verificando pesos…</li></ul></details>
+      </section>
+    </div>
+    <footer><span>NeuroRT 0.2.0</span><a href="bibliografia.html">Bibliografia e créditos</a><span>Ensino e pesquisa · revisão humana obrigatória</span></footer>
+  </main>
+</body>
+</html>

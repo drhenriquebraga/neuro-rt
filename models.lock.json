@@ -1,0 +1,84 @@
+{
+  "release": "1.2.0",
+  "verified_on": "2026-10-11",
+  "models": {
+    "MRI_Brain": {
+      "model_id": "MRI_Brain",
+      "release": "1.2.0",
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/download/1.2.0/Raidionics-MRI_Brain-ONNX-v12.zip",
+      "archive_size": 69134888,
+      "archive_sha256": "2ee28a1ad29bef6bf713ccf6ccaea88a6ea7c09bf217e693e8351739034be03a",
+      "files": {
+        "model_config.txt": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5",
+        "pipeline.json": "d5e0bd624b83fb2e4d9aba68a56ca868608eb131ce818ffa2c9032233614909e",
+        "pre_processing.ini": "16ba4dbf195eef061db0d26805aece024a14d3aa0917b47c2a5e454386e7b7c6",
+        "fold0/model.onnx": "328efade8ddc037906a2ddcaff84b7a83bee26475ff274424752963f517d155c"
+      }
+    },
+    "MRI_GBM": {
+      "model_id": "MRI_GBM",
+      "release": "1.2.0",
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/download/1.2.0/Raidionics-MRI_GBM-ONNX-v12.zip",
+      "archive_size": 68791937,
+      "archive_sha256": "3e3441b620ffebcb822d1026445f0a5aa46c268c4034fac37f7d26a3937b9c2c",
+      "files": {
+        "model_config.txt": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5",
+        "pipeline.json": "12547b706880a0a0604eba378caf2ed2756b7771b1803613f8fdbcacaff9a7a0",
+        "pre_processing.ini": "2d68b78247af11b56d6e8c69d4181c52d7bc91088d74f16785550e31a8294028",
+        "fold0/model.onnx": "1315e58513e80bcb5890a691fd13cc1f110b8f5c3c08c1ecdbc9bbbeb73a5565"
+      }
+    },
+    "MRI_GBM_Postop_FV_1p": {
+      "model_id": "MRI_GBM_Postop_FV_1p",
+      "release": "1.2.0",
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/download/1.2.0/Raidionics-MRI_GBM_Postop_FV_1p-ONNX_v12.zip",
+      "archive_size": 69216547,
+      "archive_sha256": "48125dfb1519dbe69350d36be0c4fc386e5e02f38335e476e265a10a184c177b",
+      "files": {
+        "model_config.txt": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5",
+        "pipeline.json": "81995618902f35e3ec53a0bd795c23f72027f5e4671f8d6a7b3d616232be78b8",
+        "pre_processing.ini": "ebcca05fcf38d0f60400d479224569677782e052a8d03ff72f5b763f68167314",
+        "fold0/model.onnx": "35ebdef70917b9e053afd13f25fc337b8dfd165f4d89fbe93be49a0facef8bb3"
+      }
+    },
+    "MRI_LGGlioma": {
+      "model_id": "MRI_LGGlioma",
+      "release": "1.2.0",
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/download/1.2.0/Raidionics-MRI_LGGlioma-ONNX-v12.zip",
+      "archive_size": 69041134,
+      "archive_sha256": "10edeca1171b93fcea1c03374e73eb136c20f4ad9577150c2b8f78a258b58f73",
+      "files": {
+        "model_config.txt": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5",
+        "pipeline.json": "95634c9d34703b94943f07ffa69f2c95b0b05b426bdff8d187f842713a8f2358",
+        "pre_processing.ini": "2d68b78247af11b56d6e8c69d4181c52d7bc91088d74f16785550e31a8294028",
+        "fold0/model.onnx": "7b18f4a70f4a61ecc81c51dfa0d90d67fc1bcd02eb3c232b5e66fe0a4084cbdf"
+      }
+    },
+    "MRI_Meningioma": {
+      "model_id": "MRI_Meningioma",
+      "release": "1.2.0",
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/download/1.2.0/Raidionics-MRI_Meningioma-ONNX-v12.zip",
+      "archive_size": 68913186,
+      "archive_sha256": "62120ab8f8c9dc86bd14374b2aa33116d4fe828d16dd73d968c39b9023937ceb",
+      "files": {
+        "model_config.txt": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5",
+        "pipeline.json": "e71f252171fe7ab31077c110920a8b7a5438c3e9c96163ed157f1b8c398ea9a5",
+        "pre_processing.ini": "ccb73442ba1ae3ed6c9eebd0d7cb892bb1514558aa09780147c1847228096b11",
+        "fold0/model.onnx": "b74764e90722b1071dab8b085be0d916f8f318d5bed987470fe15198febb81c8"
+      }
+    },
+    "MRI_Metastasis": {
+      "model_id": "MRI_Metastasis",
+      "release": "1.2.0",
+      "source_url": "https://github.com/raidionics/Raidionics-models/releases/download/1.2.0/Raidionics-MRI_Metastasis-ONNX-v12.zip",
+      "archive_size": 68802585,
+      "archive_sha256": "aaebc8595d176495e698fc2ed2b453010e22bab1edd3dd0d3e1dcb67bb165a62",
+      "files": {
+        "model_config.txt": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5",
+        "pipeline.json": "4b619e376316fb453f3c3bc37ac59e6683ad8b1a4067d9cc238ad5c646eed964",
+        "pre_processing.ini": "2d68b78247af11b56d6e8c69d4181c52d7bc91088d74f16785550e31a8294028",
+        "fold0/model.onnx": "50b34b3ae4808fa10dd076389f78523888df6ce85b8b6c15e7824aac710c363a"
+      }
+    }
+  }
+}

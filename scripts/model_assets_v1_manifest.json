@@ -1,0 +1,1175 @@
+{
+  "schema": "neuro-rt/model-assets-manifest/1",
+  "audited_at": "2026-10-29",
+  "downloads": {
+    "motaz_weight": {
+      "filename": "best_model.pth",
+      "url": "https://huggingface.co/motazalqaoud/brain-tumor-segmentation-weights/resolve/d36aa60aa5535fcc25fe935282586c8453ab255e/best_model.pth",
+      "revision": "d36aa60aa5535fcc25fe935282586c8453ab255e",
+      "size": 94617685,
+      "sha256": "7177bf156edbf4cbffdc140b9e940f09409f9233c8155c38e98869d185a91041",
+      "format": "torch"
+    },
+    "motaz_src/model.py": {
+      "filename": "motaz_src_model.py.txt",
+      "url": "https://raw.githubusercontent.com/motazalqaoud/Brain-Tumor-Segmentation/df041271344dcab6bd52a584bbbff5f4bf8103b1/src/model.py",
+      "revision": "df041271344dcab6bd52a584bbbff5f4bf8103b1",
+      "size": 2111,
+      "sha256": "2f36adbc29648084d93f1b6f24bf8cc49f624f28a18583db2c66b5d2a9ebc06e",
+      "format": "text"
+    },
+    "motaz_src/dataset.py": {
+      "filename": "motaz_src_dataset.py.txt",
+      "url": "https://raw.githubusercontent.com/motazalqaoud/Brain-Tumor-Segmentation/df041271344dcab6bd52a584bbbff5f4bf8103b1/src/dataset.py",
+      "revision": "df041271344dcab6bd52a584bbbff5f4bf8103b1",
+      "size": 5534,
+      "sha256": "6796890db5141e8346ca84fd2141a68142f3f6f37afe2ab1197e20ef96cf2899",
+      "format": "text"
+    },
+    "motaz_src/evaluate.py": {
+      "filename": "motaz_src_evaluate.py.txt",
+      "url": "https://raw.githubusercontent.com/motazalqaoud/Brain-Tumor-Segmentation/df041271344dcab6bd52a584bbbff5f4bf8103b1/src/evaluate.py",
+      "revision": "df041271344dcab6bd52a584bbbff5f4bf8103b1",
+      "size": 3245,
+      "sha256": "8c7fa9bf4301fa0f60f702d8e73868262baaecb62af18b78093e15ca36254510",
+      "format": "text"
+    },
+    "motaz_src/predict.py": {
+      "filename": "motaz_predict.txt",
+      "url": "https://raw.githubusercontent.com/motazalqaoud/Brain-Tumor-Segmentation/df041271344dcab6bd52a584bbbff5f4bf8103b1/src/predict.py",
+      "revision": "df041271344dcab6bd52a584bbbff5f4bf8103b1",
+      "size": 3541,
+      "sha256": "89de86e21432dbdab6742f27f1d1238588739d87216268d48c7b4029ea094ecc",
+      "format": "text"
+    },
+    "motaz_LICENSE": {
+      "filename": "motaz_LICENSE.txt",
+      "url": "https://raw.githubusercontent.com/motazalqaoud/Brain-Tumor-Segmentation/df041271344dcab6bd52a584bbbff5f4bf8103b1/LICENSE",
+      "revision": "df041271344dcab6bd52a584bbbff5f4bf8103b1",
+      "size": 1070,
+      "sha256": "a4461674d0882a2eeb95955c20b6f6e1f7c61e85e58e2fbe4e38159a3ddcf8f4",
+      "format": "text"
+    },
+    "motaz_card": {
+      "filename": "hf_card.txt",
+      "url": "https://huggingface.co/motazalqaoud/brain-tumor-segmentation-weights/raw/d36aa60aa5535fcc25fe935282586c8453ab255e/README.md",
+      "revision": "d36aa60aa5535fcc25fe935282586c8453ab255e",
+      "size": 5685,
+      "sha256": "bb3dc254f1f26300993d56e468269041166ed69c0d4b77fd41616e021c6a767b",
+      "format": "text"
+    },
+    "raid_3p": {
+      "filename": "raid_3p.zip",
+      "url": "https://github.com/raidionics/Raidionics-models/releases/download/1.2.0/Raidionics-MRI_GBM_Postop_FV_3p-ONNX_v12.zip",
+      "revision": "1.2.0",
+      "size": 69324037,
+      "sha256": "7004111ea42ffcdd75afc354e823ce17b52c419001bc8067ad55c2cc750672ff",
+      "format": "zip"
+    },
+    "raid_license": {
+      "filename": "raid_license.txt",
+      "url": "https://raw.githubusercontent.com/raidionics/Raidionics-models/78a810e490412614dc554158236ee9930a8193f1/LICENSE",
+      "revision": "78a810e490412614dc554158236ee9930a8193f1",
+      "size": 1301,
+      "sha256": "3842856c4f19ef762a7a7fcc82bfb65e9258b1cef809e04af80c0ca80deef55c",
+      "format": "text"
+    },
+    "synthseg_weight": {
+      "filename": "synthseg_model_weights.pth",
+      "url": "https://ndownloader.figshare.com/files/60274412",
+      "revision": "Figshare file60274412",
+      "size": 53002209,
+      "sha256": "3023c046e3996796b1e87badeb337cc7edd2da4c79794a0214afc76b63c701fe",
+      "format": "torch"
+    },
+    "dipy_source": {
+      "filename": "dipy_synthseg.txt",
+      "url": "https://raw.githubusercontent.com/dipy/dipy/407e9319cbfe3d05304682d317363ecd09a83fdc/dipy/nn/torch/synthseg.py",
+      "revision": "407e9319cbfe3d05304682d317363ecd09a83fdc",
+      "size": 22537,
+      "sha256": "aef78a8a9a47975c22cfcdf87dcd0ed7dc982e6c4b5fb450991286c32ec1091d",
+      "format": "text"
+    },
+    "dipy_fetch": {
+      "filename": "dipy_fetch.txt",
+      "url": "https://raw.githubusercontent.com/dipy/dipy/407e9319cbfe3d05304682d317363ecd09a83fdc/dipy/data/fetcher.py",
+      "revision": "407e9319cbfe3d05304682d317363ecd09a83fdc",
+      "size": 122813,
+      "sha256": "ce05d26718c6dfc4f113ebfb4a626e83d1f82c8caeb584f8a717d2eb385e05b6",
+      "format": "text"
+    },
+    "dipy_utils": {
+      "filename": "dipy_utils.txt",
+      "url": "https://raw.githubusercontent.com/dipy/dipy/407e9319cbfe3d05304682d317363ecd09a83fdc/dipy/nn/utils.py",
+      "revision": "407e9319cbfe3d05304682d317363ecd09a83fdc",
+      "size": 10739,
+      "sha256": "8fe8d9e3f609a92801cb50aaaba25e9cfea6308a06c276986e9c7e108737878f",
+      "format": "text"
+    },
+    "dipy_license": {
+      "filename": "dipy_license.txt",
+      "url": "https://raw.githubusercontent.com/dipy/dipy/407e9319cbfe3d05304682d317363ecd09a83fdc/LICENSE",
+      "revision": "407e9319cbfe3d05304682d317363ecd09a83fdc",
+      "size": 1670,
+      "sha256": "465f0850d617ed64a3052e20e2bb8d3be641f8eef3605c79ad2d7513cf1768ef",
+      "format": "text"
+    },
+    "synthseg_license": {
+      "filename": "synthseg_license.txt",
+      "url": "https://raw.githubusercontent.com/BBillot/SynthSeg/2a2aa3bbfccb83f8253a51ca8b329b9938a2646d/LICENSE.txt",
+      "revision": "2a2aa3bbfccb83f8253a51ca8b329b9938a2646d",
+      "size": 11356,
+      "sha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1",
+      "format": "text"
+    },
+    "cerebra": {
+      "filename": "cerebra.zip",
+      "url": "https://packages.bic.mni.mcgill.ca/mni-models/icbm152/mni_icbm152_nlin_sym_09c_CerebrA_nifti.zip",
+      "revision": "CerebrA2020 DOI10.12751/g-node.be5e62",
+      "size": 351216,
+      "sha256": "51ae4a9a2d004c3c0edea2e3ab0c15f71a2c88f04960aa2e599a3633816f445d",
+      "format": "zip"
+    },
+    "mni_sym09c": {
+      "filename": "mni_sym09c.zip",
+      "url": "https://www.bic.mni.mcgill.ca/~vfonov/icbm/2009/mni_icbm152_nlin_sym_09c_nifti.zip",
+      "revision": "ICBM152 nonlinear symmetric2009c",
+      "size": 57583823,
+      "sha256": "ed981b4611ddd797a22f539035979723ecb1badebd06dcd85df149b5ef00890d",
+      "format": "zip"
+    },
+    "cerebra_doi": {
+      "filename": "cerebra_doi.txt",
+      "url": "https://doi.gin.g-node.org/10.12751/g-node.be5e62/",
+      "revision": "DOI10.12751/g-node.be5e62",
+      "size": 6656,
+      "sha256": "1e6306848f65d8dc69ee5c31915aa31f38b20d99a04713f752399d2a73771ff2",
+      "format": "html"
+    },
+    "cc0_license": {
+      "filename": "cc0_license.txt",
+      "url": "https://raw.githubusercontent.com/spdx/license-list-data/v3.26.0/text/CC0-1.0.txt",
+      "revision": "SPDX3.26.0",
+      "size": 7048,
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "format": "text"
+    },
+    "ants_license": {
+      "filename": "ants_license.txt",
+      "url": "https://raw.githubusercontent.com/ANTsX/ANTsPy/v0.6.3/LICENSE",
+      "revision": "v0.6.3",
+      "size": 11357,
+      "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+      "format": "text"
+    }
+  },
+  "models": {
+    "glioma_attention_unet3d": {
+      "revision": "d36aa60aa5535fcc25fe935282586c8453ab255e",
+      "license": {
+        "code": "MIT",
+        "weights": "MIT"
+      },
+      "contract": {
+        "code_revision": "df041271344dcab6bd52a584bbbff5f4bf8103b1",
+        "input_roles": [
+          "FLAIR",
+          "T1",
+          "T1c",
+          "T2"
+        ],
+        "output_classes": [
+          "tumor_core",
+          "whole_tumor",
+          "enhancing_tumor"
+        ],
+        "architecture": {
+          "class": "monai.networks.nets.AttentionUnet",
+          "spatial_dims": 3,
+          "in_channels": 4,
+          "out_channels": 3,
+          "channels": [
+            32,
+            64,
+            128,
+            256,
+            512
+          ],
+          "strides": [
+            2,
+            2,
+            2,
+            2
+          ],
+          "dropout": 0.1
+        },
+        "preprocessing": {
+          "orientation": "RAS",
+          "spacing_mm": [
+            1,
+            1,
+            1
+          ],
+          "resampling": "bilinear",
+          "normalization": "NormalizeIntensityd(nonzero=True,channel_wise=True)"
+        },
+        "inference": {
+          "roi_size": [
+            128,
+            128,
+            128
+          ],
+          "sw_batch_size": 1,
+          "overlap": 0.5,
+          "activation": "sigmoid",
+          "threshold": 0.5
+        }
+      },
+      "files": {
+        "best_model.pth": {
+          "download": "motaz_weight",
+          "size": 94617685,
+          "sha256": "7177bf156edbf4cbffdc140b9e940f09409f9233c8155c38e98869d185a91041",
+          "format": "torch"
+        },
+        "reference/model.py": {
+          "download": "motaz_src/model.py",
+          "size": 2111,
+          "sha256": "2f36adbc29648084d93f1b6f24bf8cc49f624f28a18583db2c66b5d2a9ebc06e",
+          "format": "text"
+        },
+        "reference/dataset.py": {
+          "download": "motaz_src/dataset.py",
+          "size": 5534,
+          "sha256": "6796890db5141e8346ca84fd2141a68142f3f6f37afe2ab1197e20ef96cf2899",
+          "format": "text"
+        },
+        "reference/evaluate.py": {
+          "download": "motaz_src/evaluate.py",
+          "size": 3245,
+          "sha256": "8c7fa9bf4301fa0f60f702d8e73868262baaecb62af18b78093e15ca36254510",
+          "format": "text"
+        },
+        "reference/predict.py": {
+          "download": "motaz_src/predict.py",
+          "size": 3541,
+          "sha256": "89de86e21432dbdab6742f27f1d1238588739d87216268d48c7b4029ea094ecc",
+          "format": "text"
+        },
+        "LICENSE.code.txt": {
+          "download": "motaz_LICENSE",
+          "size": 1070,
+          "sha256": "a4461674d0882a2eeb95955c20b6f6e1f7c61e85e58e2fbe4e38159a3ddcf8f4",
+          "format": "text"
+        },
+        "LICENSE.weights-model-card.md": {
+          "download": "motaz_card",
+          "size": 5685,
+          "sha256": "bb3dc254f1f26300993d56e468269041166ed69c0d4b77fd41616e021c6a767b",
+          "format": "text"
+        },
+        "LICENSE.weights.txt": {
+          "download": "motaz_LICENSE",
+          "size": 1070,
+          "sha256": "a4461674d0882a2eeb95955c20b6f6e1f7c61e85e58e2fbe4e38159a3ddcf8f4",
+          "format": "text"
+        }
+      }
+    },
+    "MRI_GBM_Postop_FV_3p": {
+      "revision": "1.2.0",
+      "license": {
+        "code": "BSD-2-Clause",
+        "weights": "BSD-2-Clause"
+      },
+      "contract": {
+        "input_roles": [
+          "T1c",
+          "T1",
+          "FLAIR"
+        ],
+        "output_classes": [
+          "tumor"
+        ],
+        "output_threshold": 0.4,
+        "dependency": "MRI_Brain",
+        "preparation": "Follow archive pipeline.json steps1-8, register T1 and FLAIR into T1c before ordered tensor assembly."
+      },
+      "files": {
+        "fold0/model.onnx": {
+          "download": "raid_3p",
+          "size": 74795300,
+          "sha256": "bf4b9fe0ceff04e39bb7cce1d2a6fec1df62f76c5eed11438174b3bd400953db",
+          "format": "onnx",
+          "member": "MRI_GBM_Postop_FV_3p/model.onnx"
+        },
+        "model_config.txt": {
+          "download": "raid_3p",
+          "size": 39,
+          "sha256": "ae3e2fd19a219702b017795c640cbe48c17e29df852ac0ae1aa202752700aac5",
+          "format": "text",
+          "member": "MRI_GBM_Postop_FV_3p/model_config.txt"
+        },
+        "pre_processing.ini": {
+          "download": "raid_3p",
+          "size": 467,
+          "sha256": "8d77de5c81c842b44321ffa11ddf0498baff11496cebb98529b06d7eed859328",
+          "format": "text",
+          "member": "MRI_GBM_Postop_FV_3p/pre_processing.ini"
+        },
+        "pipeline.json": {
+          "download": "raid_3p",
+          "size": 3795,
+          "sha256": "ba8fcece1c75c397e71a93f3c665bac5260fe5bbfdb80e73fd432ea48a8b8f74",
+          "format": "text",
+          "member": "MRI_GBM_Postop_FV_3p/pipeline.json"
+        },
+        "LICENSE.code.txt": {
+          "download": "raid_license",
+          "size": 1301,
+          "sha256": "3842856c4f19ef762a7a7fcc82bfb65e9258b1cef809e04af80c0ca80deef55c",
+          "format": "text"
+        },
+        "LICENSE.weights.txt": {
+          "download": "raid_license",
+          "size": 1301,
+          "sha256": "3842856c4f19ef762a7a7fcc82bfb65e9258b1cef809e04af80c0ca80deef55c",
+          "format": "text"
+        }
+      }
+    },
+    "anatomy_synthseg": {
+      "revision": "407e9319cbfe3d05304682d317363ecd09a83fdc",
+      "license": {
+        "code": "Apache-2.0 AND BSD-3-Clause",
+        "weights": "Apache-2.0"
+      },
+      "contract": {
+        "implementation": "dipy.nn.torch.synthseg.SynthSeg",
+        "variant": "DIPY1.12.0 PyTorch SynthSeg,33 softmax channels",
+        "architecture": {
+          "model_scale": 24,
+          "n_levels": 5,
+          "output_channels": 33
+        },
+        "classes": [
+          {
+            "value": 2,
+            "class_id": "left_cerebral_white_matter",
+            "label": "left cerebral white matter"
+          },
+          {
+            "value": 3,
+            "class_id": "left_cerebral_cortex",
+            "label": "left cerebral cortex"
+          },
+          {
+            "value": 4,
+            "class_id": "left_lateral_ventricle",
+            "label": "left lateral ventricle"
+          },
+          {
+            "value": 5,
+            "class_id": "left_inferior_lateral_ventricle",
+            "label": "left inferior lateral ventricle"
+          },
+          {
+            "value": 7,
+            "class_id": "left_cerebellum_white_matter",
+            "label": "left cerebellum white matter"
+          },
+          {
+            "value": 8,
+            "class_id": "left_cerebellum_cortex",
+            "label": "left cerebellum cortex"
+          },
+          {
+            "value": 10,
+            "class_id": "left_thalamus",
+            "label": "left thalamus"
+          },
+          {
+            "value": 11,
+            "class_id": "left_caudate",
+            "label": "left caudate"
+          },
+          {
+            "value": 12,
+            "class_id": "left_putamen",
+            "label": "left putamen"
+          },
+          {
+            "value": 13,
+            "class_id": "left_pallidum",
+            "label": "left pallidum"
+          },
+          {
+            "value": 14,
+            "class_id": "3rd_ventricle",
+            "label": "3rd ventricle"
+          },
+          {
+            "value": 15,
+            "class_id": "4th_ventricle",
+            "label": "4th ventricle"
+          },
+          {
+            "value": 16,
+            "class_id": "brain-stem",
+            "label": "brain-stem"
+          },
+          {
+            "value": 17,
+            "class_id": "left_hippocampus",
+            "label": "left hippocampus"
+          },
+          {
+            "value": 18,
+            "class_id": "left_amygdala",
+            "label": "left amygdala"
+          },
+          {
+            "value": 24,
+            "class_id": "CSF",
+            "label": "CSF"
+          },
+          {
+            "value": 26,
+            "class_id": "left_accumbens_area",
+            "label": "left accumbens area"
+          },
+          {
+            "value": 28,
+            "class_id": "left_ventral_DC",
+            "label": "left ventral DC"
+          },
+          {
+            "value": 41,
+            "class_id": "right_cerebral_white_matter",
+            "label": "right cerebral white matter"
+          },
+          {
+            "value": 42,
+            "class_id": "right_cerebral_cortex",
+            "label": "right cerebral cortex"
+          },
+          {
+            "value": 43,
+            "class_id": "right_lateral_ventricle",
+            "label": "right lateral ventricle"
+          },
+          {
+            "value": 44,
+            "class_id": "right_inferior_lateral_ventricle",
+            "label": "right inferior lateral ventricle"
+          },
+          {
+            "value": 46,
+            "class_id": "right_cerebellum_white_matter",
+            "label": "right cerebellum white matter"
+          },
+          {
+            "value": 47,
+            "class_id": "right_cerebellum_cortex",
+            "label": "right cerebellum cortex"
+          },
+          {
+            "value": 49,
+            "class_id": "right_thalamus",
+            "label": "right thalamus"
+          },
+          {
+            "value": 50,
+            "class_id": "right_caudate",
+            "label": "right caudate"
+          },
+          {
+            "value": 51,
+            "class_id": "right_putamen",
+            "label": "right putamen"
+          },
+          {
+            "value": 52,
+            "class_id": "right_pallidum",
+            "label": "right pallidum"
+          },
+          {
+            "value": 53,
+            "class_id": "right_hippocampus",
+            "label": "right hippocampus"
+          },
+          {
+            "value": 54,
+            "class_id": "right_amygdala",
+            "label": "right amygdala"
+          },
+          {
+            "value": 58,
+            "class_id": "right_accumbens_area",
+            "label": "right accumbens area"
+          },
+          {
+            "value": 60,
+            "class_id": "right_ventral_DC",
+            "label": "right ventral DC"
+          }
+        ],
+        "input_roles": [
+          "T1"
+        ],
+        "device_verified": "pending",
+        "known_gpu_bug": "__predict calls detach().numpy() without cpu(); GPU must remain unavailable until corrected/tested.",
+        "preprocessing": "DIPY transform_img 1mm192^3 order3;percentiles0.5,99.5->0..1;flipTTA;topologicalcleanup;recover_img order0",
+        "original_md5": "83d54a150410bdc1f04d70a84ff8f1ee"
+      },
+      "files": {
+        "synthseg_model_weights.pth": {
+          "download": "synthseg_weight",
+          "size": 53002209,
+          "sha256": "3023c046e3996796b1e87badeb337cc7edd2da4c79794a0214afc76b63c701fe",
+          "format": "torch"
+        },
+        "reference/synthseg.py": {
+          "download": "dipy_source",
+          "size": 22537,
+          "sha256": "aef78a8a9a47975c22cfcdf87dcd0ed7dc982e6c4b5fb450991286c32ec1091d",
+          "format": "text"
+        },
+        "reference/fetcher.py": {
+          "download": "dipy_fetch",
+          "size": 122813,
+          "sha256": "ce05d26718c6dfc4f113ebfb4a626e83d1f82c8caeb584f8a717d2eb385e05b6",
+          "format": "text"
+        },
+        "reference/utils.py": {
+          "download": "dipy_utils",
+          "size": 10739,
+          "sha256": "8fe8d9e3f609a92801cb50aaaba25e9cfea6308a06c276986e9c7e108737878f",
+          "format": "text"
+        },
+        "LICENSE.dipy.txt": {
+          "download": "dipy_license",
+          "size": 1670,
+          "sha256": "465f0850d617ed64a3052e20e2bb8d3be641f8eef3605c79ad2d7513cf1768ef",
+          "format": "text"
+        },
+        "LICENSE.weights.txt": {
+          "download": "synthseg_license",
+          "size": 11356,
+          "sha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1",
+          "format": "text"
+        },
+        "LICENSE.architecture.txt": {
+          "download": "synthseg_license",
+          "size": 11356,
+          "sha256": "43070e2d4e532684de521b885f385d0841030efa2b1a20bafb76133a5e1379c1",
+          "format": "text"
+        }
+      }
+    },
+    "anatomy_cerebra_ants": {
+      "revision": "CerebrA DOI10.12751/g-node.be5e62 + MNI2009c symmetric",
+      "license": {
+        "code": "Apache-2.0",
+        "atlas": "CC0-1.0",
+        "template": "LicenseRef-MNI-ICBM152",
+        "weights": "CC0-1.0 AND LicenseRef-MNI-ICBM152"
+      },
+      "contract": {
+        "input_roles": [
+          "T1"
+        ],
+        "reference": "MNI ICBM152 nonlinear symmetric2009c",
+        "shape": [
+          193,
+          229,
+          193
+        ],
+        "spacing_mm": [
+          1,
+          1,
+          1
+        ],
+        "orientation": "RAS",
+        "origin_mm": [
+          -96,
+          -132,
+          -78
+        ],
+        "classes": [
+          {
+            "value": 1,
+            "class_id": "right_rostral_middle_frontal",
+            "label": "right Rostral Middle Frontal"
+          },
+          {
+            "value": 2,
+            "class_id": "right_vermal_lobules_vi_vii",
+            "label": "right Vermal lobules VI-VII"
+          },
+          {
+            "value": 3,
+            "class_id": "right_inferior_temporal",
+            "label": "right Inferior temporal"
+          },
+          {
+            "value": 4,
+            "class_id": "right_accumbens_area",
+            "label": "right Accumbens Area"
+          },
+          {
+            "value": 5,
+            "class_id": "right_inferior_lateral_ventricle",
+            "label": "right Inferior Lateral Ventricle"
+          },
+          {
+            "value": 6,
+            "class_id": "right_pericalcarine",
+            "label": "right Pericalcarine"
+          },
+          {
+            "value": 7,
+            "class_id": "right_lateral_orbitofrontal",
+            "label": "right Lateral Orbitofrontal"
+          },
+          {
+            "value": 8,
+            "class_id": "right_rostral_anterior_cingulate",
+            "label": "right Rostral Anterior Cingulate"
+          },
+          {
+            "value": 9,
+            "class_id": "right_superior_parietal",
+            "label": "right Superior Parietal"
+          },
+          {
+            "value": 10,
+            "class_id": "right_inferior_parietal",
+            "label": "right Inferior Parietal"
+          },
+          {
+            "value": 11,
+            "class_id": "right_brainstem",
+            "label": "right Brainstem"
+          },
+          {
+            "value": 12,
+            "class_id": "right_lingual",
+            "label": "right Lingual"
+          },
+          {
+            "value": 13,
+            "class_id": "right_postcentral",
+            "label": "right Postcentral"
+          },
+          {
+            "value": 14,
+            "class_id": "right_transverse_temporal",
+            "label": "right Transverse Temporal"
+          },
+          {
+            "value": 15,
+            "class_id": "right_medial_orbitofrontal",
+            "label": "right Medial Orbitofrontal"
+          },
+          {
+            "value": 16,
+            "class_id": "right_paracentral",
+            "label": "right Paracentral"
+          },
+          {
+            "value": 17,
+            "class_id": "right_optic_chiasm",
+            "label": "right Optic Chiasm"
+          },
+          {
+            "value": 18,
+            "class_id": "right_parahippocampal",
+            "label": "right Parahippocampal"
+          },
+          {
+            "value": 19,
+            "class_id": "right_amygdala",
+            "label": "right Amygdala"
+          },
+          {
+            "value": 20,
+            "class_id": "right_vermal_lobules_viii_x",
+            "label": "right Vermal lobules VIII-X"
+          },
+          {
+            "value": 21,
+            "class_id": "right_putamen",
+            "label": "right Putamen"
+          },
+          {
+            "value": 22,
+            "class_id": "right_pars_triangularis",
+            "label": "right Pars Triangularis"
+          },
+          {
+            "value": 23,
+            "class_id": "right_insula",
+            "label": "right Insula"
+          },
+          {
+            "value": 24,
+            "class_id": "right_fusiform",
+            "label": "right Fusiform"
+          },
+          {
+            "value": 25,
+            "class_id": "right_basal_forebrain",
+            "label": "right Basal Forebrain"
+          },
+          {
+            "value": 26,
+            "class_id": "right_ventral_diencephalon",
+            "label": "right Ventral Diencephalon"
+          },
+          {
+            "value": 27,
+            "class_id": "right_pallidum",
+            "label": "right Pallidum"
+          },
+          {
+            "value": 28,
+            "class_id": "right_middle_temporal",
+            "label": "right Middle Temporal"
+          },
+          {
+            "value": 29,
+            "class_id": "right_third_ventricle",
+            "label": "right Third Ventricle"
+          },
+          {
+            "value": 30,
+            "class_id": "right_caudal_anterior_cingulate",
+            "label": "right Caudal Anterior Cingulate"
+          },
+          {
+            "value": 31,
+            "class_id": "right_precuneus",
+            "label": "right Precuneus"
+          },
+          {
+            "value": 32,
+            "class_id": "right_pars_opercularis",
+            "label": "right Pars Opercularis"
+          },
+          {
+            "value": 33,
+            "class_id": "right_isthmus_cingulate",
+            "label": "right Isthmus Cingulate"
+          },
+          {
+            "value": 34,
+            "class_id": "right_lateral_occipital",
+            "label": "right Lateral Occipital"
+          },
+          {
+            "value": 35,
+            "class_id": "right_precentral",
+            "label": "right Precentral"
+          },
+          {
+            "value": 36,
+            "class_id": "right_entorhinal",
+            "label": "right Entorhinal"
+          },
+          {
+            "value": 37,
+            "class_id": "right_fourth_ventricle",
+            "label": "right Fourth Ventricle"
+          },
+          {
+            "value": 38,
+            "class_id": "right_superior_frontal",
+            "label": "right Superior Frontal"
+          },
+          {
+            "value": 39,
+            "class_id": "right_cerebellum_white_matter",
+            "label": "right Cerebellum White Matter"
+          },
+          {
+            "value": 40,
+            "class_id": "right_thalamus",
+            "label": "right Thalamus"
+          },
+          {
+            "value": 41,
+            "class_id": "right_lateral_ventricle",
+            "label": "right Lateral Ventricle"
+          },
+          {
+            "value": 42,
+            "class_id": "right_caudal_middle_frontal",
+            "label": "right Caudal Middle Frontal"
+          },
+          {
+            "value": 43,
+            "class_id": "right_cuneus",
+            "label": "right Cuneus"
+          },
+          {
+            "value": 44,
+            "class_id": "right_pars_orbitalis",
+            "label": "right Pars Orbitalis"
+          },
+          {
+            "value": 45,
+            "class_id": "right_superior_temporal",
+            "label": "right Superior Temporal"
+          },
+          {
+            "value": 46,
+            "class_id": "right_cerebellum_gray_matter",
+            "label": "right Cerebellum Gray Matter"
+          },
+          {
+            "value": 47,
+            "class_id": "right_posterior_cingulate",
+            "label": "right Posterior Cingulate"
+          },
+          {
+            "value": 48,
+            "class_id": "right_hippocampus",
+            "label": "right Hippocampus"
+          },
+          {
+            "value": 49,
+            "class_id": "right_caudate",
+            "label": "right Caudate"
+          },
+          {
+            "value": 50,
+            "class_id": "right_vermal_lobules_i_v",
+            "label": "right Vermal lobules I-V"
+          },
+          {
+            "value": 51,
+            "class_id": "right_supramarginal",
+            "label": "right Supramarginal"
+          },
+          {
+            "value": 52,
+            "class_id": "left_rostral_middle_frontal",
+            "label": "left Rostral Middle Frontal"
+          },
+          {
+            "value": 53,
+            "class_id": "left_vermal_lobules_vi_vii",
+            "label": "left Vermal lobules VI-VII"
+          },
+          {
+            "value": 54,
+            "class_id": "left_inferior_temporal",
+            "label": "left Inferior temporal"
+          },
+          {
+            "value": 55,
+            "class_id": "left_accumbens_area",
+            "label": "left Accumbens Area"
+          },
+          {
+            "value": 56,
+            "class_id": "left_inferior_lateral_ventricle",
+            "label": "left Inferior Lateral Ventricle"
+          },
+          {
+            "value": 57,
+            "class_id": "left_pericalcarine",
+            "label": "left Pericalcarine"
+          },
+          {
+            "value": 58,
+            "class_id": "left_lateral_orbitofrontal",
+            "label": "left Lateral Orbitofrontal"
+          },
+          {
+            "value": 59,
+            "class_id": "left_rostral_anterior_cingulate",
+            "label": "left Rostral Anterior Cingulate"
+          },
+          {
+            "value": 60,
+            "class_id": "left_superior_parietal",
+            "label": "left Superior Parietal"
+          },
+          {
+            "value": 61,
+            "class_id": "left_inferior_parietal",
+            "label": "left Inferior Parietal"
+          },
+          {
+            "value": 62,
+            "class_id": "left_brainstem",
+            "label": "left Brainstem"
+          },
+          {
+            "value": 63,
+            "class_id": "left_lingual",
+            "label": "left Lingual"
+          },
+          {
+            "value": 64,
+            "class_id": "left_postcentral",
+            "label": "left Postcentral"
+          },
+          {
+            "value": 65,
+            "class_id": "left_transverse_temporal",
+            "label": "left Transverse Temporal"
+          },
+          {
+            "value": 66,
+            "class_id": "left_medial_orbitofrontal",
+            "label": "left Medial Orbitofrontal"
+          },
+          {
+            "value": 67,
+            "class_id": "left_paracentral",
+            "label": "left Paracentral"
+          },
+          {
+            "value": 68,
+            "class_id": "left_optic_chiasm",
+            "label": "left Optic Chiasm"
+          },
+          {
+            "value": 69,
+            "class_id": "left_parahippocampal",
+            "label": "left Parahippocampal"
+          },
+          {
+            "value": 70,
+            "class_id": "left_amygdala",
+            "label": "left Amygdala"
+          },
+          {
+            "value": 71,
+            "class_id": "left_vermal_lobules_viii_x",
+            "label": "left Vermal lobules VIII-X"
+          },
+          {
+            "value": 72,
+            "class_id": "left_putamen",
+            "label": "left Putamen"
+          },
+          {
+            "value": 73,
+            "class_id": "left_pars_triangularis",
+            "label": "left Pars Triangularis"
+          },
+          {
+            "value": 74,
+            "class_id": "left_insula",
+            "label": "left Insula"
+          },
+          {
+            "value": 75,
+            "class_id": "left_fusiform",
+            "label": "left Fusiform"
+          },
+          {
+            "value": 76,
+            "class_id": "left_basal_forebrain",
+            "label": "left Basal Forebrain"
+          },
+          {
+            "value": 77,
+            "class_id": "left_ventral_diencephalon",
+            "label": "left Ventral Diencephalon"
+          },
+          {
+            "value": 78,
+            "class_id": "left_pallidum",
+            "label": "left Pallidum"
+          },
+          {
+            "value": 79,
+            "class_id": "left_middle_temporal",
+            "label": "left Middle Temporal"
+          },
+          {
+            "value": 80,
+            "class_id": "left_third_ventricle",
+            "label": "left Third Ventricle"
+          },
+          {
+            "value": 81,
+            "class_id": "left_caudal_anterior_cingulate",
+            "label": "left Caudal Anterior Cingulate"
+          },
+          {
+            "value": 82,
+            "class_id": "left_precuneus",
+            "label": "left Precuneus"
+          },
+          {
+            "value": 83,
+            "class_id": "left_pars_opercularis",
+            "label": "left Pars Opercularis"
+          },
+          {
+            "value": 84,
+            "class_id": "left_isthmus_cingulate",
+            "label": "left Isthmus Cingulate"
+          },
+          {
+            "value": 85,
+            "class_id": "left_lateral_occipital",
+            "label": "left Lateral Occipital"
+          },
+          {
+            "value": 86,
+            "class_id": "left_precentral",
+            "label": "left Precentral"
+          },
+          {
+            "value": 87,
+            "class_id": "left_entorhinal",
+            "label": "left Entorhinal"
+          },
+          {
+            "value": 88,
+            "class_id": "left_fourth_ventricle",
+            "label": "left Fourth Ventricle"
+          },
+          {
+            "value": 89,
+            "class_id": "left_superior_frontal",
+            "label": "left Superior Frontal"
+          },
+          {
+            "value": 90,
+            "class_id": "left_cerebellum_white_matter",
+            "label": "left Cerebellum White Matter"
+          },
+          {
+            "value": 91,
+            "class_id": "left_thalamus",
+            "label": "left Thalamus"
+          },
+          {
+            "value": 92,
+            "class_id": "left_lateral_ventricle",
+            "label": "left Lateral Ventricle"
+          },
+          {
+            "value": 93,
+            "class_id": "left_caudal_middle_frontal",
+            "label": "left Caudal Middle Frontal"
+          },
+          {
+            "value": 94,
+            "class_id": "left_cuneus",
+            "label": "left Cuneus"
+          },
+          {
+            "value": 95,
+            "class_id": "left_pars_orbitalis",
+            "label": "left Pars Orbitalis"
+          },
+          {
+            "value": 96,
+            "class_id": "left_superior_temporal",
+            "label": "left Superior Temporal"
+          },
+          {
+            "value": 97,
+            "class_id": "left_cerebellum_gray_matter",
+            "label": "left Cerebellum Gray Matter"
+          },
+          {
+            "value": 98,
+            "class_id": "left_posterior_cingulate",
+            "label": "left Posterior Cingulate"
+          },
+          {
+            "value": 99,
+            "class_id": "left_hippocampus",
+            "label": "left Hippocampus"
+          },
+          {
+            "value": 100,
+            "class_id": "left_caudate",
+            "label": "left Caudate"
+          },
+          {
+            "value": 101,
+            "class_id": "left_vermal_lobules_i_v",
+            "label": "left Vermal lobules I-V"
+          },
+          {
+            "value": 102,
+            "class_id": "left_supramarginal",
+            "label": "left Supramarginal"
+          }
+        ],
+        "registration": {
+          "fixed": "subject T1",
+          "moving": "template_t1.nii",
+          "label_interpolation": "genericLabel",
+          "transform_direction": "fwdtransforms template->subject"
+        }
+      },
+      "files": {
+        "atlas_labels.nii": {
+          "download": "cerebra",
+          "size": 34120436,
+          "sha256": "8cbb7a90a8ae6f34001a1d659d99c9480dd79121184c2e2f01b160ad32d7800c",
+          "format": "nifti",
+          "member": "mni_icbm152_CerebrA_tal_nlin_sym_09c.nii"
+        },
+        "CerebrA_LabelDetails.csv": {
+          "download": "cerebra",
+          "size": 2798,
+          "sha256": "16ba5fec63159b69699d17d79274d34ec68d14099c3c989dadbbed83e2da9999",
+          "format": "text",
+          "member": "CerebrA_LabelDetails.csv"
+        },
+        "template_t1.nii": {
+          "download": "mni_sym09c",
+          "size": 17060394,
+          "sha256": "93359ab97c1c027376397612a9b6c30e95406c15bf8695bd4a8efcb2064eaa34",
+          "format": "nifti",
+          "member": "mni_icbm152_nlin_sym_09c/mni_icbm152_t1_tal_nlin_sym_09c.nii"
+        },
+        "template_mask.nii": {
+          "download": "mni_sym09c",
+          "size": 17060394,
+          "sha256": "27b30156598d900b74931bb7d88e7c8eaf73071fd87433055bc25509fe4a7c68",
+          "format": "nifti",
+          "member": "mni_icbm152_nlin_sym_09c/mni_icbm152_t1_tal_nlin_sym_09c_mask.nii"
+        },
+        "LICENSE.template-MNI.txt": {
+          "download": "mni_sym09c",
+          "size": 676,
+          "sha256": "5915d16f84d99c3cedc8290b09da72f6f92e5dde1ba1c9859ee186aa952b66a4",
+          "format": "text",
+          "member": "COPYING"
+        },
+        "LICENSE.atlas-DOI.html": {
+          "download": "cerebra_doi",
+          "size": 6656,
+          "sha256": "1e6306848f65d8dc69ee5c31915aa31f38b20d99a04713f752399d2a73771ff2",
+          "format": "html"
+        },
+        "LICENSE.atlas-CC0.txt": {
+          "download": "cc0_license",
+          "size": 7048,
+          "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+          "format": "text"
+        },
+        "LICENSE.code-ANTsPy.txt": {
+          "download": "ants_license",
+          "size": 11357,
+          "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1",
+          "format": "text"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,4 @@
+# Production is a plugin of a complete Local Suite >=8.11 installation.
+# The NEURO RT installer never runs pip on this file or installs another Python.
+# Nidus reuses the base's numpy, SimpleITK, scipy, pydicom, FastAPI and Pillow.
+# Research locks for disabled tools must not be applied to the base environment.
