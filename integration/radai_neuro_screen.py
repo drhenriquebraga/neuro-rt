@@ -1,8 +1,8 @@
 """Compose the plugin landing page with the host's shared module renderer."""
 import html
-import json
-import re
 from pathlib import Path
+
+from integration.localization import with_catalog
 
 
 def _pagina_ferramentas(renderer):
@@ -64,14 +64,8 @@ def pagina_neuro(host_services, plugin_status):
     if reason:
         page = page.replace('</body>', '<p role="status">' + reason + '</p></body>')
     page = radai_menu.aplicar(page, 'neuro')
-    import radai_languages
     root = Path(__file__).resolve().parents[1]
-    catalog = json.loads((root / 'web/plugin-update-i18n.json').read_text(encoding='utf-8'))
-    addition = ('var neuroUpdateExtra=' + json.dumps(catalog,ensure_ascii=True) +
-        ';Object.keys(neuroUpdateExtra).forEach(function(c){FRASES[c]=Object.assign({},FRASES[c]||{},neuroUpdateExtra[c]);});\n')
-    script = radai_languages.corpo_js().replace('var ALIAS=', addition+'var ALIAS=', 1)
-    page = re.sub(r'<script id="radai-idioma-js" src="[^"]+" defer></script>',
-        lambda _: '<script id="radai-idioma-js">'+script+'</script>', page)
+    page = with_catalog(page, 'plugin-update', 'neuro')
     controller = (root / 'web/plugin-update.js').read_text(encoding='utf-8')
     return page.replace('</body>', '<script>'+controller+'</script></body>')
 
@@ -117,12 +111,4 @@ def pagina_estudo(category, host_services):
     page = render_series_picker(page)
     page = radai_menu.aplicar(radai_ui.aplicar(page), 'neuro_' + category)
     page = radai_todo.aplicar(page, tela='neuro_' + category)
-    # Extend the shared translator only for this page; retain its language
-    # selection, templates, accessibility attributes and RTL behavior.
-    import radai_languages
-    catalog=json.loads((Path(__file__).resolve().parents[1] / 'web/study-i18n.json').read_text(encoding='utf-8'))
-    addition = 'var neuroExtra=' + json.dumps(catalog,ensure_ascii=True) + ';Object.keys(neuroExtra).forEach(function(c){FRASES[c]=Object.assign({},FRASES[c]||{},neuroExtra[c]);});\n'
-    script = radai_languages.corpo_js().replace('var ALIAS=',addition+'var ALIAS=',1)
-    page = re.sub(r'<script id="radai-idioma-js" src="[^"]+" defer></script>',lambda _: '<script id="radai-idioma-js">'+script+'</script>',page)
-    page=page.replace('</head>','<script>window.NEURO_TRANSLATION_KEYS='+json.dumps(list(catalog['pt-BR']),ensure_ascii=True)+';</script></head>')
-    return page
+    return with_catalog(page, 'study', study=True)

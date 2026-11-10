@@ -103,8 +103,8 @@ dialog{max-width:620px;width:calc(100% - 48px);padding:24px;border:1px solid var
 dialog::backdrop{background:#0009}dialog h1{font-size:23px;margin-top:0}dialog label{display:flex;gap:10px;align-items:flex-start;margin:20px 0}.testing-actions{display:flex;gap:10px;flex-wrap:wrap}button,a{font:inherit}button:disabled{opacity:.5}#testing-message{min-height:1.5em}</style></head>
 <body><a href="/neuro/">Voltar ao NEURO RT</a>
 <dialog id="testing-dialog" aria-labelledby="testing-title" aria-describedby="testing-description">
-<h1 id="testing-title">__TITLE__</h1><p id="testing-description">__TEXT__</p>
-<label><input type="checkbox" id="testing-check">Compreendi e aceito participar da fase de testes.</label>
+<h1 id="testing-title">__TOOL__ · <span data-radai-frase>fase de testes</span></h1><p id="testing-description">__TEXT__</p>
+<label><input type="checkbox" id="testing-check"><span data-radai-frase>Compreendi e aceito participar da fase de testes.</span></label>
 <div class="testing-actions"><button type="button" class="ui-bt pri" id="testing-accept" disabled>Participar e abrir</button>
 <button type="button" class="ui-bt" id="testing-cancel">Cancelar</button></div>
 <p id="testing-message" role="status" aria-live="polite"></p></dialog>
@@ -113,11 +113,14 @@ function cancel(){location.replace('/neuro/');}document.getElementById('testing-
 c.onchange=()=>{b.disabled=!c.checked;};b.onclick=async()=>{if(!c.checked||b.disabled)return;b.disabled=true;c.disabled=true;
 try{const s=await fetch('/neuro/api/testing/'+p.tool,{cache:'no-store'});if(!s.ok)throw Error();const v=await s.json();
 const r=await fetch('/neuro/api/testing/'+p.tool,{method:'POST',headers:{'Content-Type':'application/json','X-Neuro-Token':v.token},body:JSON.stringify({accepted:true,version:p.version,digest:p.digest})});
-if(!r.ok)throw Error();const v2=await r.json();location.assign(v2.route);}catch(_){m.textContent='Não foi possível confirmar. Tente novamente.';c.disabled=false;b.disabled=!c.checked;}};d.showModal();})();</script></body></html>'''
-    title = require_tool(tool_id).display_title + ' · fase de testes'
-    document = document.replace('__TITLE__', html.escape(title)).replace('__TEXT__', html.escape(current['text']))
+if(!r.ok)throw Error();const v2=await r.json();location.assign(v2.route);}catch(_){m.textContent=window.radaiFrase ? window.radaiFrase('Não foi possível confirmar. Tente novamente.') : 'Não foi possível confirmar. Tente novamente.';c.disabled=false;b.disabled=!c.checked;}};d.showModal();})();</script></body></html>'''
+    title = html.escape(require_tool(tool_id).display_title)
+    document = (document.replace('__TITLE__', title + ' · fase de testes')
+                .replace('__TOOL__', title).replace('__TEXT__', html.escape(current['text'])))
     document = document.replace('__POLICY__', json.dumps(current, ensure_ascii=True))
     if integrated:
         import radai_menu, radai_ui
-        document = radai_menu.aplicar(radai_ui.aplicar(document), 'neuro')
+        from integration.localization import with_catalog
+
+        document = with_catalog(radai_menu.aplicar(radai_ui.aplicar(document), 'neuro'), 'neuro')
     return document

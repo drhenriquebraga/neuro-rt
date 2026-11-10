@@ -20,7 +20,7 @@ TRUSTED_CODE_INVENTORIES = frozenset()  # Injected only by the pinned host boots
 _PLAN_KEYS = {'schema', 'transaction_id', 'mode', 'version', 'source',
               'requires_explicit_trust', 'local_source_accepted', 'action'}
 _ACTIONS = {'install', 'update', 'interrupt_then_update'}
-_LOCAL_KEYS = {'folder', 'manifest_sha256', 'code_inventory_sha256', 'file_count', 'total_bytes'}
+_LOCAL_KEYS = {'folder', 'manifest_sha256', 'code_inventory_sha256', 'file_count', 'total_bytes', 'kind'}
 _REMOTE_KEYS = {'release_id', 'asset_id', 'name', 'url', 'size', 'sha256'}
 
 
@@ -173,6 +173,8 @@ def _validate_plan(plan):
         _remote_source(source, plan['version'])
     else:
         _object(source, _LOCAL_KEYS)
+        if source['kind'] not in ('setup', 'offline_bundle'):
+            raise ValueError('Formato da fonte local inválido.')
         if not isinstance(source['folder'], str) or not Path(source['folder']).is_absolute():
             raise ValueError('Pasta local deve ser absoluta.')
         for key in ('manifest_sha256', 'code_inventory_sha256'):
@@ -268,7 +270,8 @@ def run_external(plan, progress, *, suite_root, host_python):
             target = Path(temp) / 'setup.zip'
             if plan['mode'] == 'local':
                 package = _local_package(plan, target)
-                source_folder = Path(plan['source']['folder'])
+                source_folder = (Path(plan['source']['folder'])
+                                 if plan['source']['kind'] == 'offline_bundle' else None)
             else:
                 from .plugin_update import ReleaseClient
                 emit('preparing', 'downloading')

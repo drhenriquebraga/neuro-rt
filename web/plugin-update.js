@@ -16,6 +16,7 @@
   const releaseRefresh = document.getElementById('neuro-release-refresh');
   const state = {last: null, timer: null, confirm: false, posting: false, initial: '', initialToken: '', initialPid: null, initialSeen: false, targetVersion: '', started: false, attempt: 0, fileProgress: null, byteProgress: null, downloadProgress: null, verificationFileProgress: null, verificationByteProgress: null, restarting: false, awaitingRestart: false, view: '', consentKey: '', consentChecked: false, consentRequired: false, consentValid: true};
   Object.assign(state, {localSourceId: '', localSourceVersion: '', localSourceToken: '', sourceBusy: false, refreshing: false});
+  let setup = null;
   const detail = document.createElement('p');
   detail.id = 'neuro-update-detail'; detail.hidden = true;
   message.after(detail);
@@ -99,6 +100,7 @@
     if (text.trim()) message.textContent += ' ' + T(text);
   }
   function offerLocal() {
+    if (setup) return;
     if (localDetails) localDetails.open = true;
     if (localMessage && !state.localSourceId) localMessage.textContent = T('Você pode usar uma fonte local verificada.');
   }
@@ -129,7 +131,8 @@
 
   function refreshButtons() {
     const blocked = state.consentRequired && (!state.consentValid || !state.consentChecked);
-    const unverified = !!(localFolder && localFolder.value.trim() && !state.localSourceId);
+    const needsLocal = setup ? setup.local() : localFolder && localFolder.value.trim();
+    const unverified = needsLocal && !state.localSourceId;
     actions.querySelectorAll('button').forEach(button => {
       button.disabled = state.posting || state.sourceBusy || ((blocked || unverified) && ['comecar', 'esperar', 'interromper'].includes(button.dataset.neuroAction));
     });
@@ -138,6 +141,7 @@
     if (localBrowse) localBrowse.disabled = locked;
     if (localInspect) localInspect.disabled = locked || !localFolder || !localFolder.value.trim();
     if (releaseRefresh) releaseRefresh.disabled = locked || state.refreshing;
+    if (setup) setup.sync();
   }
 
   function renderConsent(data, canRequestMaintenance) {
@@ -201,6 +205,7 @@
   function render(data) {
     if (!data) return;
     state.last = data;
+    if (setup) setup.result(data.last_result);
     const update = data.update || {}, release = data.release_check || {};
     if (state.localSourceId && state.localSourceToken !== data.token) {
       clearLocal();
@@ -259,6 +264,10 @@
       view('preparing', phases[update.stage] || 'Preparando a atualização do NEURO RT…', [], files ? Math.min(99, 100 * files.done / files.total) : null);
       details(update, files, unpacked); return;
     }
+    if (setup && update.state === 'external_install') {
+      state.awaitingRestart = true;
+      view('external', phases.handoff, [], null); return;
+    }
     if (update.state === 'installed_pending_restart') {
       view('pending', 'Pacote preparado. Aguardando reabertura da Local Suite.', [['esperar', 'Reiniciar agora', 'pri']]);
       if (update.error_code) message.textContent += ' ' + T('Feche e reabra a Local Suite para ativar o NEURO RT.');
@@ -314,12 +323,14 @@
     finally { follow(); }
   }
   async function request(action) {
-    if (state.posting) return;
+    if (state.posting || state.sourceBusy) return;
+    if (setup) setup.clearFailure();
     state.posting = true; clearTimeout(state.timer);
     actions.querySelectorAll('button').forEach(button => { button.disabled = true; });
     try {
       const current = await status();
-      if (localFolder && localFolder.value.trim() && (!state.localSourceId || state.localSourceToken !== current.token)) {
+      const needsLocal = setup ? setup.local() : localFolder && localFolder.value.trim();
+      if (needsLocal && (!state.localSourceId || state.localSourceToken !== current.token)) {
         clearLocal(); state.posting = false;
         if (localMessage) localMessage.textContent = T('Confira novamente a fonte local.');
         render(current); return;
@@ -333,7 +344,7 @@
       state.initialPid = number(current.host_pid) && current.host_pid > 0 ? current.host_pid : null;
       state.initial = version(current.active_version);
       if (state.localSourceId) state.targetVersion = state.localSourceVersion;
-      else if (version(current.release_check && current.release_check.version)) state.targetVersion = current.release_check.version;
+      else state.targetVersion = version(current.release_check && current.release_check.version);
       state.attempt += 1; state.fileProgress = null; state.byteProgress = null; state.downloadProgress = null;
       const payload = firstInstall ? {confirm: true} : {action};
       if (state.localSourceId) payload.source_id = state.localSourceId;
@@ -343,10 +354,16 @@
       const response = await fetch(firstInstall ? '/api/plugins/neuro-rt/install' : '/api/plugins/neuro-rt/update', {method: 'POST',
         headers: {'Content-Type': 'application/json', 'X-Neuro-Plugin-Token': current.token},
         body: JSON.stringify(payload)});
-      if (!response.ok) throw Error('update');
+      let result;
+      if (setup) result = await window.RadaiPluginSetup.checked(response);
+      else {
+        if (!response.ok) throw Error('update');
+        result = await response.json();
+      }
       state.posting = false;
-      render(Object.assign({}, current, {update: await response.json()}));
-    } catch (_) {
+      render(Object.assign({}, current, {update: result}));
+    } catch (error) {
+      if (setup) setup.failure(error);
       state.posting = false;
       view('failed', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.', []);
     } finally { follow(); }
@@ -369,10 +386,25 @@
     }
     return {current, body};
   }
-  if (localFolder) localFolder.addEventListener('input', () => {
+  if (panel.dataset.pluginInstall && window.RadaiPluginSetup) {
+    setup = window.RadaiPluginSetup.bind(panel, {
+      tokenHeader: 'X-Neuro-Plugin-Token',
+      status,
+      reset() { clearLocal(); if (state.last) render(state.last); },
+      lock(value) { state.sourceBusy = value; refreshButtons(); },
+      accept(id, selectedVersion, current) {
+        state.localSourceId = id;
+        state.localSourceVersion = selectedVersion;
+        state.localSourceToken = current.token;
+        render(current);
+      },
+      isLocked: () => state.posting || (state.started && state.awaitingRestart)
+    });
+  }
+  if (!setup && localFolder) localFolder.addEventListener('input', () => {
     clearLocal(); if (localMessage) localMessage.textContent = '';
   });
-  if (localBrowse && localBrowse.dataset.neuroHostBrowse !== '1') localBrowse.addEventListener('click', async () => {
+  if (!setup && localBrowse && localBrowse.dataset.neuroHostBrowse !== '1') localBrowse.addEventListener('click', async () => {
     if (state.sourceBusy || state.posting) return;
     state.sourceBusy = true; refreshButtons();
     try {
@@ -384,7 +416,7 @@
     } catch (_) { if (localMessage) localMessage.textContent = T('Não foi possível conferir a fonte local.'); }
     finally { state.sourceBusy = false; refreshButtons(); }
   });
-  if (localInspect) localInspect.addEventListener('click', async () => {
+  if (!setup && localInspect) localInspect.addEventListener('click', async () => {
     if (!localFolder || !localFolder.value.trim() || state.sourceBusy || state.posting) return;
     clearLocal(); state.sourceBusy = true; refreshButtons();
     if (localMessage) localMessage.textContent = T('Conferindo a fonte local…');

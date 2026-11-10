@@ -27,7 +27,7 @@ def onboarding_page(integrated):
 <h1>Primeiro uso do NEURO RT</h1>
 <p>Leia o mesmo termo apresentado na instalação. Esta confirmação registra o primeiro uso nesta instalação da suíte.</p>
 __CLAUSES__<small>Termo __VERSION__ · SHA-256 __DIGEST__</small>
-<label><input type="checkbox" id="neuro-consent-check">Li e compreendi o termo do plugin e seus limites.</label>
+<label><input type="checkbox" id="neuro-consent-check"><span data-radai-frase>Li e compreendi o termo do plugin e seus limites.</span></label>
 <button type="button" class="ui-bt pri" id="neuro-consent-continue" disabled>Concordar e continuar</button>
 <a class="ui-bt" href="/">Voltar à Local Suite</a>
 <p id="neuro-consent-message" role="status" aria-live="polite"></p>
@@ -43,7 +43,7 @@ button.addEventListener('click',async function(){
   if(!status.ok)throw Error('status'); const current=await status.json();
   const response=await fetch('/neuro/api/consent',{method:'POST',headers:{'Content-Type':'application/json','X-Neuro-Token':current.token},body:JSON.stringify({accepted:true,version:consent.version,digest:consent.digest})});
   if(!response.ok)throw Error('consent'); location.replace('/neuro/');
- }catch(_){message.textContent='Não foi possível registrar o aceite. Tente novamente.';check.disabled=false;button.disabled=!check.checked;}
+ }catch(_){message.textContent=window.radaiFrase ? window.radaiFrase('Não foi possível registrar o aceite. Tente novamente.') : 'Não foi possível registrar o aceite. Tente novamente.';check.disabled=false;button.disabled=!check.checked;}
 });})();</script></body></html>'''
     page = page.replace('__CLAUSES__', clauses).replace('__VERSION__', html.escape(current['version']))
     page = page.replace('__DIGEST__', current['digest'])
@@ -51,7 +51,9 @@ button.addEventListener('click',async function(){
     if integrated:
         import radai_menu
         import radai_ui
-        page = radai_menu.aplicar(radai_ui.aplicar(page), 'neuro')
+        from integration.localization import with_catalog
+
+        page = with_catalog(radai_menu.aplicar(radai_ui.aplicar(page), 'neuro'), 'neuro')
     return page
 
 

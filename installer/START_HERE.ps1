@@ -31,7 +31,7 @@ function Resolve-NeuroSuite([string]$Root) {
         $python = Join-Path $suite $relative
         if (Test-Path -LiteralPath $python -PathType Leaf) { return [pscustomobject]@{ Root=$suite; Python=$python } }
     }
-    throw 'Selecione a Local Suite completa 8.14 ou posterior.'
+    throw 'Selecione a Local Suite completa 8.16 ou posterior.'
 }
 function New-NeuroBackendArguments([string]$CodeRoot, [string]$Root, [string[]]$Options) {
     $entry = 'import sys; sys.path.insert(0, sys.argv.pop(1)); from neuro_rt.setup_wizard import main; sys.exit(main())'
@@ -123,6 +123,17 @@ function Remove-NeuroJobFiles($Context) {
     }
     $Context.TempFolder=$null
 }
+function Write-NeuroWizardFailure($Context,[string]$Reason,[string]$Code,[string]$Stage,$ExitCode=$null) {
+    if ($Stage -notmatch '^[a-z0-9_-]{1,80}$') { $Stage='unknown' }
+    $diagnostic='Código: '+$Code+' · Etapa: '+$Stage
+    if ($null -ne $ExitCode) { $diagnostic+=' · Saída: '+$ExitCode }
+    [Console]::Error.WriteLine($diagnostic)
+    [Console]::Error.WriteLine($Reason)
+    $Context.ResultBox.Text=$Reason+[Environment]::NewLine+$diagnostic
+    if ($env:NEURO_START_LOG) {
+        $Context.ResultBox.Text+=[Environment]::NewLine+'Log: '+$env:NEURO_START_LOG
+    }
+}
 function Start-NeuroWizardAction($Context,[string]$Kind) {
     if ($null -ne $Context.Job) { return }
     if ($Kind -eq 'offline' -and (-not $Context.Accepted.Checked -or $null -eq $Context.Policy)) {
@@ -150,7 +161,7 @@ function Start-NeuroWizardAction($Context,[string]$Kind) {
     } catch {
         Remove-NeuroJobFiles $Context
         $Context.LastPhase='Não foi possível iniciar'
-        $Context.ResultBox.Text='Confira a pasta da Local Suite completa 8.14 ou posterior e escolha uma pasta nova de destino.'
+        Write-NeuroWizardFailure $Context 'Confira a pasta da Local Suite completa 8.16 ou posterior e escolha uma pasta nova de destino.' 'WIZARD_START_FAILED' $Kind
     }
     Update-NeuroControls $Context
 }
@@ -171,7 +182,9 @@ function Complete-NeuroWizardJob($Context) {
             if ($code -notmatch '^[A-Z0-9_]{1,80}$') { $code='PREPARATION_FAILED' }
             $reason=[string](Get-NeuroField $result 'reason' 'Não foi possível concluir. Confira a suíte, a origem do SETUP e a conexão.')
             if ($reason.Length -gt 600 -or $reason -match '(?i)[A-Z]:[\\/]|\\\\|[\x00-\x08]') { $reason='Não foi possível concluir. Confira a suíte, a origem do SETUP e a conexão.' }
-            $Context.ResultBox.Text=$reason+[Environment]::NewLine+'Código: '+$code; $Context.LastPhase='Preparo não concluído'
+            $stage=[string](Get-NeuroField $result 'error_stage' (Get-NeuroField $result 'stage' $Context.Kind))
+            Write-NeuroWizardFailure $Context $reason $code $stage $job.Process.ExitCode
+            $Context.LastPhase='Preparo não concluído'
             if ($code -eq 'CANCELLED') { $Context.LastPhase='Montagem cancelada; os dados existentes foram preservados' }
             if ($Context.Kind -eq 'describe') { $Context.Policy=$null; $Context.Suite=$null }
         } elseif ($Context.Kind -eq 'describe') {
@@ -193,7 +206,7 @@ function Complete-NeuroWizardJob($Context) {
         } else { throw 'Confirmação inesperada.' }
     } catch {
         $Context.LastPhase='Não foi possível confirmar a conclusão'
-        $Context.ResultBox.Text='O assistente terminou sem uma confirmação válida. Os dados existentes foram preservados. Verifique a suíte e tente novamente.'
+        Write-NeuroWizardFailure $Context 'O assistente terminou sem uma confirmação válida. Os dados existentes foram preservados. Verifique a suíte e tente novamente.' 'WIZARD_RESPONSE_INVALID' $Context.Kind $job.Process.ExitCode
         if ($Context.Kind -eq 'describe') { $Context.Policy=$null; $Context.Suite=$null }
     } finally {
         $job.Process.Dispose(); $Context.Job=$null; Remove-NeuroJobFiles $Context; Update-NeuroControls $Context
@@ -249,7 +262,7 @@ function New-NeuroWizard([string]$InitialSuiteRoot='', [string]$InitialOutputFol
     $subtitle=New-NeuroLabel 'Preparar na suíte instalada ou montar um pacote para transportar.'
     $subtitle.SetBounds(0,43,850,22); $subtitle.Anchor='Top, Left, Right'
     $header.Controls.AddRange(@($title,$subtitle)); Add-NeuroRow $header 78
-    $suitePanel=New-Object Windows.Forms.Panel; $suitePanel.Width=896; $suiteLabel=New-NeuroLabel 'Pasta da Local Suite completa (8.14 ou posterior)'
+    $suitePanel=New-Object Windows.Forms.Panel; $suitePanel.Width=896; $suiteLabel=New-NeuroLabel 'Pasta da Local Suite completa (8.16 ou posterior)'
     $suiteLabel.SetBounds(0,0,840,20)
     $rootText=New-Object Windows.Forms.TextBox; $rootText.SetBounds(0,25,745,28); $rootText.Anchor='Top, Left, Right'
     $browseSuite=New-NeuroButton 'Escolher…'; $browseSuite.SetBounds(755,23,138,32); $browseSuite.Anchor='Top, Right'
@@ -307,7 +320,7 @@ function New-NeuroWizard([string]$InitialSuiteRoot='', [string]$InitialOutputFol
     $offline.Add_Click({param($sender,$eventArgs) Start-NeuroWizardAction $sender.Tag 'offline'})
     $cancel.Add_Click({param($sender,$eventArgs) Request-NeuroCancel $sender.Tag})
     $browseSuite.Add_Click({param($sender,$eventArgs)
-        $dialog=New-Object Windows.Forms.FolderBrowserDialog;$dialog.Description='Selecione a pasta da Local Suite completa 8.14 ou posterior.';$dialog.ShowNewFolderButton=$false
+        $dialog=New-Object Windows.Forms.FolderBrowserDialog;$dialog.Description='Selecione a pasta da Local Suite completa 8.16 ou posterior.';$dialog.ShowNewFolderButton=$false
         try {if ($dialog.ShowDialog($sender.Tag.Form) -eq 'OK') {$sender.Tag.RootText.Text=$dialog.SelectedPath}} finally {$dialog.Dispose()} })
     $browseOutput.Add_Click({param($sender,$eventArgs)
         $dialog=New-Object Windows.Forms.FolderBrowserDialog;$dialog.Description='Escolha onde criar a NOVA pasta do pacote offline.';$dialog.ShowNewFolderButton=$false
@@ -336,5 +349,9 @@ if ($MyInvocation.InvocationName -ne '.') {
         }
         $wizard=New-NeuroWizard -InitialSuiteRoot $SuiteRoot -InitialOutputFolder $OutputFolder
         [void]$wizard.Form.ShowDialog();$wizard.Form.Dispose();exit 0
-    } catch {Write-Error 'Não foi possível abrir o assistente. Use a Local Suite completa 8.14 ou posterior.' -ErrorAction Continue;exit 1}
+    } catch {
+        [Console]::Error.WriteLine('WIZARD_START_FAILED · Etapa: startup · '+$_.Exception.GetType().Name)
+        [Console]::Error.WriteLine('Não foi possível abrir o assistente. Use a Local Suite completa 8.16 ou posterior.')
+        exit 1
+    }
 }

@@ -2938,7 +2938,9 @@ def montar(app, host_services=None):
 
     @app.get("/nidus/projecao", response_class=HTMLResponse)
     def _tela():
-        return radai_menu.aplicar(pagina(), "nidus_projecao")
+        from integration.localization import with_catalog
+
+        return with_catalog(radai_menu.aplicar(pagina(), "nidus_projecao"), "neuro")
 
     def _abrir(b, resolvido=None):
         try:
