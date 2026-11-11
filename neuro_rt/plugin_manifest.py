@@ -89,6 +89,7 @@ class PluginManifest:
     execution_mode: str = 'isolated'
     enabled_tools: tuple = ()
     resource_recipe: str | None = None
+    base_tools: tuple = ()
 
 
 @dataclass(frozen=True)
@@ -145,6 +146,13 @@ def read_manifest(path) -> PluginManifest:
             or not (legacy_host or beta_host) or values.get('artifacts') != []
             or any(key in values for key in ('host_python', 'python_executable', 'worker_python'))):
         raise ValueError('O modo host exige um perfil autorizado, sem Python privado ou artefatos no SETUP.')
+    base_tools = values.get('base_tools', [])
+    if base_tools and (base_tools != ['nidus'] or not beta_host or execution_mode != 'host'
+                       or _numeric_version(values['version']) < (1, 3, 2)
+                       or _numeric_version(minimum) < (8, 17)):
+        raise ValueError('As funções da base exigem o perfil opcional do NEURO RT 1.3.2.')
+    if not isinstance(base_tools, list):
+        raise ValueError('Funções da base inválidas.')
     if resource_recipe is not None:
         _relative_path(path.parent, resource_recipe)
     if not isinstance(runtimes, dict) or (not runtimes and execution_mode != 'host'):
@@ -167,7 +175,7 @@ def read_manifest(path) -> PluginManifest:
         host_contract=values['host_contract'], host_min_version=minimum,
         entrypoint=values['entrypoint'], adapter=adapter, catalog=values['catalog'],
         runtimes=runtimes, artifacts=tuple(artifacts), execution_mode=execution_mode,
-        enabled_tools=tuple(enabled_tools), resource_recipe=resource_recipe)
+        enabled_tools=tuple(enabled_tools), resource_recipe=resource_recipe, base_tools=tuple(base_tools))
 
 
 def check_host_compatibility(manifest, host_info) -> CompatibilityResult:

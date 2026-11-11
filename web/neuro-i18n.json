@@ -28,7 +28,10 @@
     "Layout original": "Layout original",
     "Material de estudo · 100% local. Nenhuma imagem sai desta rede.": "Material de estudo · 100% local. Nenhuma imagem sai desta rede.",
     "sugestão geométrica": "sugestão geométrica",
-    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS."
+    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.",
+    "Preparar modelos": "Preparar modelos",
+    "Requer modelos adicionais": "Requer modelos adicionais",
+    "Prepare os modelos adicionais desta ferramenta.": "Prepare os modelos adicionais desta ferramenta."
   },
   "en": {
     "Na interface atual, o aceite da fase de testes é lembrado por ferramenta.": "Test-phase acceptance is saved separately for each tool.",
@@ -59,7 +62,10 @@
     "Layout original": "Original layout",
     "Material de estudo · 100% local. Nenhuma imagem sai desta rede.": "Study material · 100% local. No images leave this network.",
     "sugestão geométrica": "geometric suggestion",
-    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "This tool is still being developed and is in its test phase. You can help Dr. Henrique Braga by sharing feedback and bug reports. Feedback and exams are never sent automatically. Share only reports without patient data. Results are UNAPPROVED suggestions and require TPS review."
+    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "This tool is still being developed and is in its test phase. You can help Dr. Henrique Braga by sharing feedback and bug reports. Feedback and exams are never sent automatically. Share only reports without patient data. Results are UNAPPROVED suggestions and require TPS review.",
+    "Preparar modelos": "Prepare models",
+    "Requer modelos adicionais": "Additional models required",
+    "Prepare os modelos adicionais desta ferramenta.": "Prepare the additional models for this tool."
   },
   "es": {
     "Na interface atual, o aceite da fase de testes é lembrado por ferramenta.": "La aceptación de la fase de pruebas se guarda por herramienta.",
@@ -90,7 +96,10 @@
     "Layout original": "Disposición original",
     "Material de estudo · 100% local. Nenhuma imagem sai desta rede.": "Material de estudio · 100 % local. Ninguna imagen sale de esta red.",
     "sugestão geométrica": "sugerencia geométrica",
-    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "Esta herramienta está en desarrollo y en fase de pruebas. Puede ayudar al Dr. Henrique Braga con comentarios e informes de errores. No se envían comentarios ni estudios automáticamente. Comparta únicamente informes sin datos de pacientes. Los resultados son sugerencias UNAPPROVED y requieren revisión en el TPS."
+    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "Esta herramienta está en desarrollo y en fase de pruebas. Puede ayudar al Dr. Henrique Braga con comentarios e informes de errores. No se envían comentarios ni estudios automáticamente. Comparta únicamente informes sin datos de pacientes. Los resultados son sugerencias UNAPPROVED y requieren revisión en el TPS.",
+    "Preparar modelos": "Preparar modelos",
+    "Requer modelos adicionais": "Requiere modelos adicionales",
+    "Prepare os modelos adicionais desta ferramenta.": "Prepare los modelos adicionales de esta herramienta."
   },
   "de": {
     "Na interface atual, o aceite da fase de testes é lembrado por ferramenta.": "Die Zustimmung zur Testphase wird für jedes Werkzeug gespeichert.",
@@ -121,7 +130,10 @@
     "Layout original": "Ursprüngliches Layout",
     "Material de estudo · 100% local. Nenhuma imagem sai desta rede.": "Studienmaterial · 100 % lokal. Kein Bild verlässt dieses Netzwerk.",
     "sugestão geométrica": "geometrischer Vorschlag",
-    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "Dieses Werkzeug befindet sich in der Entwicklung und Testphase. Sie können Dr. Henrique Braga mit Rückmeldungen und Fehlermeldungen unterstützen. Rückmeldungen und Untersuchungen werden nicht automatisch übermittelt. Teilen Sie nur Meldungen ohne Patientendaten. Die Ergebnisse sind UNAPPROVED-Vorschläge und müssen im TPS geprüft werden."
+    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "Dieses Werkzeug befindet sich in der Entwicklung und Testphase. Sie können Dr. Henrique Braga mit Rückmeldungen und Fehlermeldungen unterstützen. Rückmeldungen und Untersuchungen werden nicht automatisch übermittelt. Teilen Sie nur Meldungen ohne Patientendaten. Die Ergebnisse sind UNAPPROVED-Vorschläge und müssen im TPS geprüft werden.",
+    "Preparar modelos": "Modelle vorbereiten",
+    "Requer modelos adicionais": "Zusätzliche Modelle erforderlich",
+    "Prepare os modelos adicionais desta ferramenta.": "Bereiten Sie die zusätzlichen Modelle für dieses Werkzeug vor."
   },
   "fr": {
     "Na interface atual, o aceite da fase de testes é lembrado por ferramenta.": "L’acceptation de la phase de test est enregistrée pour chaque outil.",
@@ -152,7 +164,10 @@
     "Layout original": "Disposition d’origine",
     "Material de estudo · 100% local. Nenhuma imagem sai desta rede.": "Matériel d’étude · 100 % local. Aucune image ne quitte ce réseau.",
     "sugestão geométrica": "suggestion géométrique",
-    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "Cet outil est encore en développement et en phase de test. Vous pouvez aider le Dr Henrique Braga en envoyant vos retours et signalements de bugs. Aucun retour ni examen n’est envoyé automatiquement. Partagez uniquement des signalements sans données de patients. Les résultats sont des suggestions UNAPPROVED à vérifier dans le TPS."
+    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "Cet outil est encore en développement et en phase de test. Vous pouvez aider le Dr Henrique Braga en envoyant vos retours et signalements de bugs. Aucun retour ni examen n’est envoyé automatiquement. Partagez uniquement des signalements sans données de patients. Les résultats sont des suggestions UNAPPROVED à vérifier dans le TPS.",
+    "Preparar modelos": "Préparer les modèles",
+    "Requer modelos adicionais": "Modèles supplémentaires requis",
+    "Prepare os modelos adicionais desta ferramenta.": "Préparez les modèles supplémentaires de cet outil."
   },
   "it": {
     "Na interface atual, o aceite da fase de testes é lembrado por ferramenta.": "L’accettazione della fase di test viene salvata per ogni strumento.",
@@ -183,7 +198,10 @@
     "Layout original": "Layout originale",
     "Material de estudo · 100% local. Nenhuma imagem sai desta rede.": "Materiale di studio · 100% locale. Nessuna immagine lascia questa rete.",
     "sugestão geométrica": "suggerimento geometrico",
-    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "Questo strumento è ancora in sviluppo e in fase di test. Puoi aiutare il Dr. Henrique Braga con commenti e segnalazioni di errori. Nessun commento o esame viene inviato automaticamente. Condividi solo segnalazioni prive di dati dei pazienti. I risultati sono suggerimenti UNAPPROVED da verificare nel TPS."
+    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "Questo strumento è ancora in sviluppo e in fase di test. Puoi aiutare il Dr. Henrique Braga con commenti e segnalazioni di errori. Nessun commento o esame viene inviato automaticamente. Condividi solo segnalazioni prive di dati dei pazienti. I risultati sono suggerimenti UNAPPROVED da verificare nel TPS.",
+    "Preparar modelos": "Prepara i modelli",
+    "Requer modelos adicionais": "Richiede modelli aggiuntivi",
+    "Prepare os modelos adicionais desta ferramenta.": "Prepara i modelli aggiuntivi per questo strumento."
   },
   "pl": {
     "Na interface atual, o aceite da fase de testes é lembrado por ferramenta.": "Zgoda na fazę testów jest zapisywana osobno dla każdego narzędzia.",
@@ -214,7 +232,10 @@
     "Layout original": "Układ oryginalny",
     "Material de estudo · 100% local. Nenhuma imagem sai desta rede.": "Materiał do nauki · w pełni lokalny. Żaden obraz nie opuszcza tej sieci.",
     "sugestão geométrica": "sugestia geometryczna",
-    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "Narzędzie jest w fazie rozwoju i testów. Możesz pomóc dr. Henrique Bradze, przekazując uwagi i zgłoszenia błędów. Żadne uwagi ani badania nie są wysyłane automatycznie. Udostępniaj wyłącznie zgłoszenia bez danych pacjentów. Wyniki to sugestie UNAPPROVED, które wymagają weryfikacji w TPS."
+    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "Narzędzie jest w fazie rozwoju i testów. Możesz pomóc dr. Henrique Bradze, przekazując uwagi i zgłoszenia błędów. Żadne uwagi ani badania nie są wysyłane automatycznie. Udostępniaj wyłącznie zgłoszenia bez danych pacjentów. Wyniki to sugestie UNAPPROVED, które wymagają weryfikacji w TPS.",
+    "Preparar modelos": "Przygotuj modele",
+    "Requer modelos adicionais": "Wymaga dodatkowych modeli",
+    "Prepare os modelos adicionais desta ferramenta.": "Przygotuj dodatkowe modele dla tego narzędzia."
   },
   "ar": {
     "Na interface atual, o aceite da fase de testes é lembrado por ferramenta.": "تُحفظ الموافقة على المرحلة التجريبية لكل أداة على حدة.",
@@ -245,7 +266,10 @@
     "Layout original": "التخطيط الأصلي",
     "Material de estudo · 100% local. Nenhuma imagem sai desta rede.": "مواد للدراسة · محلية بالكامل. لا تغادر أي صورة هذه الشبكة.",
     "sugestão geométrica": "اقتراح هندسي",
-    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "هذه الأداة قيد التطوير والاختبار. يمكنك مساعدة الدكتور هنريك براغا بإرسال الملاحظات وتقارير الأخطاء. لا تُرسل أي ملاحظات أو فحوص تلقائيًا. شارك فقط تقارير خالية من بيانات المرضى. النتائج اقتراحات UNAPPROVED وتحتاج إلى مراجعة في TPS."
+    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "هذه الأداة قيد التطوير والاختبار. يمكنك مساعدة الدكتور هنريك براغا بإرسال الملاحظات وتقارير الأخطاء. لا تُرسل أي ملاحظات أو فحوص تلقائيًا. شارك فقط تقارير خالية من بيانات المرضى. النتائج اقتراحات UNAPPROVED وتحتاج إلى مراجعة في TPS.",
+    "Preparar modelos": "إعداد النماذج",
+    "Requer modelos adicionais": "يتطلب نماذج إضافية",
+    "Prepare os modelos adicionais desta ferramenta.": "جهّز النماذج الإضافية لهذه الأداة."
   },
   "bn": {
     "Na interface atual, o aceite da fase de testes é lembrado por ferramenta.": "প্রতিটি টুলের জন্য পরীক্ষামূলক পর্যায়ের সম্মতি আলাদাভাবে সংরক্ষিত হয়।",
@@ -276,7 +300,10 @@
     "Layout original": "মূল বিন্যাস",
     "Material de estudo · 100% local. Nenhuma imagem sai desta rede.": "গবেষণার উপকরণ · ১০০% স্থানীয়। কোনো ছবি এই নেটওয়ার্কের বাইরে যায় না।",
     "sugestão geométrica": "জ্যামিতিক পরামর্শ",
-    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "এই টুলটি এখনও তৈরি হচ্ছে এবং পরীক্ষামূলক পর্যায়ে রয়েছে। মতামত ও ত্রুটির প্রতিবেদন দিয়ে ডা. হেনরিক ব্রাগাকে সহায়তা করতে পারেন। কোনো মতামত বা পরীক্ষা স্বয়ংক্রিয়ভাবে পাঠানো হয় না। শুধু রোগীর তথ্যবিহীন প্রতিবেদন শেয়ার করুন। ফলাফল UNAPPROVED পরামর্শ এবং TPS-এ পর্যালোচনা প্রয়োজন।"
+    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "এই টুলটি এখনও তৈরি হচ্ছে এবং পরীক্ষামূলক পর্যায়ে রয়েছে। মতামত ও ত্রুটির প্রতিবেদন দিয়ে ডা. হেনরিক ব্রাগাকে সহায়তা করতে পারেন। কোনো মতামত বা পরীক্ষা স্বয়ংক্রিয়ভাবে পাঠানো হয় না। শুধু রোগীর তথ্যবিহীন প্রতিবেদন শেয়ার করুন। ফলাফল UNAPPROVED পরামর্শ এবং TPS-এ পর্যালোচনা প্রয়োজন।",
+    "Preparar modelos": "মডেল প্রস্তুত করুন",
+    "Requer modelos adicionais": "অতিরিক্ত মডেল প্রয়োজন",
+    "Prepare os modelos adicionais desta ferramenta.": "এই টুলের জন্য অতিরিক্ত মডেল প্রস্তুত করুন।"
   },
   "ko": {
     "Na interface atual, o aceite da fase de testes é lembrado por ferramenta.": "테스트 단계 동의는 도구별로 저장됩니다.",
@@ -307,7 +334,10 @@
     "Layout original": "기본 레이아웃",
     "Material de estudo · 100% local. Nenhuma imagem sai desta rede.": "연구용 자료 · 100% 로컬. 이미지가 이 네트워크 외부로 전송되지 않습니다.",
     "sugestão geométrica": "기하학적 제안",
-    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "이 도구는 개발 중이며 테스트 단계에 있습니다. 기능 의견과 오류 보고로 Henrique Braga 박사를 도울 수 있습니다. 의견이나 검사가 자동으로 전송되지 않습니다. 환자 데이터가 없는 보고서만 공유하세요. 결과는 UNAPPROVED 제안이며 TPS에서 검토해야 합니다."
+    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "이 도구는 개발 중이며 테스트 단계에 있습니다. 기능 의견과 오류 보고로 Henrique Braga 박사를 도울 수 있습니다. 의견이나 검사가 자동으로 전송되지 않습니다. 환자 데이터가 없는 보고서만 공유하세요. 결과는 UNAPPROVED 제안이며 TPS에서 검토해야 합니다.",
+    "Preparar modelos": "모델 준비",
+    "Requer modelos adicionais": "추가 모델 필요",
+    "Prepare os modelos adicionais desta ferramenta.": "이 도구의 추가 모델을 준비하세요."
   },
   "zh-CN": {
     "Na interface atual, o aceite da fase de testes é lembrado por ferramenta.": "测试阶段的同意按工具分别保存。",
@@ -338,7 +368,10 @@
     "Layout original": "原始布局",
     "Material de estudo · 100% local. Nenhuma imagem sai desta rede.": "研究资料 · 完全在本地处理。图像不会离开此网络。",
     "sugestão geométrica": "几何建议",
-    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "此工具仍在开发和测试阶段。您可以提供功能反馈和错误报告，帮助 Henrique Braga 医生。反馈和检查资料不会自动发送。请仅分享不含患者数据的报告。结果为 UNAPPROVED 建议，需要在 TPS 中审核。"
+    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "此工具仍在开发和测试阶段。您可以提供功能反馈和错误报告，帮助 Henrique Braga 医生。反馈和检查资料不会自动发送。请仅分享不含患者数据的报告。结果为 UNAPPROVED 建议，需要在 TPS 中审核。",
+    "Preparar modelos": "准备模型",
+    "Requer modelos adicionais": "需要额外模型",
+    "Prepare os modelos adicionais desta ferramenta.": "请准备此工具所需的额外模型。"
   },
   "ja": {
     "Na interface atual, o aceite da fase de testes é lembrado por ferramenta.": "試験段階への同意はツールごとに保存されます。",
@@ -369,6 +402,9 @@
     "Layout original": "元のレイアウト",
     "Material de estudo · 100% local. Nenhuma imagem sai desta rede.": "研究用資料 · 完全ローカル。画像はこのネットワークの外に出ません。",
     "sugestão geométrica": "幾何学的な提案",
-    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "このツールは開発中で試験段階にあります。機能へのフィードバックや不具合報告は Henrique Braga 医師の助けになります。フィードバックや検査が自動送信されることはありません。患者データを含まない報告のみを共有してください。結果は UNAPPROVED の提案であり、TPS での確認が必要です。"
+    "Esta ferramenta ainda está sendo moldada e está em fase de testes. Ao participar, você pode auxiliar o Dr. Henrique Braga com feedback de funcionalidades e relatos de erros (debugs). Nenhum feedback ou exame é enviado automaticamente. Compartilhe apenas relatos sem dados de pacientes. Os resultados são sugestões UNAPPROVED e exigem revisão no TPS.": "このツールは開発中で試験段階にあります。機能へのフィードバックや不具合報告は Henrique Braga 医師の助けになります。フィードバックや検査が自動送信されることはありません。患者データを含まない報告のみを共有してください。結果は UNAPPROVED の提案であり、TPS での確認が必要です。",
+    "Preparar modelos": "モデルを準備",
+    "Requer modelos adicionais": "追加モデルが必要",
+    "Prepare os modelos adicionais desta ferramenta.": "このツール用の追加モデルを準備してください。"
   }
 }

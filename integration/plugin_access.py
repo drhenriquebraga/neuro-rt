@@ -63,10 +63,11 @@ class PluginAccessGate(BaseRoute):
     Allowed requests return Match.NONE and use the original host/plugin route.
     No live middleware stack or FastAPI internal included-router is replaced.
     """
-    def __init__(self, config_dir, integrated, require_legacy_origin, testing):
+    def __init__(self, config_dir, integrated, require_legacy_origin, testing, available=None):
         self.config_dir, self.integrated = config_dir, integrated
         self.require_legacy_origin = require_legacy_origin
         self.testing = testing
+        self.available = available or (lambda tool_id: True)
 
     def matches(self, scope):
         if scope['type'] != 'http':
@@ -83,8 +84,9 @@ class PluginAccessGate(BaseRoute):
             self.require_legacy_origin(Request(scope))
         if path.rstrip('/') in ('/nidus', '/nidus/projecao') or nidus_api:
             tool = next(t for t in TOOLS if t.id == 'nidus')
-        protected = (tool is not None or execution or path.startswith('/neuro/testing/')
-                     or self.integrated and path.rstrip('/') == '/neuro')
+        if tool and not self.available(tool.id):
+            return Match.FULL, {'neuro_access_denial': ('resources', tool.id)}
+        protected = tool is not None or execution or path.startswith('/neuro/testing/')
         if protected and not _consent_accepted(self.config_dir):
             return Match.FULL, {'neuro_access_denial': ('consent', '')}
         if tool and not self.testing.allowed(scope, tool.id):
@@ -99,7 +101,11 @@ class PluginAccessGate(BaseRoute):
         from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse
         kind, title = scope['neuro_access_denial']
         is_api = scope.get('path', '').startswith(('/api/', '/neuro/api/'))
-        if kind == 'testing':
+        if kind == 'resources':
+            response = (JSONResponse({'detail': 'Prepare os modelos adicionais desta ferramenta.',
+                'settings': '/config#ps_neuro'}, status_code=409) if is_api else
+                RedirectResponse('/neuro/', status_code=303))
+        elif kind == 'testing':
             response = (JSONResponse({'detail': 'Confirme a participação na fase de testes.',
                 'onboarding': '/neuro/testing/' + title}, status_code=428) if is_api else
                 RedirectResponse('/neuro/testing/' + title, status_code=303))
@@ -117,12 +123,15 @@ def attach(app, router, service, config_dir, local, action, *, integrated):
     from integration.testing_access import TestingAccess, policy as testing_policy, page as testing_page
     testing = TestingAccess(config_dir)
     service.testing_access = testing
+    available = getattr(service, 'tool_available', lambda tool_id: True)
 
     @router.get('/testing/{tool_id}')
     def testing_entry(request: Request, tool_id: str):
         local(request)
         try:
             tool = require_tool(tool_id)
+            if not available(tool.id):
+                return RedirectResponse('/neuro/', status_code=303, headers={'Cache-Control': 'no-store'})
             if testing.allowed(request, tool.id):
                 return RedirectResponse(tool.route, status_code=303, headers={'Cache-Control': 'no-store'})
             return HTMLResponse(testing_page(tool_id, integrated), headers={'Cache-Control': 'no-store'})
@@ -188,5 +197,5 @@ def attach(app, router, service, config_dir, local, action, *, integrated):
         # A public Starlette route supports both old FastAPI flat routes and new
         # included routers. It can be registered after startup, unlike middleware.
         if not any(isinstance(route, PluginAccessGate) for route in app.router.routes):
-            app.router.routes.insert(0, PluginAccessGate(config_dir, integrated, require_legacy_origin, testing))
+            app.router.routes.insert(0, PluginAccessGate(config_dir, integrated, require_legacy_origin, testing, available))
     return protect_routes

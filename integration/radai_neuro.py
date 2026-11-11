@@ -163,8 +163,10 @@ def montar(app, module_root, *, host_services=None):
             local(request)
             from integration.radai_neuro_screen import pagina_neuro, pagina_estudo
             try:
+                if category and not service.tool_available(category):
+                    return RedirectResponse('/neuro/', status_code=303)
                 page = (pagina_estudo(category, host_services) if category else
-                        pagina_neuro(host_services, {'state': 'ready'}))
+                        pagina_neuro(host_services, {'state': 'ready', 'tools': service.tools()}))
                 return HTMLResponse(page, headers={'Cache-Control': 'no-store'})
             except ValueError as exc: raise fail(exc)
 

@@ -5,10 +5,11 @@ from pathlib import Path
 from integration.localization import with_catalog
 
 
-def _pagina_ferramentas(renderer):
+def _pagina_ferramentas(renderer, availability=None):
     """Use the host's own cards without modifying its shared module globals."""
     from neuro_rt.tool_availability import TOOLS
     tools = {tool.card_id: tool for tool in TOOLS}
+    readiness = {tool['id']: tool for tool in availability or ()}
     cards = renderer.FERRAMENTAS.get('neuro', ())
     if len(cards) != len(tools) or {card[0] for card in cards} != set(tools):
         raise RuntimeError('O contrato de ferramentas NEURO RT do host não corresponde ao plugin.')
@@ -20,8 +21,9 @@ def _pagina_ferramentas(renderer):
         while len(entry) < 6:
             entry.append('')
         entry[2] = tool.display_title
-        entry[3] = '/neuro/testing/' + tool.id
-        entry[5] = tool.label
+        status = readiness.get(tool.id, {'enabled': tool.enabled, 'label': tool.label})
+        entry[3] = '/neuro/testing/' + tool.id if status['enabled'] else ''
+        entry[5] = status['label']
         original = renderer._cartao(card, color)
         replacement = renderer._cartao(entry, color)
         if page.count(original) != 1:
@@ -35,7 +37,11 @@ def pagina_neuro(host_services, plugin_status):
     import radai_modules
     from neuro_rt import plugin_consent
 
-    page = _pagina_ferramentas(radai_modules)
+    availability = plugin_status.get('tools')
+    page = _pagina_ferramentas(radai_modules, availability)
+    if availability and any(not tool['enabled'] for tool in availability):
+        prepare = '<p><a class="ui-bt" href="/config#ps_neuro" data-radai-frase>Preparar modelos</a></p>'
+        page = page.replace('<div class="md-grade"', prepare + '<div class="md-grade"', 1)
     help_html = radai_modules.ajuda_do_modulo('neuro')
     if help_html and help_html in page:
         policy = plugin_consent.policy()

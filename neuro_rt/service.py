@@ -190,6 +190,23 @@ class Service:
             raise KeyError('Demo ainda não preparada.')
         return self.job(self._demos[model])
 
+    def tools(self):
+        from .tool_availability import available_tools
+
+        paths = self.settings.plugin_paths
+        if paths is None or self.settings.resources is not None:
+            return available_tools()
+        ready = {'nidus'}
+        if self.studies is not None and 'cranio_buti' in self.studies.catalog:
+            from integration.buti_host import capabilities
+
+            if capabilities(self.settings.host_app, self.settings.host_python)['cranio_buti']['available']:
+                ready.add('anatomia')
+        return available_tools(ready)
+
+    def tool_available(self, tool_id):
+        return any(tool['id'] == tool_id and tool['enabled'] for tool in self.tools())
+
     def status(self):
         with self._lock:
             jobs = [dict(job) for job in self._jobs.values()]
@@ -203,7 +220,7 @@ class Service:
                 'integrated': self.host_services is not None,
                 'study_jobs': self.studies.list_jobs() if self.studies else [],
                 'demos': [self._jobs[job_id]['demo'] for job_id in self._demos.values()],
-                'models': self._models_status(), 'jobs': jobs[-20:]}
+                'models': self._models_status(), 'tools': self.tools(), 'jobs': jobs[-20:]}
 
     def _models_status(self):
         from .model_paths import shared_model_status

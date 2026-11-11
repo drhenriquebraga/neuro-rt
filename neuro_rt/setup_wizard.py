@@ -162,7 +162,7 @@ def _host_file(root, filename):
         path = install_state._path(root, relative)
         if path.is_file():
             return path
-    raise install_state.InstallFailure('HOST_INCOMPATIBLE', 'Atualize a Local Suite para 8.16 ou posterior.')
+    raise install_state.InstallFailure('HOST_INCOMPATIBLE', 'Atualize a Local Suite para 8.17 ou posterior.')
 
 
 def open_host_settings(suite_root, *, host_python):

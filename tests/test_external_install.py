@@ -125,7 +125,7 @@ class ExternalInstallTests(unittest.TestCase):
         self.assertEqual(state['active_version'], '1.1.0')
         self.assertEqual(state['resources']['schema'], 'neuro-rt/resolved-resources/1')
         self.assertIsNone(state['pending_resources'])
-        self.assertEqual(resources.call_args.kwargs['source_folder'], self.source.resolve())
+        self.assertIsNone(resources.call_args.kwargs['source_folder'])
         self.assertIn('activating', [event['state'] for event in events])
         self.assertEqual(events[-1]['state'], 'ready')
         self.assertFalse((self.host / 'python').exists())
@@ -313,6 +313,7 @@ class ExternalInstallTests(unittest.TestCase):
         with zipfile.ZipFile(package['path']) as archive:
             archive.extractall(source)
             inventory = json.loads(archive.read('release-manifest.json'))
+        (source / 'offline-bundle.json').write_text('{}', encoding='utf-8')
         model = source / 'models/fixture-model/1'; model.mkdir(parents=True)
         (model / 'weights.bin').write_bytes(weight)
         (model / 'LICENSE.txt').write_bytes(license_text)

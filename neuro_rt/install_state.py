@@ -900,11 +900,13 @@ def activate_release(plugin_root, version, *, host_python=None) -> ActivationRec
         manifest = read_manifest(_path(code, 'module.json'))
         resources = None
         if manifest.execution_mode == 'host' and manifest.enabled_tools == BETA_TOOLS:
-            if (previous.get('pending_version') != version or not previous.get('transaction_id')
-                    or previous.get('pending_resources') is None):
+            if (previous.get('pending_version') != version or not previous.get('transaction_id')):
+                raise ValueError('A ativação exige a mesma transação pendente.')
+            pending_resources = previous.get('pending_resources')
+            if pending_resources is None and manifest.base_tools != ('nidus',):
                 raise ValueError('A versão beta exige os recursos preparados pela mesma transação pendente.')
             from .resource_paths import resolve_resources
-            resources, _, _ = resolve_resources(root, code, previous['pending_resources'])
+            resources, _, _ = resolve_resources(root, code, pending_resources)
         old = previous.get('active_version')
         receipt = ActivationReceipt(old if old != version else previous.get('previous_version'), version, False, 'ready')
         updated = dict(previous, state='ready', active_version=version,

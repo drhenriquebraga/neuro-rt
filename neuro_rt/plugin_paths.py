@@ -88,7 +88,10 @@ def resolve_plugin_paths(host_root, installation_state, *, host_python=None) -> 
         worker_python = _relative_path(runtime_dir, runtime.get('python', 'python.exe'))
     from .resource_paths import resolve_resources
     if execution_mode == 'host' and active_version and _numeric_version(active_version) >= (1, 1, 0) and installation_state.get('resources') is None:
-        raise ValueError('A fase de testes exige os recursos verificados antes de montar o plugin.')
+        from .plugin_manifest import read_manifest
+
+        if read_manifest(_relative_path(code_dir, 'module.json')).base_tools != ('nidus',):
+            raise ValueError('A fase de testes exige os recursos verificados antes de montar o plugin.')
     if execution_mode != 'host' and installation_state.get('resources') is not None:
         raise ValueError('Recursos compartilhados exigem execution_mode=host.')
     resources, extras_dir, resources_file = resolve_resources(

@@ -39,9 +39,14 @@ class ToolUnavailable(ValueError):
     """The requested tool is known but not enabled in this delivery."""
 
 
-def available_tools():
-    """Return an independent JSON-ready description for the host and clients."""
-    return [dict(asdict(tool), title=tool.display_title) for tool in TOOLS]
+def available_tools(enabled_ids=None):
+    """Describe runtime readiness without changing the signed tool policies."""
+    enabled_ids = set(enabled_ids) if enabled_ids is not None else {tool.id for tool in TOOLS}
+    return [dict(asdict(tool), title=tool.display_title,
+                 enabled=tool.enabled and tool.id in enabled_ids,
+                 state=tool.state if tool.id in enabled_ids else 'models_missing',
+                 label=tool.label if tool.id in enabled_ids else 'Requer modelos adicionais')
+            for tool in TOOLS]
 
 
 def require_tool(tool_id):

@@ -18,7 +18,7 @@ PLAN_SCHEMA = 'neuro-rt/external-plan/1'
 SOURCE_SCHEMA = 'neuro-rt/local-source/1'
 TRUSTED_CODE_INVENTORIES = frozenset()  # Injected only by the pinned host bootstrap.
 _PLAN_KEYS = {'schema', 'transaction_id', 'mode', 'version', 'source',
-              'requires_explicit_trust', 'local_source_accepted', 'action'}
+              'requires_explicit_trust', 'local_source_accepted', 'action', 'code_only'}
 _ACTIONS = {'install', 'update', 'interrupt_then_update'}
 _LOCAL_KEYS = {'folder', 'manifest_sha256', 'code_inventory_sha256', 'file_count', 'total_bytes', 'kind'}
 _REMOTE_KEYS = {'release_id', 'asset_id', 'name', 'url', 'size', 'sha256'}
@@ -126,16 +126,19 @@ def prepare_external_plan(payload, *, source_folder=None):
     if not isinstance(payload, dict):
         raise ValueError('Plano externo deve ser um objeto JSON.')
     action = payload.get('action', 'install')
+    code_only = payload.get('code_only', False)
+    if type(code_only) is not bool:
+        raise ValueError('Seleção de recursos inválida.')
     if not isinstance(action, str) or action not in _ACTIONS:
         raise ValueError('Ação externa inválida.')
     if source_folder is not None:
         description = inspect_local_source(source_folder)
         if isinstance(payload, dict) and payload.get('schema') == SOURCE_SCHEMA:
-            _object(payload, set(description) | {'action'}, set(description))
-            if {key: value for key, value in payload.items() if key != 'action'} != description:
+            _object(payload, set(description) | {'action', 'code_only'}, set(description))
+            if {key: value for key, value in payload.items() if key not in ('action', 'code_only')} != description:
                 raise ValueError('A fonte local mudou desde a inspeção.')
         else:
-            _object(payload, {'mode', 'local_source_accepted', 'action'}, {'mode', 'local_source_accepted'})
+            _object(payload, {'mode', 'local_source_accepted', 'action', 'code_only'}, {'mode', 'local_source_accepted'})
             if payload['mode'] != 'local' or payload['local_source_accepted'] is not True:
                 raise ValueError('Confirme a seleção da fonte local antes do preparo.')
         source = {key: description[key] for key in _LOCAL_KEYS - {'folder'}}
@@ -143,7 +146,7 @@ def prepare_external_plan(payload, *, source_folder=None):
         version = description['version']
         mode = 'local'
     else:
-        _object(payload, {'mode', 'release', 'action'}, {'mode', 'release'})
+        _object(payload, {'mode', 'release', 'action', 'code_only'}, {'mode', 'release'})
         release = payload['release']
         if (payload['mode'] != 'online' or not isinstance(release, dict) or
                 release.get('state') not in ('available', 'current') or release.get('package_kind') != 'setup'):
@@ -154,11 +157,14 @@ def prepare_external_plan(payload, *, source_folder=None):
         mode = 'online'
     return {'schema': PLAN_SCHEMA, 'transaction_id': uuid.uuid4().hex,
             'mode': mode, 'version': version, 'source': source,
-            'requires_explicit_trust': False, 'local_source_accepted': mode == 'local', 'action': action}
+            'requires_explicit_trust': False, 'local_source_accepted': mode == 'local',
+            'action': action, 'code_only': code_only}
 
 
 def _validate_plan(plan):
-    _object(plan, _PLAN_KEYS)
+    _object(plan, _PLAN_KEYS, _PLAN_KEYS - {'code_only'})
+    if type(plan.get('code_only', False)) is not bool:
+        raise ValueError('Seleção de recursos inválida.')
     if (plan['schema'] != PLAN_SCHEMA or plan['mode'] not in ('online', 'local') or
             not isinstance(plan['action'], str) or plan['action'] not in _ACTIONS or
             not isinstance(plan['transaction_id'], str) or
@@ -288,7 +294,6 @@ def run_external(plan, progress, *, suite_root, host_python):
             coordinator.prepare(package, require_host=True, transaction_id=plan['transaction_id'])
             code = install_state._path(plugin, 'versions/' + plan['version'])
             recipe = install_state._read_json(install_state._path(code, 'catalog/resource_recipe.json'))
-            emit('preparing', 'resources')
             labels = {model['id'] for model in recipe['models']} | {wheel['filename'] for wheel in recipe['wheels']}
             labels |= {wheel['name'] for wheel in recipe['wheels'] if isinstance(wheel.get('name'), str)}
             labels |= {spec['filename'] for spec in recipe.get('downloads', {}).values()}
@@ -303,12 +308,23 @@ def run_external(plan, progress, *, suite_root, host_python):
                 if isinstance(label, str) and label in labels:
                     values['component'] = label
                 emit('preparing', 'resources', **values)
-            resources = _prepare_resources(recipe, plugin_root=plugin, host_python=python,
-                                            source_folder=source_folder, progress=resource_progress)
-            if not isinstance(resources, dict) or resources.get('schema') != 'neuro-rt/resolved-resources/1':
-                raise ValueError('Recursos preparados não correspondem ao contrato.')
             from .resource_paths import resolve_resources
-            resources, _, _ = resolve_resources(plugin, code, resources)
+
+            resources = None
+            if plan.get('code_only', False):
+                current = install_state._read_json(plugin / 'installation.json')
+                if current.get('resources') is not None:
+                    try:
+                        resources, _, _ = resolve_resources(plugin, code, current['resources'])
+                    except ValueError:
+                        pass
+            else:
+                emit('preparing', 'resources')
+                resources = _prepare_resources(recipe, plugin_root=plugin, host_python=python,
+                                               source_folder=source_folder, progress=resource_progress)
+                if not isinstance(resources, dict) or resources.get('schema') != 'neuro-rt/resolved-resources/1':
+                    raise ValueError('Recursos preparados não correspondem ao contrato.')
+                resources, _, _ = resolve_resources(plugin, code, resources)
             with install_state._installation_lock(plugin) as acquired:
                 if not acquired:
                     raise install_state.InstallFailure('INSTALL_BUSY', 'Outra transação está em andamento.')
