@@ -146,7 +146,7 @@ class SetupWizardTests(unittest.TestCase):
     def test_describe_is_json_only_and_does_not_prepare_or_record_consent(self):
         host = self.root / 'suite'; host.mkdir()
         for name in ('radai_panel.py', 'radai_ui.py', 'entrega.txt'):
-            (host / name).write_text('VERSAO=8.19\n')
+            (host / name).write_text('VERSAO=8.20\n')
         output = io.StringIO()
         with patch('importlib.metadata.version', return_value='1.0'), \
                 patch.object(wizard, '_prepare_resources', side_effect=AssertionError('Describe must not download')), \

@@ -39,10 +39,10 @@ class PrefixTests(unittest.TestCase):
     def test_real_coordinator_can_prepare_wrapped_online_code_without_executing_root_starter(self):
         host = self.root / 'host'
         host.mkdir()
-        for name, value in [('radai_panel.py', '# synthetic'), ('radai_ui.py', '# synthetic'), ('entrega.txt', 'VERSAO=8.19\n')]:
+        for name, value in [('radai_panel.py', '# synthetic'), ('radai_ui.py', '# synthetic'), ('entrega.txt', 'VERSAO=8.20\n')]:
             (host / name).write_text(value)
         package = {'path': str(self.wrapped), 'sha256': hashlib.sha256(self.wrapped.read_bytes()).hexdigest()}
-        coordinator = UpdateCoordinator(host, host_version='8.19', host_python=sys.executable,
+        coordinator = UpdateCoordinator(host, host_version='8.20', host_python=sys.executable,
             hold=lambda _: None, busy=lambda: False, cancel=lambda: None, restart=None)
         with patch('importlib.metadata.version', return_value='1.0'):
             coordinator.prepare(package, require_host=True)
