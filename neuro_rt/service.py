@@ -194,7 +194,7 @@ class Service:
         from .tool_availability import available_tools
 
         paths = self.settings.plugin_paths
-        if paths is None or self.settings.resources is not None:
+        if paths is None or (self.settings.resources is not None and self.weights_status()['state'] == 'ready'):
             return available_tools()
         ready = {'nidus'}
         if self.studies is not None and 'cranio_buti' in self.studies.catalog:
@@ -207,10 +207,16 @@ class Service:
     def tool_available(self, tool_id):
         return any(tool['id'] == tool_id and tool['enabled'] for tool in self.tools())
 
+    def weights_status(self):
+        from .resource_status import installed_weights
+        return installed_weights(self.settings.plugin_paths)
+
     def status(self):
         with self._lock:
             jobs = [dict(job) for job in self._jobs.values()]
-        return {'module': 'neuro-rt', 'version': __version__, 'token': self.token,
+        return {'module': 'neuro-rt', 'version': __version__,
+                'code_version': getattr(self.settings.plugin_paths, 'active_version', None) or __version__,
+                'weights': self.weights_status(), 'token': self.token,
                 'runtime_ready': self.settings.runtime_ready,
                 'installation_state': self.settings.installation_state,
                 'installation_reason': self.settings.installation_reason,

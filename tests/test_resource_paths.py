@@ -52,6 +52,16 @@ class ResourcePathsTests(unittest.TestCase):
         self.assertEqual(paths.resources_file, self.receipt)
         self.assertEqual(paths.resources['recipe_digest'], self.descriptor['recipe_digest'])
 
+    def test_content_addressed_receipt_keeps_legacy_receipt_valid(self):
+        relative = ('resources/' + self.descriptor['recipe_digest'] + '/'
+                    + self.descriptor['receipt_sha256'] + '.json')
+        addressed = self.plugin / relative
+        addressed.parent.mkdir(parents=True)
+        addressed.write_bytes(self.receipt.read_bytes())
+        updated = dict(self.descriptor, receipt_relative_path=relative)
+        self.assertEqual(self.paths(resources=updated).resources_file, addressed)
+        self.assertEqual(self.paths().resources_file, self.receipt)
+
     def test_adulterated_receipt_recipe_or_catalog_path_never_mounts(self):
         for changes in ({'extras_relative_path':'../outside'}, {'receipt_relative_path':'../other'},
                         {'recipe_digest':'a'*64}, {'receipt_sha256':'0'*64},

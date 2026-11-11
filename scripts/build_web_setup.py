@@ -108,6 +108,9 @@ def build_web_setup(output_dir, *, root=ROOT) -> dict:
             raise ValueError('O setup excede o limite de 3 MiB; revise a allowlist.')
         with zipfile.ZipFile(staged) as archive:
             install_state._inspect_zip(archive)
+        wrapped = Path(temporary) / ('wrapped-' + setup.name)
+        _wrap_public_setup(staged, wrapped, payload['START_HERE.cmd'])
+        os.replace(wrapped, staged)
         raw = staged.read_bytes()
         alias = Path(temporary) / latest.name
         alias.write_bytes(raw)
@@ -117,6 +120,30 @@ def build_web_setup(output_dir, *, root=ROOT) -> dict:
         os.replace(alias, latest)
     return {'setup': setup, 'latest': latest, 'manifest': manifest,
             'sha256': hashlib.sha256(raw).hexdigest()}
+
+
+def _wrap_public_setup(source, destination, launcher):
+    starter = 'START_HERE_TO_INSTALL_NEURO_RT.cmd'
+    readme = ('NEURO RT - instalacao / installation\n\n'
+              'Abra ' + starter + '. Mantenha a pasta programa ao lado dele.\n'
+              'Se abrir de dentro do ZIP, selecione o ZIP completo quando solicitado; '
+              'a extracao e automatica. Voce tambem pode usar Extrair Tudo.\n'
+              'Local Suite completa ja instalada e obrigatoria; o Python existente sera reutilizado.\n\n'
+              'Open ' + starter + '. Keep the programa folder next to it. '
+              'When opened inside the ZIP, choose the complete ZIP to extract it automatically.\n')
+    def write(archive, name, raw):
+        entry = zipfile.ZipInfo(name, (2020, 1, 1, 0, 0, 0))
+        entry.compress_type = zipfile.ZIP_DEFLATED
+        entry.external_attr = 0o100644 << 16
+        archive.writestr(entry, raw)
+    with zipfile.ZipFile(source) as original, zipfile.ZipFile(destination, 'w', zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
+        write(archive, 'README.txt', readme.encode('utf8'))
+        write(archive, starter, launcher)
+        for name in sorted(original.namelist()):
+            write(archive, 'programa/' + name, original.read(name))
+    with zipfile.ZipFile(destination) as archive:
+        if archive.testzip() or {name for name in archive.namelist() if '/' not in name} != {'README.txt', starter}:
+            raise ValueError('O layout final do SETUP nao confere.')
 
 
 def main():

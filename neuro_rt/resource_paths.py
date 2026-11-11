@@ -34,7 +34,10 @@ def resolve_resources(plugin_root, code_dir, descriptor):
         recipe_digest, extras_digest = _sha(descriptor['recipe_digest']), _sha(descriptor['extras_digest'])
         if descriptor['extras_relative_path'] != 'extras/' + extras_digest + '/site-packages':
             raise ValueError('Pasta de extras deve corresponder ao inventário verificado.')
-        if descriptor['receipt_relative_path'] != 'resources/' + recipe_digest + '.json':
+        receipt_digest = _sha(descriptor['receipt_sha256'])
+        if descriptor['receipt_relative_path'] not in (
+                'resources/' + recipe_digest + '.json',
+                'resources/' + recipe_digest + '/' + receipt_digest + '.json'):
             raise ValueError('Recibo deve corresponder à receita verificada.')
         recipe, _ = _read(_path(code_dir, 'catalog/resource_recipe.json'))
         canonical = (json.dumps(recipe, sort_keys=True, separators=(',', ':'), ensure_ascii=True)+'\n').encode()
@@ -42,7 +45,7 @@ def resolve_resources(plugin_root, code_dir, descriptor):
             raise ValueError('A receita dos recursos difere do código ativo.')
         receipt_file = _path(plugin_root, descriptor['receipt_relative_path'])
         receipt, raw = _read(receipt_file)
-        if hashlib.sha256(raw).hexdigest() != _sha(descriptor['receipt_sha256']):
+        if hashlib.sha256(raw).hexdigest() != receipt_digest:
             raise ValueError('Recibo de recursos foi alterado ou está incompleto.')
         for key in FIELDS - {'receipt_relative_path', 'receipt_sha256'}:
             if receipt.get(key) != descriptor[key]:

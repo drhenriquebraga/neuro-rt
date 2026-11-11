@@ -534,7 +534,64 @@ def _verify_host_source(stream):
         raise ValueError('Modo host permite somente fontes e textos UTF-8.') from error
 
 
+class _SetupArchive:
+    def __init__(self, archive):
+        import copy
+        self.archive, self.entries, self.physical = archive, [], {}
+        names, total = set(), 0
+        entries = archive.infolist()
+        if len(entries) > MAX_FILES + 4:
+            raise ValueError('ZIP excede o limite de entradas.')
+        for entry in entries:
+            name = entry.filename
+            _validate_name(name.rstrip('/') if entry.is_dir() else name)
+            folded = name.casefold().rstrip('/')
+            if folded in names:
+                raise ValueError('Entradas ZIP duplicadas ou aliases de caixa.')
+            names.add(folded)
+            mode = stat.S_IFMT(entry.external_attr >> 16)
+            if mode not in (0, stat.S_IFREG, stat.S_IFDIR) or entry.flag_bits & 1 or entry.external_attr & 0x400:
+                raise ValueError('ZIP contém entrada não permitida.')
+            total += entry.file_size
+            if entry.file_size > MAX_FILE_SIZE or total > MAX_TOTAL_SIZE:
+                raise ValueError('ZIP excede o limite de tamanho.')
+            if name in ('README.txt', 'START_HERE_TO_INSTALL_NEURO_RT.cmd') or name == 'programa/':
+                continue
+            if not name.startswith('programa/'):
+                raise ValueError('Arquivo fora da pasta do instalador.')
+            relative = name[len('programa/'):]
+            _validate_name(relative.rstrip('/') if entry.is_dir() else relative)
+            logical = copy.copy(entry)
+            logical.filename = relative
+            self.entries.append(logical)
+            self.physical[relative] = entry
+
+    def infolist(self):
+        return self.entries
+
+    def namelist(self):
+        return [entry.filename for entry in self.entries]
+
+    def getinfo(self, name):
+        return next(entry for entry in self.entries if entry.filename == name)
+
+    def open(self, name, *args, **kwargs):
+        return self.archive.open(self.physical[name.filename if isinstance(name, zipfile.ZipInfo) else name], *args, **kwargs)
+
+    def read(self, name, *args, **kwargs):
+        return self.archive.read(self.physical[name.filename if isinstance(name, zipfile.ZipInfo) else name], *args, **kwargs)
+
+
+def setup_archive(archive):
+    if isinstance(archive, _SetupArchive) or 'release-manifest.json' in archive.namelist():
+        return archive
+    if 'programa/release-manifest.json' not in archive.namelist():
+        return archive
+    return _SetupArchive(archive)
+
+
 def _inspect_zip(zipped):
+    zipped = setup_archive(zipped)
     entries = zipped.infolist()
     if len(entries) > MAX_FILES + 1:
         raise ValueError('ZIP excede o limite de entradas.')
@@ -754,7 +811,8 @@ def begin_install(host_root, package, transaction_id, *, host_python=None) -> In
             progress.publish('verifying', force=True, downloaded_bytes=total)
             if archive.stat().st_size != total or _file_digest(archive) != expected:
                 raise InstallFailure('PACKAGE_INTEGRITY', 'SHA256 do pacote não corresponde ao hash externo autorizado.')
-            with zipfile.ZipFile(archive) as zipped:
+            with zipfile.ZipFile(archive) as raw_archive:
+                zipped = setup_archive(raw_archive)
                 data, components, size, entries = _inspect_zip(zipped)
                 if data.get('execution_mode', 'isolated') == 'host':
                     validate_host_runtime(host_python)

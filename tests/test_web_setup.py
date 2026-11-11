@@ -1,6 +1,7 @@
 """Public setup contains only reviewed code; no development/runtime payload."""
 import base64
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -78,7 +79,12 @@ class WebSetupTests(unittest.TestCase):
         self.assertEqual(hashlib.sha256(raw).hexdigest(), result['sha256'])
         self.assertEqual(raw, self.build()['setup'].read_bytes())
         with zipfile.ZipFile(result['setup']) as archive:
-            names = set(archive.namelist())
+            physical = set(archive.namelist())
+            self.assertEqual({name for name in physical if '/' not in name}, {'README.txt', 'START_HERE_TO_INSTALL_NEURO_RT.cmd'})
+            self.assertTrue(all(name.startswith('programa/') or name in {'README.txt', 'START_HERE_TO_INSTALL_NEURO_RT.cmd'} for name in physical))
+            names = {name[len('programa/'):] for name in physical if name.startswith('programa/')}
+            read = lambda name: archive.read('programa/' + name)
+            self.assertEqual(archive.read('START_HERE_TO_INSTALL_NEURO_RT.cmd'), read('code/installer/START_HERE.cmd'))
             self.assertIn('code/neuro_rt/__init__.py', names)
             self.assertIn('code/app/radai_nidus.py', names)
             self.assertIn('code/catalog/model_assets_v1_manifest.json', names)
@@ -87,10 +93,10 @@ class WebSetupTests(unittest.TestCase):
             for script in ('INSTALL.ps1', 'UPDATE.ps1', 'PREPARE_LATEST.ps1', 'START_HERE.ps1', 'START_HERE.cmd'):
                 self.assertIn('code/installer/' + script, names)
             self.assertIn('START_HERE.cmd', names)
-            self.assertEqual(archive.read('START_HERE.cmd'), archive.read('code/installer/START_HERE.cmd'))
+            self.assertEqual(read('START_HERE.cmd'), read('code/installer/START_HERE.cmd'))
             self.assertTrue(all(n in ('release-manifest.json', 'START_HERE.cmd') or n.startswith('code/') for n in names))
             self.assertNotIn('setup-manifest.json', names)
-            manifest = json.loads(archive.read('release-manifest.json'))
+            manifest = json.loads(read('release-manifest.json'))
             self.assertEqual(manifest, result['manifest'])
             self.assertEqual(manifest['schema'], install_state.SCHEMA)
             self.assertEqual(manifest['execution_mode'], 'host')
@@ -99,15 +105,20 @@ class WebSetupTests(unittest.TestCase):
             self.assertEqual(manifest['models'], [])
             self.assertEqual({r['path'] for r in manifest['files']}, names - {'release-manifest.json', 'START_HERE.cmd'})
             launcher = manifest['launchers'][0]
-            self.assertEqual(launcher, {'path': 'START_HERE.cmd', 'size': len(archive.read('START_HERE.cmd')),
-                'sha256': hashlib.sha256(archive.read('START_HERE.cmd')).hexdigest()})
+            self.assertEqual(launcher, {'path': 'START_HERE.cmd', 'size': len(read('START_HERE.cmd')),
+                'sha256': hashlib.sha256(read('START_HERE.cmd')).hexdigest()})
             for record in manifest['files']:
-                content = archive.read(record['path'])
+                content = read(record['path'])
                 self.assertEqual(len(content), record['size'])
                 self.assertEqual(hashlib.sha256(content).hexdigest(), record['sha256'])
-            self.assertNotIn(b'OFFLINE', archive.read('release-manifest.json'))
-            inspected, _, _, _ = install_state._inspect_zip(archive)
-            self.assertEqual(inspected, manifest)
+            self.assertNotIn(b'OFFLINE', read('release-manifest.json'))
+            logical = io.BytesIO()
+            with zipfile.ZipFile(logical, 'w') as flattened:
+                for name in names: flattened.writestr(name, read(name))
+            logical.seek(0)
+            with zipfile.ZipFile(logical) as flattened:
+                inspected, _, _, _ = install_state._inspect_zip(flattened)
+                self.assertEqual(inspected, manifest)
         self.assertLess(len(json.dumps(result['manifest'])), 20000)
 
     def test_unlisted_runtime_weights_private_data_and_other_scripts_never_enter(self):

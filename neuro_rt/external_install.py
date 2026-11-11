@@ -18,7 +18,7 @@ PLAN_SCHEMA = 'neuro-rt/external-plan/1'
 SOURCE_SCHEMA = 'neuro-rt/local-source/1'
 TRUSTED_CODE_INVENTORIES = frozenset()  # Injected only by the pinned host bootstrap.
 _PLAN_KEYS = {'schema', 'transaction_id', 'mode', 'version', 'source',
-              'requires_explicit_trust', 'local_source_accepted', 'action', 'code_only'}
+              'requires_explicit_trust', 'local_source_accepted', 'action', 'code_only', 'resources_only'}
 _ACTIONS = {'install', 'update', 'interrupt_then_update'}
 _LOCAL_KEYS = {'folder', 'manifest_sha256', 'code_inventory_sha256', 'file_count', 'total_bytes', 'kind'}
 _REMOTE_KEYS = {'release_id', 'asset_id', 'name', 'url', 'size', 'sha256'}
@@ -69,6 +69,8 @@ def inspect_local_source(folder):
 
 def _inspect_local_source(folder):
     root = install_state._plain(folder).resolve()
+    if not install_state._path(root, 'release-manifest.json').is_file() and install_state._path(root, 'programa/release-manifest.json').is_file():
+        root = install_state._path(root, 'programa')
     manifest_path = install_state._path(root, 'release-manifest.json')
     if not root.is_dir() or not manifest_path.is_file() or not install_state._path(root, 'code').is_dir():
         raise LocalSourceError('Extraia o SETUP/bundle e selecione a pasta que contém START_HERE.cmd e release-manifest.json.',
@@ -127,18 +129,19 @@ def prepare_external_plan(payload, *, source_folder=None):
         raise ValueError('Plano externo deve ser um objeto JSON.')
     action = payload.get('action', 'install')
     code_only = payload.get('code_only', False)
-    if type(code_only) is not bool:
+    resources_only = payload.get('resources_only', False)
+    if type(code_only) is not bool or type(resources_only) is not bool or code_only and resources_only:
         raise ValueError('Seleção de recursos inválida.')
     if not isinstance(action, str) or action not in _ACTIONS:
         raise ValueError('Ação externa inválida.')
     if source_folder is not None:
         description = inspect_local_source(source_folder)
         if isinstance(payload, dict) and payload.get('schema') == SOURCE_SCHEMA:
-            _object(payload, set(description) | {'action', 'code_only'}, set(description))
-            if {key: value for key, value in payload.items() if key not in ('action', 'code_only')} != description:
+            _object(payload, set(description) | {'action', 'code_only', 'resources_only'}, set(description))
+            if {key: value for key, value in payload.items() if key not in ('action', 'code_only', 'resources_only')} != description:
                 raise ValueError('A fonte local mudou desde a inspeção.')
         else:
-            _object(payload, {'mode', 'local_source_accepted', 'action', 'code_only'}, {'mode', 'local_source_accepted'})
+            _object(payload, {'mode', 'local_source_accepted', 'action', 'code_only', 'resources_only'}, {'mode', 'local_source_accepted'})
             if payload['mode'] != 'local' or payload['local_source_accepted'] is not True:
                 raise ValueError('Confirme a seleção da fonte local antes do preparo.')
         source = {key: description[key] for key in _LOCAL_KEYS - {'folder'}}
@@ -146,7 +149,7 @@ def prepare_external_plan(payload, *, source_folder=None):
         version = description['version']
         mode = 'local'
     else:
-        _object(payload, {'mode', 'release', 'action', 'code_only'}, {'mode', 'release'})
+        _object(payload, {'mode', 'release', 'action', 'code_only', 'resources_only'}, {'mode', 'release'})
         release = payload['release']
         if (payload['mode'] != 'online' or not isinstance(release, dict) or
                 release.get('state') not in ('available', 'current') or release.get('package_kind') != 'setup'):
@@ -158,12 +161,14 @@ def prepare_external_plan(payload, *, source_folder=None):
     return {'schema': PLAN_SCHEMA, 'transaction_id': uuid.uuid4().hex,
             'mode': mode, 'version': version, 'source': source,
             'requires_explicit_trust': False, 'local_source_accepted': mode == 'local',
-            'action': action, 'code_only': code_only}
+            'action': action, 'code_only': code_only, 'resources_only': resources_only}
 
 
 def _validate_plan(plan):
-    _object(plan, _PLAN_KEYS, _PLAN_KEYS - {'code_only'})
-    if type(plan.get('code_only', False)) is not bool:
+    _object(plan, _PLAN_KEYS, _PLAN_KEYS - {'code_only', 'resources_only'})
+    if (type(plan.get('code_only', False)) is not bool
+            or type(plan.get('resources_only', False)) is not bool
+            or plan.get('code_only', False) and plan.get('resources_only', False)):
         raise ValueError('Seleção de recursos inválida.')
     if (plan['schema'] != PLAN_SCHEMA or plan['mode'] not in ('online', 'local') or
             not isinstance(plan['action'], str) or plan['action'] not in _ACTIONS or
@@ -239,6 +244,67 @@ def _host_version(root):
     return match.group(1)
 
 
+def _resource_only_install(plan, *, plugin, host_python, emit):
+    pointer = install_state._path(plugin, 'installation.json')
+    previous = install_state._read_json(pointer)
+    active_version = previous.get('active_version')
+    if previous.get('state') != 'ready' or not active_version or previous.get('pending_version'):
+        raise ValueError('Prepare o código da Local Suite antes de instalar os pesos.')
+    inventory = install_state._installed_release(plugin, active_version)
+    if code_inventory_sha256(inventory) not in TRUSTED_CODE_INVENTORIES:
+        raise LocalSourceError('O código ativo não é reconhecido por esta suíte.', 'update_suite')
+    code = install_state._path(plugin, 'versions/' + active_version)
+    source_folder, bundle_version = None, None
+    if plan['mode'] == 'local':
+        source = plan['source']
+        description = inspect_local_source(source['folder'])
+        current = {key: description[key] for key in _LOCAL_KEYS - {'folder'}}
+        current['folder'] = description['source_folder']
+        if current != source or description['version'] != plan['version']:
+            raise ValueError('A fonte local mudou desde a confirmação.')
+        if source['kind'] == 'offline_bundle':
+            source_folder = Path(description['source_folder'])
+            bundle_version = description['version']
+    recipe = install_state._read_json(install_state._path(code, 'catalog/resource_recipe.json'))
+    labels = {model['id'] for model in recipe['models']} | {wheel['filename'] for wheel in recipe['wheels']}
+    labels |= {wheel['name'] for wheel in recipe['wheels'] if isinstance(wheel.get('name'), str)}
+    labels |= {spec['filename'] for spec in recipe.get('downloads', {}).values()}
+    def progress(event):
+        allowed = {'completed_files', 'total_files', 'processed_bytes', 'total_unpacked_bytes',
+                   'downloaded_bytes', 'total_bytes'}
+        values = {key: value for key, value in event.items()
+                  if key in allowed and type(value) is int and value >= 0}
+        if event.get('stage') in ('checking', 'preparing', 'downloading', 'extracting', 'validating', 'complete'):
+            values['resource_stage'] = event['stage']
+        if isinstance(event.get('label'), str) and event['label'] in labels:
+            values['component'] = event['label']
+        emit('preparing', 'resources', version=active_version, **values)
+    emit('preparing', 'resources', version=active_version)
+    resources = _prepare_resources(recipe, plugin_root=plugin, host_python=host_python,
+                                   source_folder=source_folder, progress=progress)
+    from .resource_paths import resolve_resources
+    resources, _, _ = resolve_resources(plugin, code, resources)
+    if resources is None:
+        raise ValueError('Recursos preparados não correspondem ao contrato.')
+    if bundle_version is None and (previous.get('resources') or {}).get('recipe_digest') == resources['recipe_digest']:
+        bundle_version = previous.get('resource_bundle_version')
+    with install_state._installation_lock(plugin) as acquired:
+        if not acquired:
+            raise install_state.InstallFailure('INSTALL_BUSY', 'Outra transação está em andamento.')
+        current = install_state._read_json(pointer)
+        if (current.get('state') != 'ready' or current.get('active_version') != active_version
+                or current.get('pending_version') or current.get('resources') != previous.get('resources')):
+            raise install_state.InstallFailure('INSTALL_BUSY', 'A instalação mudou durante o preparo dos pesos.')
+        if code_inventory_sha256(install_state._installed_release(plugin, active_version)) != code_inventory_sha256(inventory):
+            raise install_state.InstallFailure('INSTALL_BUSY', 'O código ativo mudou durante o preparo dos pesos.')
+        updated = dict(current, resources=resources, resource_bundle_version=bundle_version,
+                       resource_recipe_sha256=resources['recipe_digest'],
+                       resource_source='offline' if source_folder is not None else 'online')
+        install_state._atomic_json(pointer, updated)
+    return {'state': 'ready', 'active_version': active_version,
+            'resource_bundle_version': bundle_version}
+
+
 def run_external(plan, progress, *, suite_root, host_python):
     """Prepare resources and activate; host alone owns shutdown/reopen/lifecycle."""
     _validate_plan(plan)
@@ -270,6 +336,13 @@ def run_external(plan, progress, *, suite_root, host_python):
     result = {'state': 'ready', 'active_version': plan['version']}
     try:
         emit('preparing', 'checking')
+        if plan.get('resources_only', False):
+            result = _resource_only_install(plan, plugin=plugin, host_python=python, emit=emit)
+            committed = True
+            emit('ready', 'complete', final=True, version=result['active_version'],
+                 active_version=result['active_version'],
+                 resource_bundle_version=result['resource_bundle_version'])
+            return result
         staging = install_state._path(plugin, 'staging')
         staging.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix='external-', dir=staging) as temp:
@@ -332,6 +405,14 @@ def run_external(plan, progress, *, suite_root, host_python):
                 if state.get('transaction_id') != plan['transaction_id'] or state.get('pending_version') != plan['version']:
                     raise install_state.InstallFailure('INSTALL_BUSY', 'A versão pendente mudou.')
                 state['pending_resources'] = resources
+                if not plan.get('code_only', False):
+                    bundle_version = (plan['version'] if plan['mode'] == 'local'
+                        and plan['source']['kind'] == 'offline_bundle' else None)
+                    if bundle_version is None and (state.get('resources') or {}).get('recipe_digest') == resources['recipe_digest']:
+                        bundle_version = state.get('resource_bundle_version')
+                    state['resource_bundle_version'] = bundle_version
+                    state['resource_recipe_sha256'] = resources['recipe_digest']
+                    state['resource_source'] = ('offline' if state['resource_bundle_version'] else 'online')
                 install_state._atomic_json(plugin / 'installation.json', state)
             emit('activating', 'validating')
             try:

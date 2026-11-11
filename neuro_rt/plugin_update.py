@@ -300,7 +300,8 @@ class UpdateCoordinator:
         self._set_status(stage='verifying')
         if install_state._file_digest(package['path']) != package['sha256']:
             raise ValueError('SHA256 externo divergente.')
-        with zipfile.ZipFile(package['path']) as archive:
+        with zipfile.ZipFile(package['path']) as raw_archive:
+            archive = install_state.setup_archive(raw_archive)
             manifest, _, _, _ = install_state._inspect_zip(archive)
             module = json.loads(archive.read('code/module.json'))
         if (require_host or self._selected is not None) and module.get('execution_mode') != 'host':
@@ -500,7 +501,8 @@ def main(argv=None):
             package = coordinator.client.download(selected, destination)
         if install_state._file_digest(package['path']) != package['sha256']:
             raise ValueError('SHA256 externo divergente.')
-        with zipfile.ZipFile(package['path']) as archive:
+        with zipfile.ZipFile(package['path']) as raw_archive:
+            archive = install_state.setup_archive(raw_archive)
             install_state._inspect_zip(archive)
             module = json.loads(archive.read('code/module.json'))
         if not isinstance(module, dict):

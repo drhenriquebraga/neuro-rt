@@ -34,6 +34,8 @@ class SetupWizardTests(unittest.TestCase):
                         'files': {'weights.onnx': record(self.weight), 'LICENSE.txt': record(self.license)}}]}
         def mutate(manifest, files):
             files['code/catalog/resource_recipe.json'] = external_install._json(self.recipe)
+            files['code/installer/START_HERE.cmd'] = b'@echo off\nexit /b 0\n'
+            files['code/installer/START_HERE.ps1'] = b'exit 0\n'
             catalog = json.loads(files['code/catalog/models.json'])
             model = catalog['models'][0]
             model.update(id='fixture-model', revision='1', catalog_state='distributed',
@@ -92,12 +94,18 @@ class SetupWizardTests(unittest.TestCase):
             result = wizard.build_local_bundle(self.output, source_folder=self.source,
                 cache_root=self.cache, host_python=sys.executable, terms=self.terms, progress=events.append)
         self.assertEqual(result['state'], 'ready')
-        self.assertEqual((self.output / ('downloads/' + hashlib.sha256(self.wheel).hexdigest() + '/fixture.whl')).read_bytes(), self.wheel)
-        self.assertEqual((self.output / ('downloads/' + hashlib.sha256(self.reused_wheel).hexdigest() + '/reused.whl')).read_bytes(), self.reused_wheel)
-        self.assertEqual((self.output / 'models/fixture-model/1/weights.onnx').read_bytes(), self.weight)
-        self.assertEqual((self.output / 'models/fixture-model/1/LICENSE.txt').read_bytes(), self.license)
-        self.assertFalse((self.output / 'extras').exists(), 'Transport wheels once, not a duplicate expanded overlay')
-        transport = json.loads((self.output / 'offline-bundle.json').read_text())
+        self.assertEqual({p.name for p in self.output.iterdir()}, {'README.txt', 'START_HERE_TO_INSTALL_NEURO_RT.cmd', 'programa'})
+        self.assertTrue(Path(result['archive']).is_file())
+        with zipfile.ZipFile(result['archive']) as archive:
+            self.assertIsNone(archive.testzip())
+            self.assertEqual({name for name in archive.namelist() if '/' not in name}, {'README.txt', 'START_HERE_TO_INSTALL_NEURO_RT.cmd'})
+            self.assertIn('programa/offline-bundle.json', archive.namelist())
+        self.assertEqual((self.output / 'programa' / ('downloads/' + hashlib.sha256(self.wheel).hexdigest() + '/fixture.whl')).read_bytes(), self.wheel)
+        self.assertEqual((self.output / 'programa' / ('downloads/' + hashlib.sha256(self.reused_wheel).hexdigest() + '/reused.whl')).read_bytes(), self.reused_wheel)
+        self.assertEqual((self.output / 'programa/models/fixture-model/1/weights.onnx').read_bytes(), self.weight)
+        self.assertEqual((self.output / 'programa/models/fixture-model/1/LICENSE.txt').read_bytes(), self.license)
+        self.assertFalse((self.output / 'programa/extras').exists(), 'Transport wheels once, not a duplicate expanded overlay')
+        transport = json.loads((self.output / 'programa/offline-bundle.json').read_text())
         self.assertNotIn('resources', transport)
         self.assertEqual(transport['categories']['wheels']['files'], 2)
         self.assertFalse(transport['resources_resolved_for_target'])
@@ -105,7 +113,7 @@ class SetupWizardTests(unittest.TestCase):
         self.assertTrue(any(event.get('component') == 'fixture-extra' for event in events))
         self.assertTrue(any(event.get('stage') == 'copying' and event.get('processed_bytes', 0) > 0 for event in events))
         self.assertFalse(any('study_path' in event for event in events))
-        self.assertEqual(external_install.inspect_local_source(self.output)['version'], '1.1.0')
+        self.assertEqual(external_install.inspect_local_source(self.output / 'programa')['version'], '1.1.0')
         names = {p.relative_to(self.output).as_posix() for p in self.output.rglob('*') if p.is_file()}
         self.assertFalse(any('python' in p.lower() or '.venv' in p or 'private.dcm' in p for p in names))
 
@@ -138,7 +146,7 @@ class SetupWizardTests(unittest.TestCase):
     def test_describe_is_json_only_and_does_not_prepare_or_record_consent(self):
         host = self.root / 'suite'; host.mkdir()
         for name in ('radai_panel.py', 'radai_ui.py', 'entrega.txt'):
-            (host / name).write_text('VERSAO=8.14\n')
+            (host / name).write_text('VERSAO=8.19\n')
         output = io.StringIO()
         with patch('importlib.metadata.version', return_value='1.0'), \
                 patch.object(wizard, '_prepare_resources', side_effect=AssertionError('Describe must not download')), \

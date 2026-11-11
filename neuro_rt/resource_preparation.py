@@ -487,8 +487,6 @@ def prepare_resources(recipe, *, plugin_root, host_python, source_folder=None, p
     digest = canonical_digest(recipe)
     extras_relative = 'extras/' + extras_digest + '/site-packages'
     extras = _path(root, extras_relative)
-    receipt_relative = 'resources/' + digest + '.json'
-    receipt_path = _path(root, receipt_relative)
     root.mkdir(parents=True, exist_ok=True)
     stage = _path(root, 'staging/resources-' + uuid.uuid4().hex)
     stage.mkdir(parents=True)
@@ -523,13 +521,18 @@ def prepare_resources(recipe, *, plugin_root, host_python, source_folder=None, p
                    'extras_relative_path': extras_relative, 'model_relative_paths': paths,
                    'capabilities': capabilities, 'extra_file_inventory': extra_inventory,
                    'base_versions': base, 'reused_base': reused, 'wheels': missing}
+        receipt_bytes = canonical_bytes(receipt)
+        receipt_digest = hashlib.sha256(receipt_bytes).hexdigest()
+        receipt_relative = 'resources/' + digest + '/' + receipt_digest + '.json'
+        receipt_path = _path(root, receipt_relative)
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = receipt_path.with_name(receipt_path.name + '.' + uuid.uuid4().hex + '.tmp')
-        temporary.write_bytes(canonical_bytes(receipt))
-        os.replace(temporary, receipt_path)
+        if not receipt_path.is_file() or _digest(receipt_path) != receipt_digest:
+            temporary = receipt_path.with_name(receipt_path.name + '.' + uuid.uuid4().hex + '.tmp')
+            temporary.write_bytes(receipt_bytes)
+            os.replace(temporary, receipt_path)
         descriptor = {key: receipt[key] for key in ('schema', 'recipe_digest', 'extras_digest',
                       'extras_relative_path', 'model_relative_paths', 'capabilities')}
-        descriptor.update(receipt_relative_path=receipt_relative, receipt_sha256=_digest(receipt_path))
+        descriptor.update(receipt_relative_path=receipt_relative, receipt_sha256=receipt_digest)
         _event(progress, 'complete', 'Recursos verificados.')
         return descriptor
     finally:

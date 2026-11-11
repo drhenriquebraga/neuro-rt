@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import zipfile
 
 from . import install_state
 from .external_install import inspect_local_source, _host_version, _json
@@ -67,11 +68,15 @@ def build_local_bundle(output_folder, *, source_folder, cache_root, host_python,
     inspect = inspector or inspect_local_source
     source = install_state._plain(source_folder).resolve()
     description = inspect(source)
+    source = install_state._plain(description.get('source_folder', source)).resolve()
     output = install_state._plain(output_folder).resolve()
     cache = install_state._plain(cache_root).resolve()
     if (output.exists() or output == source or source.is_relative_to(output) or cache.is_relative_to(output)
             or output.is_relative_to(source / 'code') or cache.is_relative_to(source / 'code')):
         raise ValueError('Escolha uma nova pasta vazia para o bundle local.')
+    archive_output = output.parent / (output.name + '.zip')
+    if archive_output.exists():
+        raise ValueError('Escolha uma nova pasta: o ZIP deste pacote ja existe.')
     output.parent.mkdir(parents=True, exist_ok=True)
     manifest = install_state._read_json(install_state._path(source, 'release-manifest.json'))
     recipe = install_state._read_json(install_state._path(source, 'code/catalog/resource_recipe.json'))
@@ -152,9 +157,38 @@ def build_local_bundle(output_folder, *, source_folder, cache_root, host_python,
             'payload_bytes': sum(value['bytes'] for value in categories.values()),
             'receipt_excludes_itself': True}))
         inspect(stage)  # Trust still comes from the host pin, not offline-bundle.json.
+        transport = Path(temp) / 'transport'
+        transport.mkdir()
+        payload = transport / 'programa'
+        if not stage.resolve().is_relative_to(Path(temp).resolve()) or not payload.resolve().is_relative_to(Path(temp).resolve()):
+            raise ValueError('Pasta temporaria de transporte invalida.')
+        os.replace(stage, payload)
+        starter = 'START_HERE_TO_INSTALL_NEURO_RT.cmd'
+        launcher = install_state._path(payload, 'code/installer/START_HERE.cmd')
+        (transport / starter).write_bytes(launcher.read_bytes())
+        (transport / 'README.txt').write_text(
+            'NEURO RT - pacote de pesos offline / offline weights package\n\n'
+            'Na Local Suite: Configuracoes > NEURO RT > pacote de pesos offline. '
+            'Escolha o ZIP ou arraste-o para o card. O codigo instalado e preservado.\n'
+            'Para o assistente independente, abra ' + starter + '. '
+            'Mantenha a pasta programa ao lado do arquivo. Se abriu dentro do ZIP, '
+            'selecione o ZIP completo quando solicitado.\n\n'
+            'In Local Suite settings, choose NEURO RT and the offline weights package. '
+            'Select or drop the ZIP. Existing application code is preserved.\n', encoding='utf8')
+        archive_stage = Path(temp) / 'transport.zip'
+        with zipfile.ZipFile(archive_stage, 'w', zipfile.ZIP_DEFLATED, compresslevel=1, allowZip64=True) as zipped:
+            for file in sorted(transport.rglob('*')):
+                if not file.is_file():
+                    continue
+                relative = file.relative_to(transport).as_posix()
+                zipped.write(file, relative, compress_type=zipfile.ZIP_STORED if relative.startswith(('programa/models/', 'programa/downloads/')) else zipfile.ZIP_DEFLATED)
+        with zipfile.ZipFile(archive_stage) as zipped:
+            if zipped.testzip():
+                raise ValueError('O ZIP do pacote offline nao passou na conferencia.')
+        install_state._replace(transport, output)
+        os.replace(archive_stage, archive_output)
         emit('complete')
-        install_state._replace(stage, output)
-    return {'state': 'ready', 'version': description['version'], 'folder': str(output)}
+    return {'state': 'ready', 'version': description['version'], 'folder': str(output), 'archive': str(archive_output)}
 
 
 def _host_file(root, filename):

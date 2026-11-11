@@ -138,6 +138,15 @@ class ResourcePreparationTests(unittest.TestCase):
         self.assertNotEqual(resources.canonical_digest({'wheels': [{'sha256': 'a'}]}),
                             resources.canonical_digest({'wheels': [{'sha256': 'b'}]}))
 
+    def test_new_preparation_never_overwrites_an_active_resource_receipt(self):
+        first = self.prepare()
+        receipt = self.plugin / first['receipt_relative_path']
+        before = receipt.read_bytes()
+        with patch.object(resources, '_base_versions', return_value={'numpy': '1.26.4', 'synthetic-base': '1.0'}):
+            second = self.prepare()
+        self.assertNotEqual(first['receipt_relative_path'], second['receipt_relative_path'])
+        self.assertEqual(receipt.read_bytes(), before)
+
     def test_forged_local_receipt_cannot_authorize_modified_extra_source(self):
         self.wheel()
         result = self.prepare()

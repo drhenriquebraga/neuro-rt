@@ -308,7 +308,7 @@
     if (release.state === 'unavailable') {
       view('unavailable', 'Não foi possível verificar a atualização. A versão instalada continua disponível.', []); offerLocal(); return;
     }
-    view(settings ? 'current' : 'hidden', settings ? 'O NEURO RT está atualizado.' : '', []);
+    view(settings ? 'current' : 'hidden', settings ? 'O código do NEURO RT está atualizado.' : '', []);
   }
 
   async function status() {
