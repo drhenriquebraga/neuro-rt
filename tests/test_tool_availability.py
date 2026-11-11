@@ -63,6 +63,30 @@ class ToolAvailabilityTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'ferramentas'):
             radai_neuro_screen._pagina_ferramentas(renderer)
 
+    def test_missing_models_keep_nidus_open_and_offer_weight_settings(self):
+        from neuro_rt.tool_availability import available_tools
+        page = radai_neuro_screen._pagina_ferramentas(host_renderer(), available_tools({'nidus'}))
+        self.assertIn('href="/neuro/testing/nidus"', page)
+        self.assertEqual(page.count('href="/config#ps_neuro" data-neuro-models-missing'), 4)
+        self.assertNotIn('href="/neuro/testing/glioma"', page)
+        self.assertIn('window.uiConfirmar', page)
+        self.assertIn("location.assign('/config#ps_neuro')", page)
+
+    def test_missing_models_popup_in_real_browser(self):
+        from neuro_rt.tool_availability import available_tools
+        playwright = os.environ.get('NEURO_PLAYWRIGHT_MODULE', '')
+        if not shutil.which('node') or not Path(playwright).is_dir():
+            self.skipTest('Chrome/Playwright indisponíveis.')
+        with tempfile.TemporaryDirectory(prefix='neuro-missing-models-') as folder:
+            fixture = Path(folder) / 'mini.html'
+            fixture.write_text(radai_neuro_screen._pagina_ferramentas(
+                host_renderer(), available_tools({'nidus'})), encoding='utf8')
+            result = subprocess.run([shutil.which('node'), str(ROOT/'tests/missing_models_browser.cjs')],
+                env=dict(os.environ, NEURO_MISSING_FIXTURE=str(fixture)),
+                capture_output=True, text=True, encoding='utf8', errors='replace', timeout=45)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn('PASS: Nidus open', result.stdout)
+
     @unittest.skipUnless(shutil.which('node'), 'Node requerido para verificar navegador.')
     def test_active_cards_and_explicit_test_modal_in_real_browser(self):
         from integration.testing_access import page, policy

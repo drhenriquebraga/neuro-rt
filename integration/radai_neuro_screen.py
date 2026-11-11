@@ -26,10 +26,26 @@ def _pagina_ferramentas(renderer, availability=None):
         entry[5] = status['label']
         original = renderer._cartao(card, color)
         replacement = renderer._cartao(entry, color)
+        if not status['enabled']:
+            replacement = replacement.replace('<div class="md-fer obra" aria-disabled="true">',
+                '<a class="md-fer obra" href="/config#ps_neuro" data-neuro-models-missing>', 1)
+            before, closing, after = replacement.rpartition('</div>')
+            if not closing:
+                raise RuntimeError('O renderer de ferramentas NEURO RT do host mudou.')
+            replacement = before + '</a>' + after
         if page.count(original) != 1:
             raise RuntimeError('O renderer de ferramentas NEURO RT do host mudou.')
         page = page.replace(original, replacement, 1)
-    return page
+    script = '''<script>(function(){
+document.addEventListener('click',function(event){
+ const card=event.target.closest('[data-neuro-models-missing]');if(!card)return;
+ if(!window.uiConfirmar)return;event.preventDefault();
+ const t=text=>window.radaiFrase?window.radaiFrase(text):text;
+ window.uiConfirmar({titulo:t('Preparar modelos'),
+  corpo:t('Esta ferramenta precisa dos modelos adicionais do NEURO RT. Deseja abrir as configurações para preparar os pesos?'),
+  aoSim:()=>location.assign('/config#ps_neuro'),aoNao:()=>{}});
+});})();</script>'''
+    return page.replace('</body>',script+'</body>',1)
 
 
 def pagina_neuro(host_services, plugin_status):

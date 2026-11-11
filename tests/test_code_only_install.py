@@ -81,6 +81,26 @@ class CodeOnlyTests(unittest.TestCase):
         self.assertEqual(state['active_version'], before['active_version'])
         self.assertIsNone(state['resources'])
 
+    def test_invalid_optional_weight_receipt_does_not_block_the_base_ui(self):
+        self.run_plan(self.plan())
+        pointer = self.host / 'Plugins/NEURO RT/installation.json'
+        state = json.loads(pointer.read_text())
+        state.update(state='failed', resources={'schema': 'damaged-optional-receipt'})
+        pointer.write_text(json.dumps(state))
+        before = pointer.read_bytes()
+        with patch('importlib.metadata.version', return_value='1.0'):
+            with self.assertRaises(ValueError):
+                resolve_plugin_paths(self.host, state, host_python=sys.executable)
+            paths = resolve_plugin_paths(self.host, state, host_python=sys.executable,
+                                         allow_base_only=True)
+        service = Service(Settings(paths.code_dir, plugin_paths=paths))
+        self.addCleanup(service.close)
+        self.assertEqual(service.settings.installation_state, 'ready')
+        self.assertIsNone(paths.resources)
+        self.assertEqual({tool['id'] for tool in service.tools() if tool['enabled']}, {'nidus'})
+        self.assertEqual(service.weights_status()['state'], 'missing')
+        self.assertEqual(pointer.read_bytes(), before)
+
     def test_plan_rejects_non_boolean_code_only(self):
         for value in (1, 'true', None, []):
             with self.subTest(value=value), self.assertRaises(ValueError):

@@ -23,7 +23,7 @@ def montar(app, module_root, *, host_services=None):
         state_file = host_root / 'Plugins/NEURO RT/installation.json'
         if state_file.is_file():
             plugin_paths = resolve_plugin_paths(host_root, json.loads(state_file.read_text(encoding='utf-8')),
-                host_python=host_services.host_info.get('python_executable'))
+                host_python=host_services.host_info.get('python_executable'), allow_base_only=True)
             if plugin_paths.code_dir != root:
                 raise ValueError('O código montado não corresponde à versão ativa do plugin.')
     settings = Settings(root, plugin_paths=plugin_paths)

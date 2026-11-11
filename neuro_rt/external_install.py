@@ -248,7 +248,11 @@ def _resource_only_install(plan, *, plugin, host_python, emit):
     pointer = install_state._path(plugin, 'installation.json')
     previous = install_state._read_json(pointer)
     active_version = previous.get('active_version')
-    if previous.get('state') != 'ready' or not active_version or previous.get('pending_version'):
+    previous_state = previous.get('state')
+    pending = previous.get('pending_version')
+    reusable = (previous_state in ('ready', 'failed') and not pending or
+                previous_state == 'installed_pending_restart' and pending == active_version)
+    if not reusable or not active_version:
         raise ValueError('Prepare o código da Local Suite antes de instalar os pesos.')
     inventory = install_state._installed_release(plugin, active_version)
     if code_inventory_sha256(inventory) not in TRUSTED_CODE_INVENTORIES:
@@ -292,12 +296,13 @@ def _resource_only_install(plan, *, plugin, host_python, emit):
         if not acquired:
             raise install_state.InstallFailure('INSTALL_BUSY', 'Outra transação está em andamento.')
         current = install_state._read_json(pointer)
-        if (current.get('state') != 'ready' or current.get('active_version') != active_version
-                or current.get('pending_version') or current.get('resources') != previous.get('resources')):
+        if (current.get('state') != previous_state or current.get('active_version') != active_version
+                or current.get('pending_version') != pending or current.get('resources') != previous.get('resources')):
             raise install_state.InstallFailure('INSTALL_BUSY', 'A instalação mudou durante o preparo dos pesos.')
         if code_inventory_sha256(install_state._installed_release(plugin, active_version)) != code_inventory_sha256(inventory):
             raise install_state.InstallFailure('INSTALL_BUSY', 'O código ativo mudou durante o preparo dos pesos.')
-        updated = dict(current, resources=resources, resource_bundle_version=bundle_version,
+        updated = dict(current, state='ready', pending_version=None, pending_resources=None,
+                       resources=resources, resource_bundle_version=bundle_version,
                        resource_recipe_sha256=resources['recipe_digest'],
                        resource_source='offline' if source_folder is not None else 'online')
         install_state._atomic_json(pointer, updated)

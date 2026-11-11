@@ -360,8 +360,8 @@ CSS = u"""
 .nd-model-switch input:disabled+i{opacity:.5}
 .nd-consenso input[type=range]{flex:0 1 140px;width:140px;min-width:0;max-width:calc(100% - 28px);margin:0}
 .nd-mpr-title{display:flex;align-items:center;justify-content:space-between;gap:6px}
-.nd-consenso-linha{stroke:var(--success,#6fd08c);stroke-width:2;vector-effect:non-scaling-stroke}
-.nd-legenda .l.consenso{color:var(--success,#6fd08c)}
+.nd-consenso-linha{fill:none;stroke:#ff243b;stroke-width:3;vector-effect:non-scaling-stroke}
+.nd-legenda .l.consenso{color:#ff243b}
 .nd-consenso-vazio{flex-basis:100%;color:var(--text-muted);font-size:12px}
 .nd-consenso-acoes [hidden],.nd-consenso-vazio[hidden],#nd_layout_original[hidden],#nd_estado[hidden]{display:none}
 .nd-colB{overflow-y:auto;scrollbar-gutter:stable}
@@ -377,6 +377,71 @@ CSS = u"""
 .nd-colA.nd-mpr-principal{grid-template-rows:20px var(--nd-q,480px)}
 .nd-colA.nd-mpr-principal > #nd_palco,.nd-colA.nd-mpr-principal > .nd-barra-v,
 .nd-colA.nd-mpr-principal > .nd-barra-h{display:none}
+.nd-layout-a .nd-trabalho{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.22fr);gap:10px;min-height:400px}
+.nd-layout-a .nd-colA{min-width:0;width:100%;height:100%;grid-template-columns:minmax(0,1fr) 36px;grid-template-rows:24px minmax(0,1fr) 34px;padding:8px;gap:5px}
+.nd-layout-a .nd-colA > .nd-palco{width:100%;height:100%;min-height:0}
+.nd-layout-a .nd-barra-v{height:100%;min-height:0}
+.nd-layout-a .nd-barra-h .trilho{height:34px}
+.nd-layout-a .nd-barra-h .escala{display:none}
+.nd-layout-a .nd-colB{display:block;min-width:0;min-height:0;overflow:visible}
+.nd-layout-a #nd_mpr[hidden],.nd-layout-a .nd-cima[hidden]{display:none}
+.nd-layout-a .nd-osso[hidden]{display:none}
+.nd-aux-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:9px;height:100%;min-height:0}
+.nd-aux-grid > .p,.nd-aux-grid > .nd-3d{width:auto;min-width:0;min-height:0;height:100%;margin:0;box-sizing:border-box}
+.nd-aux-grid > .p{display:flex;flex-direction:column;gap:5px;padding:8px;border:1px solid var(--line);border-radius:var(--r-xl,10px);background:var(--panel)}
+.nd-aux-grid .p .nd-palco{width:100%;height:auto;min-height:0;flex:1 1 0}
+.nd-aux-grid .p input[type=range]{width:100%;margin:0;flex:none}
+.nd-aux-grid .nd-mpr-title{height:24px;flex:none;font-size:11px;color:var(--text-muted)}
+.nd-aux-grid .nd-mpr-title .nd-bt{font-size:10px;min-height:22px;padding:1px 6px}
+.nd-layout-a #nd_3d_cx{grid-area:1/1;padding:8px}
+.nd-layout-a #nd_pane0{grid-area:1/2}
+.nd-layout-a #nd_pane1{grid-area:2/1}
+.nd-layout-a #nd_pane2{grid-area:2/2}
+.nd-layout-a .nd-palco3d{min-height:90px}
+.nd-layout-a .nd-ctl3d .dica{display:none}
+.nd-layout-a .nd-ctl3d .nd-bt{font-size:10px;padding:2px 5px;min-height:23px}
+.nd-layout-a #nd_mpr_main{height:auto;min-height:0;grid-column:1/3;grid-row:2/4}
+.nd-layout-a #nd_mpr_main > .p{height:100%;min-height:0;gap:5px}
+.nd-layout-a #nd_mpr_main .nd-palco{min-height:0;width:100%;height:auto;flex:1 1 0}
+.nd-layout-a #nd_mpr_main .nd-mpr-title{display:none}
+.nd-layout-a .nd-colA.nd-mpr-principal{grid-template-rows:auto minmax(0,1fr) 28px}
+.nd-layout-a #nd_proj_aux{display:flex;flex-direction:column;gap:5px;min-height:0}
+.nd-layout-a #nd_proj_aux[hidden]{display:none}
+.nd-layout-a #nd_proj_aux > .nd-palco{width:100%;height:auto;flex:1 1 0;min-height:0}
+.nd-layout-a #nd_proj_aux .nd-ferr-palco{top:4px;right:4px}
+.nd-layout-a #nd_proj_aux .nd-ferr-palco .nd-bt{font-size:9px;padding:2px 4px;min-height:22px}
+.nd-layout-a .nd-angio-max{grid-template-columns:minmax(0,1fr)}
+.nd-layout-a .nd-angio-max > .nd-colB{display:none}
+.nd-actionbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:10px 12px}
+.nd-actionbar .nd-consenso-acoes{display:contents}
+.nd-actionbar .nd-consenso{margin:0 0 0 auto;max-width:250px;min-width:180px;padding-left:12px;border-left:1px solid var(--line)}
+.nd-actionbar .nd-consenso input[type=range]{flex:1 1 150px;max-width:none;accent-color:#ff243b}
+.nd-actionbar .nd-consenso output{color:#ff243b;font:11px var(--font-mono,monospace)}
+.nd-actionbar .nd-consenso-nota{width:100%;font-size:9px;line-height:1.3}
+.nd-actionbar .nd-consenso-vazio{width:100%;flex-basis:100%}
+.nd-actionbar details > summary{cursor:pointer;list-style:none}
+.nd-inc-popover,.nd-anatomia-popover{position:relative}
+.nd-inc-popover > .nd-inc{position:absolute;left:0;bottom:calc(100% + 8px);width:340px;max-width:calc(100vw - 60px);max-height:70vh;overflow:auto;z-index:20;background:var(--panel);box-shadow:0 12px 36px #0008}
+.nd-inc-popover .nd-pad{min-height:130px;flex:none}
+.nd-inc-popover .nd-legenda{padding-top:8px;max-height:100px;overflow:auto}
+.nd-anatomia-popover > .nd-anatomia{position:absolute;left:0;bottom:calc(100% + 8px);width:440px;max-width:calc(100vw - 60px);max-height:65vh;overflow:auto;padding:12px;border:1px solid var(--line);border-radius:var(--r-xl,10px);background:var(--panel);z-index:21;box-shadow:0 12px 36px #0008}
+.nd-layout-a .nd-resolucao{color:var(--text-dim);font-size:10.5px}
+.nd-layout-a .nd-resolucao::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--success);display:inline-block}
+.nd-layout-a .nd-tubo{stroke-width:.8;opacity:.75}
+.nd-layout-a .nd-inter{stroke-width:1.1;opacity:.75}
+.nd-layout-a .nd-palco img{image-rendering:auto}
+.nd-layout-a .nd-ferramentas .nd-grupo{max-width:100%;min-width:0;flex-wrap:wrap}
+.nd-layout-a .nd-ferramentas .g{min-width:0;flex-wrap:wrap}
+.nd-layout-a .nd-colA > .nd-rot{height:auto;min-height:24px;flex-wrap:wrap;white-space:normal}
+.nd-layout-a .nd-colA > .nd-rot .dir{min-width:0;flex-wrap:wrap;justify-content:flex-end}
+.nd-layout-a .nd-colA{grid-template-rows:auto minmax(0,1fr) 34px}
+.nd-layout-a .nd-rot .nd-bt,.nd-actionbar .nd-bt{max-width:100%;white-space:normal}
+.nd-layout-a .nd-ctl3d{flex-wrap:wrap}
+.nd-layout-a .nd-ctl3d .nd-bt{max-width:100%;white-space:normal;text-align:left}
+.nd-layout-a #nd_rodape{text-align:center}
+.nd-layout-a #nd_rodape .ui-alerta{justify-content:center;padding-top:4px}
+@media(max-width:1050px){.nd-layout-a .nd-trabalho{grid-template-columns:minmax(0,1fr);height:auto!important}.nd-layout-a .nd-colA{height:460px}.nd-layout-a .nd-colB{height:530px}.nd-actionbar .nd-consenso{max-width:none;margin-left:auto}.nd-layout-a .nd-angio-max .nd-colA{height:70vh}}
+@media(max-width:600px){.nd-layout-a .nd-colA{height:380px}.nd-layout-a .nd-colB{height:480px}.nd-layout-a .nd-leitura{font-size:10px!important}.nd-actionbar .nd-consenso{flex:1 1 100%;border-left:0;padding-left:0}.nd-layout-a .nd-cabeca{flex-wrap:wrap;gap:6px}.nd-layout-a .nd-serie{max-width:100%;width:100%}.nd-layout-a .nd-ferr-palco .nd-bt{font-size:10px;padding:2px 5px}.nd-layout-a #nd_3d_cx > .nd-rot > span:first-child,.nd-layout-a #nd_estado{display:none}}
 @media (prefers-reduced-motion:reduce){.nd-estado.previa i{animation:none}}
 """
 
@@ -420,17 +485,17 @@ function ndEl(i){ return document.getElementById(i) }
 function ndEsc(t){ return String(t==null?'':t).replace(/&/g,'&amp;')
  .replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
 function ndMsg(t,c){ var e=ndEl('nd_msg'); if(!e) return;
- if(window.uiTexto) window.uiTexto(e, t); else e.textContent=t;
+ ndTexto(e,t);
  e.className=c||'' }
 function ndMsg2(motivo, fixa, c){
  var e=ndEl('nd_msg'); if(!e) return;
  e.className=c||'';
- if(!window.uiTexto || !e.children){ e.textContent=motivo+' — '+fixa; return }
+ if(!window.uiTexto || !e.children){ ndTexto(e,motivo+' — '+fixa); return }
  e.innerHTML='<span></span> — <span data-radai-frase></span>';
- e.children[0].textContent=motivo;
- window.uiTexto(e.children[1], fixa);
+ ndTexto(e.children[0],motivo);
+ ndTexto(e.children[1],fixa);
 }
-function ndTexto(e, t){ if(!e) return; if(window.uiTexto) window.uiTexto(e, t); else e.textContent=t }
+function ndTexto(e, t){ if(!e) return;var text=window.radaiFrase?window.radaiFrase(t):t;if(window.uiTexto) window.uiTexto(e,text);else e.textContent=text }
 
 function ndAng(v, pos, neg){
  var n=Math.round(+v||0);
@@ -473,7 +538,7 @@ function ndAplicar(f, comDesenho){
  if(!f) return;
  ['lao','cra','modo','jan','laje','inverter','osso'].forEach(function(k){
   if(f[k]!==undefined && f[k]!==null) ND[k]=f[k] });
- if(ND_RESOLUCOES.indexOf(f.resolucao)!==-1) ND.resolucao=f.resolucao;
+ ND.resolucao=ND_PADROES.resolucao;
  if(Number.isFinite(f.temperatura) && f.temperatura>=0 && f.temperatura<=100) ND.temperatura=f.temperatura;
  if(f.planos) [0,1,2].forEach(function(axis){var p=f.planos[axis];if(Number.isFinite(p) && p>=0 && p<=1) ND.planos[axis]=p});
  ND.caixa=f.caixa?f.caixa.slice():null;
@@ -537,6 +602,39 @@ function ndRotuloDaLista(s){
  return (s.modalidade?(ndEsc(s.modalidade)+' · '):'')
    +molde.replace(/%s/g,function(){ return vs.shift() });
 }
+function ndSeries(linhas, origem){
+ var lista=(linhas||[]).filter(function(s){ return s && s.bilhete && !s.carregando }).slice(0,60);
+ if(!lista.length) return;
+ ND.tofPedido=(ND.tofPedido||0)+1;
+ var pedido=ND.tofPedido, ultima=ND.ultima||{}, nota=ndEl('nd_tof_sugestao');
+ if(nota) nota.textContent='';
+ var itens=lista.map(function(s){ return {bilhete:s.bilhete, origem:origem} });
+ var corpo={itens:itens};
+ if(ultima.bilhete) corpo.ancora={bilhete:ultima.bilhete, origem:ultima.origem||'pasta'};
+ return fetch('/api/nidus/series-metadata',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)})
+  .then(function(r){ if(!r.ok) throw Error('metadata'); return r.json() }).then(function(d){
+   if(pedido!==ND.tofPedido || !ND.escolhendo) return;
+   var alvo=origem==='acervo' ? ndEl('nd_acervo') : ndEl('nd_series');
+   if(!alvo) return;
+   Array.prototype.forEach.call(alvo.querySelectorAll('[data-nd-tof]'),function(e){ e.remove() });
+   var achou=false;
+   (d.itens||[]).forEach(function(s){
+    if(!s.preferida) return;
+    var i=(linhas||[]).findIndex(function(x){ return x && x.bilhete===s.bilhete });
+    if(i<0) return;
+    var linha=origem==='acervo' ? alvo.querySelector('tr[data-i="'+i+'"]')
+      : Array.prototype.find.call(alvo.querySelectorAll('[data-b]'),function(e){ return e.getAttribute('data-b')===s.bilhete });
+    if(!linha) return;
+    var selo=document.createElement('small'); selo.className='sub'; selo.setAttribute('data-nd-tof','1');
+    selo.style.display='block';
+    selo.setAttribute('data-radai-frase','');
+    selo.textContent=s.tridimensional ? 'Possível 3D TOF · confirmar' : 'Possível TOF · confirmar';
+    (origem==='acervo' ? linha.querySelector('td') : linha).appendChild(selo); achou=true;
+   });
+   if(nota && achou) ndFrases(nota,['Sugestão pelos metadados; confirme a sequência e escolha a série original, sem MIP.']);
+   if(window.radaiRetraduzir) window.radaiRetraduzir();
+  }).catch(function(){ /* Metadata hints never prevent a manual choice. */ });
+}
 function ndListar(pasta){
  var alvo=ndEl('nd_series');
  pasta=(pasta||'').trim();
@@ -547,6 +645,7 @@ function ndListar(pasta){
   chave:'nidus', pasta:pasta, dias:'nd_dias',
   opcoes:{modalidades:ND_MODALIDADES, min_cortes:ND_MIN_CORTES},
   vazio:'Nenhuma série nesta pasta.',
+  aoFim:function(linhas){ ndSeries(linhas,'pasta') },
   linha:function(s){
    ND.porB[s.bilhete]=s;
    return '<button type="button" class="nd-it" role="option" data-b="'
@@ -557,6 +656,7 @@ function ndListar(pasta){
 function ndTabela(){
  if(!ND.tabela && window.uiTabelaAcervo && ndEl('nd_acervo')){
   ND.tabela=window.uiTabelaAcervo('nd_acervo', {
+   aoCarregar:function(linhas){ ndSeries(linhas,'acervo') },
    aoAbrir:function(linha){ ndAbrirDoAcervo(linha) },
    filtro:function(l){ return !l.modalidade || ND_MODALIDADES.indexOf(l.modalidade)>=0 }});
  }
@@ -571,7 +671,10 @@ function ndAbrirEscolha(){
  var casa=ndEl('nd_escolha_casa');
  if(!ndEl('nd_escolha')) return;
  ND.escolhendo=true;
+ ND.tofPedido=(ND.tofPedido||0)+1;
+ Array.prototype.forEach.call(ndEl('nd_escolha').querySelectorAll('[data-nd-tof]'),function(e){ e.remove() });
  ndTabela();
+ if(ND.tabela && ND.tabela.linhas) ndSeries(ND.tabela.linhas(),'acervo');
  var p=ndPopup();
  if(p){ p.abrir(ndEl('nd_escolher')); return }
  if(casa) casa.hidden=false;
@@ -603,6 +706,7 @@ function ndRotuloDaSerie(t){
 
 function ndAbrirSerie(s){
  if(!s || !s.bilhete) return;
+ ND.tofPedido=(ND.tofPedido||0)+1;
  ndFecharEscolha();
  if(ND.tabela && s.origem!=='acervo') ND.tabela.marcar(null);
  ndRotuloDaSerie(s.rotulo);
@@ -669,7 +773,16 @@ function ndAbrirSerie(s){
 }
 
 function ndModalidade(m){
+ ND.modalidade=m?String(m):'';
  var e=ndEl('nd_mod'); if(e) e.textContent=m?String(m):'';
+ ndJanelasModalidade();
+}
+function ndJanelasModalidade(){
+ var mr=ND.modalidade==='MR' || ND.hu===false;
+ var names=mr?{angio:'Vasos',vaso_fino:'vaso fino',osso:'Anatomia',parenquima:'Tecidos'}:
+              {angio:'angio',vaso_fino:'vaso fino',osso:'osso',parenquima:'parênquima'};
+ Object.keys(names).forEach(function(key){var button=document.querySelector('#nd_jan [data-j="'+key+'"]');if(button)ndTexto(button,names[key])});
+ var bone=document.querySelector('.nd-osso');if(bone)bone.hidden=mr;
 }
 
 function ndCarregando(liga, alvo, txt){
@@ -805,7 +918,7 @@ function ndEixosSvg(g, d){
 }
 function ndEixos(d){ ndEixosSvg(ndEl('nd_eixos'), d) }
 
-// GUARDA: o desenho e a imagem estão no MESMO contêiner escalado; `ndPonto` lê o retângulo já escalado.
+// Desenho e imagem compartilham o contêiner; ndPonto usa sua matriz SVG, incluindo zoom e margens.
 function ndZoomAplicar(){
  var w=ndEl('nd_zoom'), z=ND.zoom; if(!w) return;
  w.style.transform='translate('+z.x.toFixed(1)+'px,'+z.y.toFixed(1)+'px) scale('+z.k.toFixed(3)+')';
@@ -925,7 +1038,8 @@ function ndEnquadrar(){
  pts.forEach(function(q){ x0=Math.min(x0,q[0]); x1=Math.max(x1,q[0]); y0=Math.min(y0,q[1]); y1=Math.max(y1,q[1]) });
  var L=ND.lado, meia=Math.max(x1-x0, y1-y0)/2*1.08;
  var k=Math.max(1, Math.min(8, L/(2*Math.max(meia, 1))));
- ND.zoom.k=k; ND.zoom.x=W/2-(x0+x1)/2/L*W*k; ND.zoom.y=H/2-(y0+y1)/2/L*H*k;
+ var side=Math.min(W,H), ox=(W-side)/2, oy=(H-side)/2;
+ ND.zoom.k=k; ND.zoom.x=W/2-(ox+(x0+x1)/2/L*side)*k; ND.zoom.y=H/2-(oy+(y0+y1)/2/L*side)*k;
  ndZoomPrender(); ndZoomAplicar();
 }
 
@@ -935,6 +1049,7 @@ function ndLeitura(lao, cra){
  if(c) c.textContent=ndAng(cra, 'CRA', 'CAU');
 }
 function ndSincronizar(){
+ ndJanelasModalidade();
  ND.ver={lao:ND.lao, cra:ND.cra};
  [['lao','LAO','RAO'],['cra','CRA','CAU']].forEach(function(a){
   var v=ND[a[0]], t=ndEl('nd_'+a[0]), r=ndEl('nd_'+a[0]+'_r');
@@ -1136,9 +1251,9 @@ function ndGradeDoDesenho(){
 }
 
 function ndPonto(ev){
- var svg=ndEl('nd_svg'), r=svg.getBoundingClientRect();
- return [(ev.clientX-r.left)/r.width*ND.lado,
-         (ev.clientY-r.top)/r.height*ND.lado];
+ var svg=ndEl('nd_svg'), point=svg.createSVGPoint();point.x=ev.clientX;point.y=ev.clientY;
+ point=point.matrixTransform(svg.getScreenCTM().inverse());
+ return [Math.max(0,Math.min(ND.lado,point.x)),Math.max(0,Math.min(ND.lado,point.y))];
 }
 
 function ndPressionar(ev){
@@ -1250,6 +1365,7 @@ function ndPedeSubstituir(){
 }
 function ndPintarOsso(){
  var d=ND.ossoInfo, t=ndEl('nd_osso_txt'), bt=ndEl('nd_osso_bt'), sg=ndEl('nd_segmentar');
+ if(ND.modalidade==='MR' || ND.hu===false){if(bt)bt.hidden=true;if(sg)sg.hidden=true;if(t)t.textContent='';return}
  if(bt){
   bt.hidden=!ND.tem_osso;
   bt.classList.toggle('on', !!(ND.tem_osso && ND.osso));
@@ -2035,14 +2151,21 @@ function nd3Atraves(){
 function nd3SalaPadrao(){ ND3.cam={yaw:120, pitch:16, dist:3050}; nd3Pedir() }
 
 function ndMaximizar(eixo){
- if(eixo!==null && (!ND.sessao || ND.cruzando || ND.consensoBusy)) return;
+ if(eixo!==null && (!ND.aberta || ND.cruzando || ND.consensoBusy)) return;
  var host=ndEl('nd_mpr_main'), box=ndEl('nd_proj_cx'); if(!host || !box) return;
+ var palco=ndEl('nd_palco'), aux=ndEl('nd_proj_aux'), trabalho=ndEl('nd_trabalho');
+ if(trabalho) trabalho.classList.remove('nd-angio-max');
+ ND.angioMax=false;
+ var maxButton=ndEl('nd_angio_max');if(maxButton){maxButton.setAttribute('aria-pressed','false');ndTexto(maxButton,'Maximizar angiografia')}
+ if(palco && palco.parentNode!==box) box.insertBefore(palco,ndEl('nd_mpr_main'));
+ if(aux) aux.hidden=true;
  if(ND.principal!==null){
   var old=ndEl('nd_pane'+ND.principal), home=ndEl('nd_home'+ND.principal);
   if(old && home) home.parentNode.insertBefore(old, home);
  }
  ND.principal=eixo;
- if(eixo!==null){ var pane=ndEl('nd_pane'+eixo); if(pane) host.appendChild(pane) }
+ if(eixo!==null){ var pane=ndEl('nd_pane'+eixo); if(pane) host.appendChild(pane);
+  if(aux && palco){aux.style.gridArea=['1 / 2','2 / 1','2 / 2'][eixo];aux.appendChild(palco);aux.hidden=false} }
  host.hidden=eixo===null; box.classList.toggle('nd-mpr-principal', eixo!==null);
  var title=ndEl('nd_principal_t'); if(title) ndTexto(title, eixo===null?'projeção':['axial','coronal','sagital'][eixo]);
  var rotation=ndEl('nd_rot_proj'); if(rotation) rotation.hidden=eixo!==null;
@@ -2050,9 +2173,85 @@ function ndMaximizar(eixo){
  var back=ndEl('nd_layout_original'); if(back) back.hidden=eixo===null;
  ndAjustarTela(); nd3Pedir();
 }
+function ndMaximizarAngio(){
+ var expandir=!ND.angioMax;
+ ndMaximizar(null); ND.angioMax=expandir;
+ ndEl('nd_trabalho').classList.toggle('nd-angio-max',expandir);
+ var b=ndEl('nd_angio_max');if(b){b.setAttribute('aria-pressed',String(expandir));ndTexto(b,expandir?'Restaurar estação':'Maximizar angiografia')}
+ ndAjustarTela();
+}
+function ndMprRoda(eixo,event){
+ if(!ND.aberta || !ND.forma || ND.consensoBusy || !event.deltaY)return;
+ event.preventDefault();
+ var n=ND.forma[eixo]||1;
+ ND.planos[eixo]=Math.max(0,Math.min(1,ND.planos[eixo]+(event.deltaY>0?1:-1)/Math.max(1,n-1)));
+ var slider=ndEl('nd_pos'+eixo);if(slider)slider.value=String(ND.planos[eixo]*100);
+ ndCorte(eixo,false);ndRegistrar('corte');
+}
+async function ndCentrarConsenso(){
+ if(!ND.sessao || ND.cruzando || ND.consensoBusy)return;
+ var session=ND.sessao, temperature=ND.temperatura, edited=ND.consensoEditavel;
+ var button=ndEl('nd_cons_centrar');if(button)button.disabled=true;
+ try{
+  var response=await fetch('/api/nidus/centro?s='+encodeURIComponent(session)+'&temperatura='+temperature+'&editado='+String(edited),{cache:'no-store'});
+  var data=await response.json();
+  if(session!==ND.sessao || temperature!==ND.temperatura || edited!==ND.consensoEditavel)return;
+  if(!response.ok || data.erro)throw Error(data.erro||'Não foi possível centrar o consenso.');
+  if(data.vazio){ndMsg('Consenso vazio: ajuste a temperatura ou revise as incidências.','');return}
+  [0,1,2].forEach(function(axis){ND.planos[axis]=data.posicoes[axis];ndEl('nd_pos'+axis).value=String(data.posicoes[axis]*100);ndCorte(axis,false)});
+  ndRegistrar('centrar');
+ }catch(error){ndMsg(String(error.message||error),'erro')}
+ finally{ndConsControles()}
+}
+function ndLayoutA(){
+ var wrap=ndEl('nd_wrap'), col=ndEl('nd_colB'), work=ndEl('nd_trabalho');
+ if(!wrap || !col || ndEl('nd_aux_grid'))return;
+ wrap.classList.add('nd-layout-a');
+ var grid=document.createElement('div');grid.id='nd_aux_grid';grid.className='nd-aux-grid';
+ col.appendChild(grid);grid.appendChild(ndEl('nd_3d_cx'));
+ [0,1,2].forEach(function(axis){grid.appendChild(ndEl('nd_pane'+axis));grid.appendChild(ndEl('nd_home'+axis));
+  var pane=ndEl('nd_pp'+axis);pane.addEventListener('wheel',function(event){ndMprRoda(axis,event)},{passive:false});
+  pane.addEventListener('dblclick',function(event){if(ND.consensoEditavel)return;event.preventDefault();ndMaximizar(ND.principal===axis?null:axis)});
+ });
+ var aux=document.createElement('section');aux.id='nd_proj_aux';aux.className='p';aux.hidden=true;
+ aux.innerHTML='<div class="nd-mpr-title"><span data-radai-frase>Projeção vascular</span><button type="button" class="nd-bt" onclick="ndMaximizar(null)" data-radai-frase>Restaurar estação</button></div>';
+ grid.appendChild(aux);
+ ndEl('nd_palco').addEventListener('dblclick',function(event){if(ND.tracando)return;event.preventDefault();if(ND.principal!==null)ndMaximizar(null);else ndMaximizarAngio()});
+ var max=document.createElement('button');max.id='nd_angio_max';max.type='button';max.className='nd-bt';max.setAttribute('aria-pressed','false');max.setAttribute('data-radai-frase','');max.textContent='Maximizar angiografia';max.onclick=ndMaximizarAngio;
+ ndEl('nd_proj_cx').querySelector('.nd-rot .dir').prepend(max);
+ var bar=document.createElement('section');bar.id='nd_actionbar';bar.className='nd-cx nd-actionbar';work.after(bar);
+ var details=document.createElement('details');details.className='nd-inc-popover';details.id='nd_inc_details';
+ details.innerHTML='<summary class="nd-bt" data-radai-frase>Incidências guardadas</summary>';
+ details.appendChild(ndEl('nd_inc_cx'));bar.appendChild(details);
+ details.addEventListener('toggle',function(){if(details.open){ndPopoverPosition(details);ndPadAjustar();ndPintarPad()}});
+ var save=ndEl('nd_bt_guardar');bar.appendChild(save);
+ var center=document.createElement('button');center.id='nd_cons_centrar';center.type='button';center.className='nd-bt';center.setAttribute('data-radai-frase','');center.textContent='Centrar consenso';center.disabled=true;center.onclick=ndCentrarConsenso;bar.appendChild(center);
+ var actions=ndEl('nd_mpr').querySelector('.nd-consenso-acoes');bar.appendChild(actions);
+ var anatomy=actions.querySelector('.nd-anatomia'), an=document.createElement('details');an.className='nd-anatomia-popover';an.innerHTML='<summary class="nd-bt" data-radai-frase>Anatomia na entrega</summary>';an.appendChild(anatomy);bar.appendChild(an);
+ an.addEventListener('toggle',function(){if(an.open)ndPopoverPosition(an)});
+ bar.appendChild(ndEl('nd_caixa_bt'));bar.appendChild(ndEl('nd_caixa_limpar'));
+ var temp=ndEl('nd_temperatura').parentNode;temp.appendChild(ndEl('nd_temperatura_info'));bar.appendChild(temp);
+ var exportButton=ndEl('nd_cons_exportar');bar.appendChild(exportButton);
+ details.querySelector('.nd-inc').appendChild(ndEl('nd_legenda'));
+ bar.appendChild(ndEl('nd_cons_vazio'));
+ ndEl('nd_mpr').hidden=true;
+ var oldTop=col.querySelector('.nd-cima');if(oldTop)oldTop.hidden=true;
+ document.addEventListener('keydown',function(event){if(event.key!=='Escape')return;
+  var open=bar.querySelectorAll('details[open]');if(!open.length)return;
+  open.forEach(function(item){item.open=false});open[open.length-1].querySelector('summary').focus();event.preventDefault();event.stopPropagation();
+ });
+ document.addEventListener('click',function(event){bar.querySelectorAll('details[open]').forEach(function(item){if(!item.contains(event.target))item.open=false})});
+}
+function ndPopoverPosition(details){
+ var panel=details.children[1];if(!panel)return;panel.style.left='0px';
+ var rect=panel.getBoundingClientRect(), shift=Math.min(0,window.innerWidth-12-rect.right);
+ if(rect.left+shift<12)shift+=12-rect.left-shift;
+ panel.style.left=shift+'px';
+}
 function ndConsControles(){
  var ready=!!ND.sessao && !ND.cruzando && !ND.consensoBusy;
  ['nd_cons_editar','nd_cons_exportar'].forEach(function(id){ var e=ndEl(id); if(e) e.disabled=!ready });
+ var center=ndEl('nd_cons_centrar');if(center)center.disabled=!ready;
  var incluir=ndEl('nd_cons_anatomia'), painel=ndEl('nd_cons_anatomia_painel');
  if(ND.consAnatomia && ND.consAnatomia.session!==ND.sessao){
   ND.consAnatomia=null; incluir.checked=false; painel.hidden=true;
@@ -2062,7 +2261,7 @@ function ndConsControles(){
   ND.consEntrega=null; ndEl('nd_cons_entrega').hidden=true;
  }
  [0,1,2].forEach(function(axis){
-  var b=ndEl('nd_max'+axis); if(b) b.disabled=!ready;
+  var b=ndEl('nd_max'+axis); if(b) b.disabled=!ND.aberta || ND.cruzando || ND.consensoBusy;
   var pane=ndEl('nd_pp'+axis); if(pane) pane.classList.toggle('nd-editavel', !!(ready && ND.consensoEditavel));
  });
  var slider=ndEl('nd_temperatura'); if(slider) slider.disabled=!ready || ND.consensoEditavel;
@@ -2251,6 +2450,14 @@ function ndAjustarTela(){
  if(!t || !t.style || !t.style.setProperty || !t.getBoundingClientRect) return;
  var H=+window.innerHeight||0, W=+window.innerWidth||0;
  if(!H || !W) return;
+ if(ndEl('nd_wrap').classList.contains('nd-layout-a')){
+  var footer=ndEl('nd_rodape'), actions=ndEl('nd_actionbar');
+  var available=H-t.getBoundingClientRect().top-(footer?footer.getBoundingClientRect().height:40)-(actions?actions.getBoundingClientRect().height:70)-28;
+  t.style.height=W>1050?Math.max(400,Math.floor(available))+'px':'';
+  ndPadAjustar();nd3Pedir();
+  if(ND.principal===null){ndZoomPrender();ndZoomAplicar();ndEnquadrar()}
+  return;
+ }
  var rt=t.getBoundingClientRect(), y=+window.scrollY||0;
  var rodape=ndEl('nd_rodape');
  var pe=rodape ? rodape.getBoundingClientRect().height+12 : 40;
@@ -2279,6 +2486,7 @@ function ndAjustarTela(){
 }
 
 window.addEventListener('DOMContentLoaded', function(){
+ ndLayoutA();
  var pb=ndEl('nd_procurar'); if(pb) pb.addEventListener('click', ndProcurar);
  var pt=ndEl('nd_pasta');
  if(pt) pt.addEventListener('keydown', function(ev){
@@ -2388,8 +2596,12 @@ AJUDA_PREVIA = (
     u"lápis espera a projeção cheia.")
 
 AJUDA_RESOLUCAO = (
-    u"A resolução da projeção muda a amostragem da imagem. "
-    u"As marcações mantêm a mesma posição física.")
+    u"A projeção final usa a maior amostragem disponível no motor, a partir dos dados originais, sem super-resolução por IA. "
+    u"Durante o arraste, uma prévia leve é substituída pela imagem final ao soltar.")
+
+AJUDA_CONTRASTE_RM = (
+    u"Na RM, Anatomia e Tecidos modificam somente o contraste da sequência carregada. "
+    u"Não criam uma série T1 ou outra sequência, não usam HU e não alteram os voxels originais exportados.")
 
 AJUDA_3D = (
     u"O 3D da caixa mostra o que está dentro dela: o vaso por limiar (sem o "
@@ -2400,7 +2612,7 @@ AJUDA_3D = (
 
 AJUDA_LINHAS = (
     u"A cor de cada linha diz de qual incidência ela veio. A linha mais forte "
-    u"é onde todas se cruzam. A linha verde é uma sugestão geométrica: "
+    u"é onde todas se cruzam. A linha vermelha é uma sugestão geométrica: "
     u"temperatura 0 usa a união estrelada, e 100 usa a interseção total. "
     u"Os ajustes intermediários reduzem a máscara por distâncias no plano "
     u"das projeções, sem indicar probabilidade ou precisão clínica. "
@@ -2416,9 +2628,9 @@ def _cabeca():
         u"a lógica da angiografia biplanar.",
         radai_nidus.SEM_VOLUME, radai_nidus.LIMITACAO_CLINICA,
         radai_nidus.LIMITACAO_RM, AJUDA_PROJECAO_PARALELA, AJUDA_CONVENCAO,
-        AJUDA_PREVIA, AJUDA_RESOLUCAO, AJUDA_3D, AJUDA_LINHAS)
+        AJUDA_PREVIA, AJUDA_RESOLUCAO, AJUDA_CONTRASTE_RM, AJUDA_3D, AJUDA_LINHAS)
     return radai_ui.cabeca_de_funcao(
-        u"cruzamento", u"Projeção Vascular", u"", ajuda, u"nidus")
+        u"cruzamento", u"NIDUS RT", u"", ajuda, u"nidus")
 
 
 def _alerta():
@@ -2483,7 +2695,7 @@ def _incidencias():
 
 
 PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
-<title>Proje&ccedil;&atilde;o Vascular &middot; NEURO RT</title>
+<title>NIDUS RT &middot; NEURO RT</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>@CSS@</style></head><body><div class="nd-wrap" id="nd_wrap">
 
@@ -2501,8 +2713,7 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
    <div class="g" id="nd_incid">@INCIDENCIAS@</div>
   </div>
   <div class="nd-grupo nd-resolucao">
-   <label class="t" for="nd_resolucao" data-radai-frase>Resolução da projeção</label>
-   <select class="nd-bt" id="nd_resolucao" disabled>@RESOLUCOES@</select>
+   <span data-radai-frase>Qualidade máxima · dados originais</span>
   </div>
  </div>
  <div class="nd-linha">
@@ -2736,7 +2947,7 @@ def _escolha():
              .replace(u"@FILTRO@", radai_ui.filtro_de_data(u"nd_dias")))
     return radai_ui.popup_de_serie(
         u"nd_escolha",
-        u'<div class="nd-escolha">%s</div>'
+        u'<div class="nd-escolha"><div id="nd_tof_sugestao" role="status" aria-live="polite"></div>%s</div>'
         % radai_ui.abas_de_serie(u"nd_origem",
                                  [(u"acervo", u"Acervo local",
                                    radai_tabela_acervo.html(u"nd_acervo")),
@@ -2762,6 +2973,101 @@ def _telas_do_mpr(serie):
         alt, larg, _fl, _fc = N.grade_da_tela(dims, ml, mc)
         fora[str(eixo)] = [int(alt), int(larg)]
     return fora
+
+
+def _classificar_tof(metadata):
+    """Metadata may suggest a sequence; it never proves its clinical identity."""
+    import re
+    text = " ".join(str(metadata.get(key) or "") for key in
+                    ("SeriesDescription", "ProtocolName", "SequenceName")).upper()
+    compact = re.sub(r"[^A-Z0-9]", "", text)
+    tof = ("3DTOF" in compact or "TIMEOFFLIGHT" in compact or
+           bool(re.search(r"(?:^|[^A-Z])TOF(?:[^A-Z]|$)", text)))
+    image_type = metadata.get("ImageType") or []
+    if isinstance(image_type, str):
+        image_type = image_type.replace("\\", " ").split()
+    types = {str(value).upper() for value in image_type}
+    derived = bool(types & {"DERIVED", "SECONDARY", "MIP", "MPR", "PROJECTION", "REFORMATTED"})
+    derived = derived or bool(re.search(r"(?:^|[^A-Z])(?:MIP|MPR|DERIVED|PROJECTION)(?:[^A-Z]|$)", text))
+    three_d = str(metadata.get("MRAcquisitionType") or "").upper() == "3D" or "3DTOF" in compact or "TOF3D" in compact
+    original = "ORIGINAL" in types and not derived
+    possible = str(metadata.get("Modality") or "").upper() == "MR" and tof and not derived
+    score = (100 if three_d and original else 80 if three_d else 60 if original else 40) if possible else 0
+    patient = str(metadata.get("PatientID") or "")
+    study = str(metadata.get("StudyInstanceUID") or "")
+    # Only an opaque, local grouping key leaves the header reader.
+    group = hashlib.sha256((patient + "\0" + study).encode("utf8")).hexdigest() if patient and study else ""
+    return {"possivel_tof": possible, "tridimensional": three_d, "original": original,
+            "derivada": derived, "prioridade": score, "grupo": group}
+
+
+def _cabecalhos_tof(pasta, uids):
+    import pydicom
+    wanted = {str(uid) for uid in uids if uid}
+    result = {}
+    try:
+        names = sorted(os.listdir(pasta))
+    except OSError:
+        return result
+    tags = ["Modality", "PatientID", "StudyInstanceUID", "SeriesInstanceUID",
+            "SeriesDescription", "ProtocolName", "SequenceName", "ImageType", "MRAcquisitionType"]
+    read = 0
+    for name in names:
+        if not wanted or read >= 2048:
+            break
+        path = os.path.join(pasta, name)
+        if (not os.path.isfile(path) or name.startswith((".", "_")) or
+                name.lower().endswith((".json", ".txt", ".zip", ".npz", ".log"))):
+            continue
+        read += 1
+        try:
+            ds = pydicom.dcmread(path, stop_before_pixels=True, specific_tags=tags)
+        except Exception:
+            continue
+        uid = str(getattr(ds, "SeriesInstanceUID", "") or "")
+        if uid not in wanted:
+            continue
+        result[uid] = _classificar_tof({key: getattr(ds, key, None) for key in tags})
+        wanted.remove(uid)
+    return result
+
+
+def _sugestoes_tof(itens, resolver, ancora=None):
+    sources, folders = {}, {}
+    for item in list(itens) + ([ancora] if ancora else []):
+        ticket = item["bilhete"]
+        try:
+            folder, uid = resolver(ticket, item.get("origem", "pasta"))
+        except Exception:
+            continue
+        if not folder or not uid:
+            continue
+        sources[ticket] = (folder, str(uid))
+        folders.setdefault(folder, set()).add(str(uid))
+    headers = {folder: _cabecalhos_tof(folder, uids) for folder, uids in folders.items()}
+    def metadata(ticket):
+        folder, uid = sources.get(ticket, (None, None))
+        return headers.get(folder, {}).get(uid, {})
+    anchor_group = metadata(ancora["bilhete"]).get("grupo") if ancora else None
+    rows = []
+    for item in itens:
+        data = dict(metadata(item["bilhete"]))
+        same_scope = not ancora or bool(anchor_group and data.get("grupo") == anchor_group)
+        data.update(bilhete=item["bilhete"], preferida=False)
+        if not same_scope:
+            data["prioridade"] = 0
+        rows.append(data)
+    best = {}
+    for row in rows:
+        # Without an identified study, no preference over another series is made.
+        group = row.get("grupo")
+        if group:
+            best[group] = max(best.get(group, 0), row.get("prioridade", 0))
+    for row in rows:
+        score = row.get("prioridade", 0)
+        row["preferida"] = bool(score and row.get("grupo") and score == best.get(row["grupo"]))
+        row.pop("grupo", None)
+    return {"itens": rows}
 
 
 def _modalidade(pasta, uid=u""):
@@ -2962,6 +3268,31 @@ def montar(app, host_services=None):
                     "ms": int(round((time.perf_counter() - t0) * 1000))}
         except Exception as e:
             return {"erro": _falhou(u"abrir", b, e)}
+
+    @app.post("/api/nidus/series-metadata")
+    async def _series_metadata(request: Request):
+        raw = await request.body()
+        if not 0 < len(raw) <= 16384:
+            return JSONResponse(status_code=400, content={"erro": "Pedido inválido."})
+        try:
+            payload = json.loads(raw)
+            itens = payload["itens"]
+            ancora = payload.get("ancora")
+            values = list(itens) + ([ancora] if ancora is not None else [])
+            if (not isinstance(itens, list) or not 1 <= len(itens) <= 60 or
+                    any(not isinstance(item, dict) or set(item) - {"bilhete", "origem"} or
+                        not isinstance(item.get("bilhete"), str) or not 1 <= len(item["bilhete"]) <= 256 or
+                        item.get("origem", "pasta") not in ("pasta", "acervo") for item in values)):
+                raise ValueError()
+        except (ValueError, TypeError, KeyError):
+            return JSONResponse(status_code=400, content={"erro": "Pedido inválido."})
+        def resolver(ticket, origem):
+            if origem == "acervo":
+                import radai_tabela_acervo
+                return radai_tabela_acervo.resolver(ticket)
+            import radai_thumbnail
+            return radai_thumbnail.resolver(ticket)
+        return await radai_web.no_threadpool(_sugestoes_tof, itens, resolver, ancora)
 
     @app.get("/api/nidus/forma")
     def _forma(b: str = ""):
@@ -3257,6 +3588,19 @@ def montar(app, host_services=None):
                     "ms": int(round((time.perf_counter() - t0) * 1000))}
         except Exception as e:
             return {"erro": _falhou(u"retroprojeção", b, e)}
+
+    @app.get('/api/nidus/centro')
+    def _centro(s: str = '', temperatura: float = 50., editado: bool = False):
+        from neuro_rt.nidus_view_center import consensus_center
+        session = _SESSOES.get(s)
+        if not session or session.get('consenso') is None:
+            return JSONResponse({'erro': 'Sessão expirada: registre as incidências novamente.'}, status_code=409)
+        try:
+            with session.setdefault('consenso_lock', threading.RLock()):
+                return consensus_center(session['consenso'], tuple(session['forma']), temperatura,
+                                        session.get('candidato') if editado else None)
+        except (ValueError, TypeError):
+            return JSONResponse({'erro': 'Não foi possível centrar o consenso.'}, status_code=400)
 
     @app.get("/api/nidus/linhas")
     def _linhas(s: str = "", eixo: int = 0, pos: float = 0.5,

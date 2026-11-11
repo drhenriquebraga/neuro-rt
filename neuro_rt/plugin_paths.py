@@ -49,7 +49,8 @@ class PluginPaths:
     resources_file: Path | None = None
 
 
-def resolve_plugin_paths(host_root, installation_state, *, host_python=None) -> PluginPaths:
+def resolve_plugin_paths(host_root, installation_state, *, host_python=None,
+                         allow_base_only=False) -> PluginPaths:
     host_root = Path(host_root).resolve()
     if installation_state is None:
         installation_state = {'state': 'absent'}
@@ -87,6 +88,13 @@ def resolve_plugin_paths(host_root, installation_state, *, host_python=None) -> 
         runtime_dir = _relative_path(runtimes_dir, f'{runtime_id}/{digest}')
         worker_python = _relative_path(runtime_dir, runtime.get('python', 'python.exe'))
     from .resource_paths import resolve_resources
+    base_available = False
+    if allow_base_only and execution_mode == 'host' and code_dir is not None:
+        from .plugin_manifest import read_manifest
+        base_available = read_manifest(_relative_path(code_dir, 'module.json')).base_tools == ('nidus',)
+        if base_available and state in (InstallationState.FAILED,
+                                        InstallationState.INSTALLED_PENDING_RESTART):
+            state = InstallationState.READY
     if execution_mode == 'host' and active_version and _numeric_version(active_version) >= (1, 1, 0) and installation_state.get('resources') is None:
         from .plugin_manifest import read_manifest
 
@@ -94,8 +102,13 @@ def resolve_plugin_paths(host_root, installation_state, *, host_python=None) -> 
             raise ValueError('A fase de testes exige os recursos verificados antes de montar o plugin.')
     if execution_mode != 'host' and installation_state.get('resources') is not None:
         raise ValueError('Recursos compartilhados exigem execution_mode=host.')
-    resources, extras_dir, resources_file = resolve_resources(
-        plugin_root, code_dir, installation_state.get('resources'))
+    try:
+        resources, extras_dir, resources_file = resolve_resources(
+            plugin_root, code_dir, installation_state.get('resources'))
+    except ValueError:
+        if not base_available:
+            raise
+        resources = extras_dir = resources_file = None
     return PluginPaths(
         host_root=host_root, plugin_root=plugin_root, active_version=active_version,
         code_dir=code_dir, runtimes_dir=runtimes_dir, runtime_dir=runtime_dir,

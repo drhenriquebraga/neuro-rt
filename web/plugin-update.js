@@ -89,8 +89,8 @@
     if (files) parts.push(T('Arquivos:') + ' ' + files.done + ' / ' + files.total);
     if (unpacked) parts.push(bytes(unpacked.done) + ' / ' + bytes(unpacked.total));
     const code = typeof update.error_code === 'string' && /^[A-Z][A-Z0-9_]{0,63}$/.test(update.error_code) ? update.error_code : '';
-    if (code) parts.push(T('Código:') + ' ' + code);
-    if (typeof update.error_stage === 'string' && /^[a-z][a-z_]{0,40}$/.test(update.error_stage))
+    if (code && !setup) parts.push(T('Código:') + ' ' + code);
+    if (!setup && typeof update.error_stage === 'string' && /^[a-z][a-z_]{0,40}$/.test(update.error_stage))
       parts.push(T('Etapa:') + ' ' + (phases[update.error_stage] ? T(phases[update.error_stage]) : update.error_stage));
     detail.textContent = parts.join(' · '); detail.hidden = !parts.length;
   }
@@ -189,7 +189,8 @@
       buttons.forEach(([action, label, style]) => {
         const button = document.createElement('button');
         button.type = 'button'; button.className = 'ui-bt ' + (style || '');
-        button.dataset.neuroAction = action; button.textContent = T(label);
+        button.dataset.neuroAction = action;
+        button.textContent = T(setup && action === 'comecar' ? 'Instalar ou atualizar os pesos' : label);
         button.addEventListener('click', () => {
           if (action === 'confirm-interrupt') { state.confirm = true; render(state.last); }
           else if (action === 'back') { state.confirm = false; render(state.last); }
@@ -205,8 +206,12 @@
   function render(data) {
     if (!data) return;
     state.last = data;
-    if (setup) setup.result(data.last_result);
-    const update = data.update || {}, release = data.release_check || {};
+    const originalUpdate = data.update || {}, release = data.release_check || {};
+    const baseReady = data.mounted === true && (data.base_ready === true || data.code_ready === true || data.state === 'ready');
+    if (!settings && !installing && baseReady && !state.started) {panel.hidden=true; return;}
+    const historicalFailure = !state.started && originalUpdate.state === 'failed';
+    const update = baseReady && historicalFailure ? {} : originalUpdate;
+    if (setup) {setup.result(data.last_result || (historicalFailure ? originalUpdate : null)); setup.versions(data);}
     if (state.localSourceId && state.localSourceToken !== data.token) {
       clearLocal();
       if (localMessage) localMessage.textContent = T('Confira novamente a fonte local.');
@@ -216,10 +221,11 @@
       state.initialToken = data.token;
       state.initialPid = number(data.host_pid) && data.host_pid > 0 ? data.host_pid : null;
     }
-    if (state.localSourceId && !state.started) state.targetVersion = state.localSourceVersion;
+    if (state.operation === 'weights' && state.started) state.targetVersion = state.initial;
+    else if (state.localSourceId && !state.started) state.targetVersion = state.localSourceVersion;
     else if (version(update.version)) state.targetVersion = update.version;
     else if (!state.targetVersion && version(release.version)) state.targetVersion = release.version;
-    if (!settings && installing && data.mounted === true && data.state === 'ready' && !state.started && !state.restarting && !state.awaitingRestart && (update.state === undefined || update.state === 'idle')) {
+    if (!settings && installing && baseReady && !state.started && !state.restarting && !state.awaitingRestart && (historicalFailure || update.state === undefined || update.state === 'idle' || update.state === 'ready')) {
       location.replace('/neuro/'); return;
     }
     if (update.state === 'restarting') { state.restarting = true; state.awaitingRestart = true; }
@@ -277,6 +283,12 @@
       view('restarting', 'Reabrindo o Local Suite para ativar o NEURO RT…', [], null); return;
     }
     if (update.state === 'failed') {
+      if (setup) {
+        view('failed', data.weights?.state === 'ready' ? 'Pesos prontos' : 'Pesos não instalados',
+          [['comecar', 'Instalar ou atualizar os pesos', 'pri']]);
+        setup.result(originalUpdate);
+        return;
+      }
       view('failed', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.',
         installing || release.state === 'available' || state.localSourceId ? [['comecar', 'Atualizar NEURO RT', 'pri']] : []);
       reason(update); details(update);
@@ -289,6 +301,12 @@
     if (state.localSourceId) {
       view('local', 'Fonte local verificada.', [['comecar', 'Atualizar NEURO RT', 'pri']]);
       message.textContent += ' ' + state.localSourceVersion; return;
+    }
+    if (setup && baseReady) {
+      view('weights', data.weights?.state === 'ready' ? 'Pesos prontos' : 'Pesos não instalados', [['comecar', 'Instalar ou atualizar os pesos', 'pri']]); return;
+    }
+    if (setup && !baseReady) {
+      view('incompatible', 'Atualize o código da Local Suite antes de preparar os pesos.', []); return;
     }
     if (installing && data.mounted !== true) {
       view('install', 'Uma nova versão do NEURO RT está disponível.', [['comecar', 'Atualizar NEURO RT', 'pri']]);
@@ -340,13 +358,16 @@
         state.posting = false; render(current); return;
       }
       const firstInstall = installing && current.mounted !== true && action === 'comecar';
+      state.operation = 'weights';
       state.started = true; state.initialToken = current.token;
       state.initialPid = number(current.host_pid) && current.host_pid > 0 ? current.host_pid : null;
       state.initial = version(current.active_version);
-      if (state.localSourceId) state.targetVersion = state.localSourceVersion;
+      if (state.operation === 'weights') state.targetVersion = state.initial;
+      else if (state.localSourceId) state.targetVersion = state.localSourceVersion;
       else state.targetVersion = version(current.release_check && current.release_check.version);
       state.attempt += 1; state.fileProgress = null; state.byteProgress = null; state.downloadProgress = null;
       const payload = firstInstall ? {confirm: true} : {action};
+      payload.operation = 'weights';
       if (state.localSourceId) payload.source_id = state.localSourceId;
       // The host records the installation receipt on this explicit action.
       // A current first-use receipt already acknowledges the same document.
@@ -365,7 +386,8 @@
     } catch (error) {
       if (setup) setup.failure(error);
       state.posting = false;
-      view('failed', 'Não foi possível concluir a atualização. A instalação anterior foi preservada.', []);
+      state.started = false;
+      view('failed', setup ? 'Pesos não instalados' : 'Não foi possível concluir a atualização. A instalação anterior foi preservada.', []);
     } finally { follow(); }
   }
   function clearLocal() {
@@ -421,7 +443,7 @@
     clearLocal(); state.sourceBusy = true; refreshButtons();
     if (localMessage) localMessage.textContent = T('Conferindo a fonte local…');
     try {
-      const result = await auxiliary('local/inspect', {folder: localFolder.value.trim()});
+      const result = await auxiliary('local/inspect?operation=weights', {folder: localFolder.value.trim()});
       const description = result.body.description || result.body;
       if (typeof result.body.source_id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(result.body.source_id) || !version(description.version)) throw Error('source');
       state.localSourceId = result.body.source_id; state.localSourceVersion = description.version;
@@ -440,8 +462,7 @@
     if (state.refreshing || state.posting) return;
     state.refreshing = true; refreshButtons();
     try {
-      const result = await auxiliary('refresh', {});
-      render(Object.assign({}, result.current, {release_check: result.body.release_check || result.body}));
+      render(await status());
     } catch (_) { view('unavailable', 'Não foi possível verificar a atualização. A versão instalada continua disponível.', []); }
     finally { state.refreshing = false; refreshButtons(); }
   });

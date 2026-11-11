@@ -85,6 +85,25 @@ class ResourceOnlyTests(unittest.TestCase):
                     suite_root=self.host, host_python=sys.executable)
         self.assertEqual(self.pointer.read_bytes(), before)
 
+    def test_resource_repair_reuses_authenticated_code_after_legacy_failure(self):
+        for public_state, pending in (('failed', None), ('installed_pending_restart', '1.3.2')):
+            with self.subTest(state=public_state):
+                state = json.loads(self.pointer.read_text())
+                state.update(state=public_state, pending_version=pending)
+                self.pointer.write_text(json.dumps(state))
+                code = self.plugin / 'versions/1.3.2/module.json'
+                before = code.read_bytes()
+                with patch.object(external, '_prepare_resources', side_effect=self.prepare_resources), \
+                        patch.object(install_state, 'begin_install', side_effect=AssertionError('No CODE install')), \
+                        patch('urllib.request.urlopen', side_effect=AssertionError('No network')):
+                    self.run_plan(self.resource_plan())
+                after = json.loads(self.pointer.read_text())
+                self.assertEqual(after['state'], 'ready')
+                self.assertEqual(after['active_version'], '1.3.2')
+                self.assertEqual(after['resource_bundle_version'], '1.3.0')
+                self.assertIsNone(after['pending_version'])
+                self.assertEqual(code.read_bytes(), before)
+
     def test_code_only_update_preserves_resource_bundle_identity(self):
         with patch.object(external, '_prepare_resources', side_effect=self.prepare_resources):
             self.run_plan(self.resource_plan())

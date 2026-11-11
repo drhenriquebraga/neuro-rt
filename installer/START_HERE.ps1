@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$SuiteRoot,
     [ValidateSet('prepare', 'offline')][string]$Mode,
@@ -31,7 +31,7 @@ function Resolve-NeuroSuite([string]$Root) {
         $python = Join-Path $suite $relative
         if (Test-Path -LiteralPath $python -PathType Leaf) { return [pscustomobject]@{ Root=$suite; Python=$python } }
     }
-    throw 'Selecione a Local Suite completa 8.20 ou posterior.'
+    throw 'Selecione a Local Suite completa 8.21 ou posterior.'
 }
 function New-NeuroBackendArguments([string]$CodeRoot, [string]$Root, [string[]]$Options) {
     $entry = 'import sys; sys.path.insert(0, sys.argv.pop(1)); from neuro_rt.setup_wizard import main; sys.exit(main())'
@@ -161,7 +161,7 @@ function Start-NeuroWizardAction($Context,[string]$Kind) {
     } catch {
         Remove-NeuroJobFiles $Context
         $Context.LastPhase='Não foi possível iniciar'
-        Write-NeuroWizardFailure $Context 'Confira a pasta da Local Suite completa 8.20 ou posterior e escolha uma pasta nova de destino.' 'WIZARD_START_FAILED' $Kind
+        Write-NeuroWizardFailure $Context 'Confira a pasta da Local Suite completa 8.21 ou posterior e escolha uma pasta nova de destino.' 'WIZARD_START_FAILED' $Kind
     }
     Update-NeuroControls $Context
 }
@@ -199,7 +199,7 @@ function Complete-NeuroWizardJob($Context) {
             $Context.ResultBox.Text='Escolha uma das ações abaixo. Para o pacote offline, leia os termos e marque o aceite.'
         } elseif ($Context.Kind -eq 'prepare' -and $state -in @('ready','settings_opened')) {
             $Context.ProgressBar.Value=100; $Context.LastPhase='Configurações da suíte abertas'
-            $Context.ResultBox.Text='Continue em Configurações > NEURO RT na Local Suite. A suíte pede o aceite, consulta o GitHub e tenta o espelho oficial se precisar.'
+            $Context.ResultBox.Text='Continue em Configurações > NEURO RT na Local Suite para preparar os pesos. O código vem do instalador principal. A suíte pede o aceite e reutiliza o Python existente.'
         } elseif ($Context.Kind -eq 'offline' -and $state -eq 'ready') {
             $Context.ProgressBar.Value=100; $Context.LastPhase='Pacote offline pronto'
             $Context.ResultBox.Text='A pasta e o ZIP do pacote foram gravados. Na outra máquina, abra Configurações > NEURO RT > pacote de pesos offline e escolha ou arraste o ZIP.'
@@ -262,7 +262,7 @@ function New-NeuroWizard([string]$InitialSuiteRoot='', [string]$InitialOutputFol
     $subtitle=New-NeuroLabel 'Preparar na suíte instalada ou montar um pacote para transportar.'
     $subtitle.SetBounds(0,43,850,22); $subtitle.Anchor='Top, Left, Right'
     $header.Controls.AddRange(@($title,$subtitle)); Add-NeuroRow $header 78
-    $suitePanel=New-Object Windows.Forms.Panel; $suitePanel.Width=896; $suiteLabel=New-NeuroLabel 'Pasta da Local Suite completa (8.20 ou posterior)'
+    $suitePanel=New-Object Windows.Forms.Panel; $suitePanel.Width=896; $suiteLabel=New-NeuroLabel 'Pasta da Local Suite completa (8.21 ou posterior)'
     $suiteLabel.SetBounds(0,0,840,20)
     $rootText=New-Object Windows.Forms.TextBox; $rootText.SetBounds(0,25,745,28); $rootText.Anchor='Top, Left, Right'
     $browseSuite=New-NeuroButton 'Escolher…'; $browseSuite.SetBounds(755,23,138,32); $browseSuite.Anchor='Top, Right'
@@ -291,7 +291,7 @@ function New-NeuroWizard([string]$InitialSuiteRoot='', [string]$InitialOutputFol
     $actions=New-Object Windows.Forms.TableLayoutPanel; $actions.ColumnCount=2
     [void]$actions.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle([Windows.Forms.SizeType]::Percent,50)))
     [void]$actions.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle([Windows.Forms.SizeType]::Percent,50)))
-    $prepare=New-NeuroButton 'Instalar/atualizar nesta suíte'; $offline=New-NeuroButton 'Montar pacote offline para transportar'
+    $prepare=New-NeuroButton 'Instalar/atualizar pesos nesta suíte'; $offline=New-NeuroButton 'Montar pacote offline para transportar'
     $prepare.Dock='Fill'; $offline.Dock='Fill'; $prepare.Margin=New-Object Windows.Forms.Padding(0,0,6,0); $offline.Margin=New-Object Windows.Forms.Padding(6,0,0,0)
     $actions.Controls.Add($prepare,0,0); $actions.Controls.Add($offline,1,0); Add-NeuroRow $actions 56
     $progressPanel=New-Object Windows.Forms.Panel; $progressPanel.Width=896; $status=New-NeuroLabel 'Selecione a Local Suite instalada para começar.'
@@ -320,7 +320,7 @@ function New-NeuroWizard([string]$InitialSuiteRoot='', [string]$InitialOutputFol
     $offline.Add_Click({param($sender,$eventArgs) Start-NeuroWizardAction $sender.Tag 'offline'})
     $cancel.Add_Click({param($sender,$eventArgs) Request-NeuroCancel $sender.Tag})
     $browseSuite.Add_Click({param($sender,$eventArgs)
-        $dialog=New-Object Windows.Forms.FolderBrowserDialog;$dialog.Description='Selecione a pasta da Local Suite completa 8.20 ou posterior.';$dialog.ShowNewFolderButton=$false
+        $dialog=New-Object Windows.Forms.FolderBrowserDialog;$dialog.Description='Selecione a pasta da Local Suite completa 8.21 ou posterior.';$dialog.ShowNewFolderButton=$false
         try {if ($dialog.ShowDialog($sender.Tag.Form) -eq 'OK') {$sender.Tag.RootText.Text=$dialog.SelectedPath}} finally {$dialog.Dispose()} })
     $browseOutput.Add_Click({param($sender,$eventArgs)
         $dialog=New-Object Windows.Forms.FolderBrowserDialog;$dialog.Description='Escolha onde criar a NOVA pasta do pacote offline.';$dialog.ShowNewFolderButton=$false
@@ -351,7 +351,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         [void]$wizard.Form.ShowDialog();$wizard.Form.Dispose();exit 0
     } catch {
         [Console]::Error.WriteLine('WIZARD_START_FAILED · Etapa: startup · '+$_.Exception.GetType().Name)
-        [Console]::Error.WriteLine('Não foi possível abrir o assistente. Use a Local Suite completa 8.20 ou posterior.')
+        [Console]::Error.WriteLine('Não foi possível abrir o assistente. Use a Local Suite completa 8.21 ou posterior.')
         exit 1
     }
 }
