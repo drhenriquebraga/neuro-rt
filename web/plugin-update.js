@@ -211,7 +211,9 @@
     if (!settings && !installing && baseReady && !state.started) {panel.hidden=true; return;}
     const historicalFailure = !state.started && originalUpdate.state === 'failed';
     const update = baseReady && historicalFailure ? {} : originalUpdate;
-    if (setup) {setup.result(data.last_result || (historicalFailure ? originalUpdate : null)); setup.versions(data);}
+    const hidePastFailure = !settings && !state.started &&
+      (baseReady || data.state === 'checking' || data.state === 'loading');
+    if (setup) {setup.result(hidePastFailure ? null : data.last_result || (historicalFailure ? originalUpdate : null)); setup.versions(data);}
     if (state.localSourceId && state.localSourceToken !== data.token) {
       clearLocal();
       if (localMessage) localMessage.textContent = T('Confira novamente a fonte local.');
