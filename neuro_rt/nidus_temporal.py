@@ -365,6 +365,20 @@ def discover(sources, *, anchor_identity=None):
         if anchor_identity is not None and planes[0].identity[:3] != anchor_identity[:3]:
             continue
         valid.extend(planes)
+    # Some scanners export a single-plane temporal summary alongside complete
+    # 3-D phase UIDs, with identical protocol/identity and even ORIGINAL/3D tags.
+    # Keep these spatial ranks apart before grouping. This is not evidence that
+    # the single-plane series is a projection: _build still requires explicit
+    # projection metadata. Multiple partial 3-D UIDs remain in the same bucket
+    # and retain the strict MIXED_SERIES_IN_PHASE guard.
+    phase_sizes = defaultdict(Counter)
+    for plane in valid:
+        if plane.temporal is not None:
+            phase_sizes[(plane.uid, 'temporal_index')][plane.temporal] += 1
+        elif plane.frame_index is None and plane.dynamic and plane.timestamp is not None and plane.acquisition is not None:
+            phase_sizes[(plane.uid, 'dynamic_acquisition')][plane.acquisition] += 1
+    spatial_rank = {key: 'single_plane' if max(counts.values()) == 1 else 'volume'
+                    for key, counts in phase_sizes.items()}
     candidates = defaultdict(list)
     for plane in valid:
         if plane.temporal is not None:
@@ -375,7 +389,8 @@ def discover(sources, *, anchor_identity=None):
             rejected['NO_REAL_TEMPORAL_GROUP'] += 1
             continue
         # A same-UID mismatch is rejected above; across UIDs identity remains separate.
-        candidates[(plane.identity, plane.protocol, plane.stack, evidence)].append(plane)
+        candidates[(plane.identity, plane.protocol, plane.stack,
+                    spatial_rank[(plane.uid, evidence)], evidence)].append(plane)
     groups = []
     for (*_, evidence), planes in candidates.items():
         try:

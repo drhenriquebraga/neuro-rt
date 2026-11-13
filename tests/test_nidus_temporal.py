@@ -122,6 +122,46 @@ class TemporalDiscovery(unittest.TestCase):
             self.assertNotIn(temp, public)
             self.assertNotIn(sources[0]['uid'], public)
 
+    def test_temporal_single_plane_summary_does_not_poison_48_volume_phases(self):
+        with tempfile.TemporaryDirectory() as temp:
+            folder=Path(temp)
+            study,frame,summary_uid=generate_uid(),generate_uid(),generate_uid()
+            sources=[];summaries=[]
+            for phase in range(48):
+                phase_uid=generate_uid()
+                sources.append({'folder':temp,'uid':phase_uid})
+                for z in range(3):
+                    path=folder/('volume_%02d_%02d.dcm'%(phase,z))
+                    ds=dataset(path,study=study,frame=frame,uid=phase_uid)
+                    ds.SeriesDescription='Synthetic TRICKS phase'
+                    ds.TemporalPositionIdentifier=phase+1;ds.NumberOfTemporalPositions=48
+                    ds.AcquisitionNumber=1;ds.AcquisitionDateTime='20261112100000'
+                    ds.ImagePositionPatient=[0,0,z*2.0]
+                    ds.PixelData=np.full((5,6),phase+z,dtype='<u2').tobytes()
+                    ds.save_as(path,enforce_file_format=True)
+                path=folder/('summary_%02d.dcm'%phase)
+                ds=dataset(path,study=study,frame=frame,uid=summary_uid)
+                ds.SeriesDescription='Synthetic TRICKS summary'
+                ds.TemporalPositionIdentifier=phase+1;ds.NumberOfTemporalPositions=48
+                ds.AcquisitionNumber=1;ds.AcquisitionDateTime='20261112100000'
+                ds.ImagePositionPatient=[0,0,0]
+                ds.PixelData=np.full((5,6),phase,dtype='<u2').tobytes()
+                ds.save_as(path,enforce_file_format=True);summaries.append(path)
+            sources.append({'folder':temp,'uid':summary_uid})
+            result=self.module.discover(sources)
+            self.assertEqual(len(result.groups),1)
+            volume=result.groups[0]
+            self.assertEqual(volume.kind,'volume3d');self.assertEqual(len(volume.frames),48)
+            self.assertTrue(all(len(f.planes)==3 for f in volume.frames))
+            self.assertTrue(all(p.uid!=summary_uid for f in volume.frames for p in f.planes))
+            self.assertTrue(all(f.time_seconds is None for f in volume.frames))
+            self.assertIn('NO_SPATIAL_VOLUME',{r['code'] for r in result.rejected})
+            # An explicitly labelled MIP can coexist, but remains 2-D and cannot rotate.
+            for path in summaries:
+                ds=pydicom.dcmread(path);ds.ImageType=['DERIVED','SECONDARY','MIP'];ds.save_as(path,enforce_file_format=True)
+            result=self.module.discover(sources)
+            self.assertEqual(sorted((g.kind,len(g.frames)) for g in result.groups),[('projection2d',48),('volume3d',48)])
+
     def test_static_tof_and_rotating_mip_are_not_dynamic_by_file_order(self):
         for projection in (False, True):
             with self.subTest(projection=projection), tempfile.TemporaryDirectory() as temp:
