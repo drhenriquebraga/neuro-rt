@@ -163,13 +163,21 @@ class TemporalService:
                 not isinstance(body.get('itens'), list) or not 1 <= len(body['itens']) <= 128):
             raise temporal.TemporalError('INVALID_REQUEST')
         sources = [self._resolve(row) for row in body['itens']]
-        anchor = None
+        anchor, anchor_uid = None, None
         if body.get('ancora') is not None:
             source = self._resolve(body['ancora'])
+            anchor_uid = source['uid']
             anchor = temporal.source_identity(source['folder'], source['uid'])
             if anchor is None:
                 raise temporal.TemporalError('UNKNOWN_TICKET')
         result = temporal.discover(sources, anchor_identity=anchor)
+        if anchor_uid is not None:
+            # The explicitly chosen series must belong to the temporal group,
+            # not just to the same patient/study. A static TOF must never open a
+            # different acquisition while the UI still labels it as that TOF.
+            result.groups = [group for group in result.groups
+                             if any(plane.uid == anchor_uid
+                                    for frame in group.frames for plane in frame.planes)]
         with self.lock:
             self._reap()
             for group in result.groups[:self.max_groups]:

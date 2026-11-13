@@ -12,6 +12,8 @@ import sys
 
 from fastapi import FastAPI
 import numpy as np
+import pydicom
+from pydicom.uid import generate_uid
 from PIL import Image
 
 from test_nidus_temporal import classic
@@ -122,6 +124,28 @@ class TemporalAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         response = self.client.post('/api/nidus/temporal/discover', json={'itens': [{'bilhete': 'unknown'}]})
         self.assertEqual(response.status_code, 422)
+
+    def test_anchor_must_be_a_source_member_of_the_selected_temporal_group(self):
+        static_uid = generate_uid()
+        source_path = Path(self.temp.name) / 'p0-z0.dcm'
+        ds = pydicom.dcmread(source_path)
+        ds.SeriesInstanceUID, ds.SOPInstanceUID = static_uid, generate_uid()
+        ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
+        ds.SeriesDescription, ds.ProtocolName = 'AXI 3D TOF 3SLAB FS MT ASSET', '3D TOF'
+        del ds.TemporalPositionIdentifier
+        del ds.NumberOfTemporalPositions
+        ds.save_as(Path(self.temp.name) / 'static-tof.dcm', enforce_file_format=True)
+        uids = {'known': self.sources[0]['uid'], 'static': static_uid}
+        self.service.resolver = lambda ticket, origin: (self.temp.name, uids[ticket])
+        rows = [{'bilhete': 'known'}, {'bilhete': 'static'}]
+        response = self.client.post('/api/nidus/temporal/discover',
+                                    json={'itens': rows, 'ancora': {'bilhete': 'static'}})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['groups'], [], 'A static selection must not open another series cine')
+        response = self.client.post('/api/nidus/temporal/discover',
+                                    json={'itens': rows, 'ancora': {'bilhete': 'known'}})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(len(response.json()['groups']), 1)
 
     def test_cancel_prevents_late_pixels_from_becoming_playable(self):
         group = self.group()

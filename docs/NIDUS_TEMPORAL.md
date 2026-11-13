@@ -34,6 +34,8 @@ série invalida respostas atrasadas.
   pixels, sem carregar toda uma aquisição 4D como uma pilha espacial.
 - Identidade, estudo, FrameOfReference e grade completos são conferidos.
   Sequências ambíguas, grades incompletas e fontes alteradas são recusadas.
+  O grupo deve conter a série explicitamente escolhida; outra aquisição do
+  mesmo estudo não a substitui automaticamente.
 - Até 64 fases. Preparação serial sob o mesmo bloqueio da projeção estática,
   com limite de memória, tempo, número de trabalhos e expiração de sessões.
 - Mensagens e controles usam os 12 idiomas do host. Dados DICOM não são enviados
