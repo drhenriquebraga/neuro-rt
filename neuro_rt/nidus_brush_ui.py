@@ -3,7 +3,7 @@
 NIDUS_BRUSH_JS = r"""
 (function(){
  'use strict';
- var toolbar=null, meshSequence=0, meshTimer=null, lastPoint=null, activeAxis=null, mprViews=[], pan=null;
+ var toolbar=null, meshSequence=0, meshTimer=null, lastPoint=null, activeAxis=null, mprViews=[], pan=null, editorRoot=null, editorHidden=[];
  ND.tool='pencil';ND.brushDiameter=5;ND.consCandidate=null;ND.consRevision=null;ND.consSession=null;ND.consUndo=false;
  function paintView(axis){
   var view=mprViews[axis];if(!view)return;
@@ -83,7 +83,7 @@ NIDUS_BRUSH_JS = r"""
   }
  }
  function scheduleMesh(){
-  clearTimeout(meshTimer);meshTimer=setTimeout(mesh,120);
+  clearTimeout(meshTimer);meshTimer=setTimeout(mesh,40);
  }
  var oldPost=ndConsPost;
  ndConsPost=async function(path,payload){
@@ -105,11 +105,11 @@ NIDUS_BRUSH_JS = r"""
  ndTravas=function(){oldLocks.apply(this,arguments);refresh()};
  ndConsControles=function(){oldControls.apply(this,arguments);refresh()};
  var oldAvailable=ndPodeDesenhar;
- ndPodeDesenhar=function(){return oldAvailable()&&(!toolbar||ND.tool==='pencil')};
+ ndPodeDesenhar=function(){return oldAvailable()&&(!toolbar||ND.tool==='pencil'||ND.tool==='brush'||ND.tool==='eraser')};
  var oldMove=ndQuerMover;
  ndQuerMover=function(event){return oldMove(event)||!!(toolbar&&ND.tool==='pan'&&event.button===0)};
  var oldOpen=ndAbrirSerie;
- ndAbrirSerie=function(){clearMesh();resetViews();ND.consSession=null;ND.consCandidate=null;ND.consRevision=null;ND.consUndo=false;return oldOpen.apply(this,arguments)};
+ ndAbrirSerie=function(){clearMesh();clearEditorMeshes();resetViews();ND.consSession=null;ND.consCandidate=null;ND.consRevision=null;ND.consUndo=false;return oldOpen.apply(this,arguments)};
  var oldUndo=ndConsDesfazer;
  ndConsDesfazer=async function(){
   if(!ND.consCandidate||!ND.consSession)return oldUndo.apply(this,arguments);
@@ -171,13 +171,73 @@ NIDUS_BRUSH_JS = r"""
   }catch(error){if(trace.session===ND.sessao)ndMsg(String(error.message||error),'erro')}
   finally{ND.consensoBusy=false;ndConsControles()}
  };
+ function clearEditorMeshes(){
+  (ND3.editorObjs||[]).forEach(function(object){r3gSoltarObj(ND3,object)});
+  ND3.editorObjs=[];ND3.editorCache=new Map();ND3.editorBox=null;ND3.editorReference=null;ND3.editorSession=null;ND3.editorRevision=null;ND3.editorCenter=null;
+ }
+ function editorMesh(mesh){
+  if(mesh.coordinate_system!=='LPS_mm'||!Array.isArray(mesh.vertices)||!Array.isArray(mesh.faces))throw Error('Geometria 3D inválida.');
+  var p=new Float32Array(mesh.vertices.flat()),idx=new Uint32Array(mesh.faces.flat()),normals=new Float32Array(p.length),low=[Infinity,Infinity,Infinity],high=[-Infinity,-Infinity,-Infinity];
+  if(p.length>1500000||idx.length>1500000||p.length%3||idx.length%3)throw Error('Geometria 3D inválida.');
+  for(var i=0;i<p.length;i++){if(!Number.isFinite(p[i]))throw Error('Geometria 3D inválida.');var axis=i%3;low[axis]=Math.min(low[axis],p[i]);high[axis]=Math.max(high[axis],p[i])}
+  for(var i=0;i<idx.length;i+=3){
+   var a=idx[i]*3,b=idx[i+1]*3,c=idx[i+2]*3;if(Math.max(a,b,c)>=p.length)throw Error('Geometria 3D inválida.');
+   var u=[p[b]-p[a],p[b+1]-p[a+1],p[b+2]-p[a+2]],v=[p[c]-p[a],p[c+1]-p[a+1],p[c+2]-p[a+2]],n=nd3Cruz(u,v);
+   [a,b,c].forEach(function(offset){for(var k=0;k<3;k++)normals[offset+k]+=n[k]});
+  }
+  for(var i=0;i<normals.length;i+=3){var length=Math.hypot(normals[i],normals[i+1],normals[i+2])||1;normals[i]/=length;normals[i+1]/=length;normals[i+2]/=length}
+  return {mesh:{pos:p,nrm:normals,idx:idx,nv:p.length/3,T:idx.length/3,centro:low.map(function(v,i){return(v+high[i])/2})},bounds:[low,high]};
+ }
+ function editorPreview(data,b,source,load){
+  if(b!==ND.b||load!==ND.carga||!data.reference||data.reference.b!==b||data.reference.source!==source||!ND3.gl)return;
+  if(!ND.identity||!ND.identity.uid||!ND.identity.frame_uid||data.reference.uid!==ND.identity.uid||data.reference.frame_uid!==ND.identity.frame_uid)return;
+  if(ND3.editorSession===data.session&&Number(data.revision)<ND3.editorRevision)return;
+  var previous=ND3.editorSession===data.session?(ND3.editorCache||new Map()):new Map(),next=new Map(),objects=[],created=[],bounds=null;
+  try{(data.meshes||[]).forEach(function(row){
+   if(!(row.faces||[]).length)return;
+   var key=String(row.roi),revision=row.geometry_revision===undefined?data.revision:row.geometry_revision,cached=previous.get(key);
+   if(!cached||cached.revision!==revision){
+    var built=editorMesh(row),object=r3gSubirEm(ND3,built.mesh,row.color||[255,36,59]);
+    cached={revision:revision,object:object,bounds:built.bounds};created.push(object);
+   }
+   next.set(key,cached);objects.push(cached.object);cached.object.cor=row.color||[255,36,59];
+   if(!bounds)bounds=cached.bounds.map(function(v){return v.slice()});else [0,1,2].forEach(function(i){bounds[0][i]=Math.min(bounds[0][i],cached.bounds[0][i]);bounds[1][i]=Math.max(bounds[1][i],cached.bounds[1][i])});
+  })}catch(error){created.forEach(function(object){r3gSoltarObj(ND3,object)});throw error}
+  (ND3.editorObjs||[]).forEach(function(object){if(objects.indexOf(object)<0)r3gSoltarObj(ND3,object)});
+  if(ND3.editorReference!==b)ND3.editorCenter=null;
+  ND3.editorCache=next;ND3.editorObjs=objects;ND3.editorBox=localBox(bounds);ND3.editorReference=b;ND3.editorSession=data.session;ND3.editorRevision=Number(data.revision);
+  nd3Malhas();nd3Pedir();
+ }
+ var oldCrop=nd3RecorteLocal;
+ nd3RecorteLocal=function(){
+  var current=oldCrop();
+  var extra=ND3.editorReference===ND.b&&ND3.editorBox;if(!extra)return current;if(!current)return extra;
+  return current.map(function(value,index){return index%2?Math.max(value,extra[index]):Math.min(value,extra[index])});
+ };
+ var oldBox=nd3Caixa;
+ nd3Caixa=function(){var result=oldBox();if(result&&ND3.editorReference===ND.b&&ND3.editorCenter)result.centro=ND3.editorCenter.slice();return result};
+ function restoreEditor(){
+  ND.inlineEditorActive=false;
+  editorHidden.forEach(function(state){state.node.hidden=state.hidden});editorHidden=[];if(editorRoot)editorRoot.hidden=true;
+  ndAjustarTela();nd3Pedir();
+ }
  async function editor(tool){
   if(!window.RadaiContourEditor||!ND.b)return;
-  try{await window.RadaiContourEditor.open({b:ND.b,source:ND.ultima&&ND.ultima.origem==='acervo'?'archive':'thumbnail',
-   rs:'',returnLabel:'NIDUS RT',tool:tool||'brush'});
-  }catch(error){ndMsg(String(error.message||error),'erro')}
+  var b=ND.b,load=ND.carga,source=ND.ultima&&ND.ultima.origem==='acervo'?'archive':'thumbnail';
+  if(!editorRoot){editorRoot=document.createElement('section');editorRoot.id='nd_inline_editor';ndEl('nd_trabalho').after(editorRoot)}
+  editorRoot.hidden=false;ND.inlineEditorActive=true;
+  editorHidden=['nd_trabalho','nd_actionbar','nd_cmd','nd_msg','nd_serie_cx'].map(function(id){var node=ndEl(id);if(!node)return null;var state={node:node,hidden:node.hidden};node.hidden=true;return state}).filter(Boolean);
+  nd3Vista('3d');
+  try{await window.RadaiContourEditor.open({b:b,source:source,
+   rs:'',inlineRoot:editorRoot,returnLabel:'NIDUS RT',tool:tool||'brush',
+   externalScene:{element:ndEl('nd_palco3d'),request:nd3Pedir,resize:nd3Pedir,center:function(point){
+    if(b!==ND.b||load!==ND.carga||!Array.isArray(point)||point.length!==3)return;
+    ND3.editorCenter=point.slice();var normalized=ndM4(ND.geo.para_caixa,point);
+    [0,1,2].forEach(function(axis){var n=ND.forma[axis];ND.planos[axis]=n>1?Math.max(0,Math.min(1,(normalized[axis]*n-.5)/(n-1))):0;ndEl('nd_pos'+axis).value=String(ND.planos[axis]*100);ndCorte(axis);ndLinhas(axis)});nd3Pedir();
+   }},onPreview:function(data){editorPreview(data,b,source,load)},onClose:function(){restoreEditor()}});
+  }catch(error){restoreEditor();ndMsg(String(error.message||error),'erro')}
  }
- window.NidusBrush={refresh:refresh,clear:clearMesh,mesh:mesh,localBox:localBox,getToolbar:function(){return toolbar},views:mprViews,activeAxis:function(){return activeAxis}};
+ window.NidusBrush={refresh:refresh,clear:clearMesh,mesh:mesh,localBox:localBox,editorPreview:editorPreview,getToolbar:function(){return toolbar},views:mprViews,activeAxis:function(){return activeAxis}};
  window.addEventListener('DOMContentLoaded',function(){
   if(!window.RadaiDicomToolbar)return;
   [0,1,2].forEach(installMprView);
@@ -188,14 +248,14 @@ NIDUS_BRUSH_JS = r"""
    enabled:function(key){
     if(!ndDisponivel()||ND.consensoBusy||ND.consTrace)return false;
     if(key==='measure'||key==='window'||key==='editor')return !!window.RadaiContourEditor;
-    if(key==='brush'||key==='eraser')return !!ND.sessao;
+    if(key==='brush'||key==='eraser')return true;
     if(key==='undo')return ND.consensoEditavel&&ND.consUndo;
     return true;
    },
    onTool:async function(key){
     ND.tool=key;
     if(key==='measure'||key==='window'){await editor(key);ND.tool='pointer';toolbar.setTool('pointer');return}
-    if((key==='brush'||key==='eraser')&&!ND.consensoEditavel)await ndEditarConsenso();
+    if((key==='brush'||key==='eraser')&&activeAxis!==null&&ND.sessao&&!ND.consensoEditavel)await ndEditarConsenso();
     ndTravas();ndConsControles();
    },
    onAction:function(key){

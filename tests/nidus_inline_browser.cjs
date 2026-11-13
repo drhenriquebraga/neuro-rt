@@ -1,0 +1,34 @@
+const assert=require('assert/strict'),fs=require('fs');const{chromium}=require(process.env.NEURO_PLAYWRIGHT_MODULE);
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe'});try{
+ const page=await browser.newPage({viewport:{width:1600,height:1000}});const errors=[],operations=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.method()==='POST')operations.push(new URL(r.url()).pathname)});
+ await page.addInitScript(()=>{localStorage.setItem('radai_idioma','en');window.addEventListener('DOMContentLoaded',()=>{window.ndAbrirEscolha=function(){};window.ndUrlsPreparo=function(){return []}},{capture:true,once:true})});
+ await page.route('**/api/acervo/**',r=>r.fulfill({json:{linhas:[]}}));
+ await page.goto(process.env.NEURO_INLINE_URL+'/nidus/projecao');
+ const ticket=(await(await page.request.get(process.env.NEURO_INLINE_URL+'/fixture')).json()).ticket;
+ await page.evaluate(b=>ndAbrirSerie({bilhete:b,origem:'pasta',modalidade:'CT',desc:'Synthetic oblique reference',rotulo:'Synthetic oblique reference'}),ticket);
+ await page.waitForFunction(()=>!ND.abrindo,{},{timeout:30000});assert(await page.evaluate(()=>ND.aberta),JSON.stringify(await page.evaluate(()=>({error:ND.motivo,message:ndEl('nd_msg').textContent})))+' '+JSON.stringify(errors));await page.waitForSelector('.ui-modal',{state:'detached'});
+ assert(await page.evaluate(()=>!!ND.identity.uid&&!!ND.identity.frame_uid));
+ await page.evaluate(()=>{ND.pontos=[[400,400],[500,400],[500,500]];ND.caixa=[.05,.15,.05,.15,.05,.15];ndPintarMarca()});
+ await page.locator('#nd_dicom_tools [data-dicom-tool=editor]').click();
+ await page.waitForFunction(()=>RadaiContourEditor.current()?.initialReady,{},{timeout:30000});
+ assert.equal(await page.locator('#nd_inline_editor .rce-inline').count(),1);assert.equal(await page.locator('.rce-scene-stage #nd_palco3d').count(),1);
+ assert.equal(await page.locator('dialog').count(),0);assert(await page.locator('#nd_trabalho').isHidden());
+ await page.getByRole('tab',{name:'Draw new'}).click();await page.getByLabel('Structure name',{exact:true}).fill('Inline_Nidus_ROI');await page.getByRole('button',{name:'Create structure',exact:true}).click();
+ await page.waitForFunction(()=>{const e=RadaiContourEditor.current();return !e.busy&&Object.values(e.planes).every(p=>p.loaded)});
+ const canvas=page.locator('[data-plane=axial] canvas');const box=await canvas.boundingBox();
+ await page.locator('#nd_inline_editor [data-dicom-tool=brush]').click();await canvas.click({position:{x:box.width*.5,y:box.height*.5}});
+ await page.waitForFunction(()=>{const e=RadaiContourEditor.current();return e&&!e.busy&&ND3.editorObjs?.some(o=>o.n>0)},{},{timeout:30000});
+ const checks=await page.evaluate(()=>({roiMesh:ND3.editorObjs.reduce((n,o)=>n+o.n,0),reference:ND3.editorReference===ND.b,session:ND3.editorSession===RadaiContourEditor.current().session.session,revision:ND3.editorRevision===RadaiContourEditor.current().session.revision,crop:ND.caixa,clip:nd3RecorteLocal()}));
+ assert(checks.roiMesh>0&&checks.reference&&checks.session&&checks.revision);assert.deepEqual(checks.crop,[.05,.15,.05,.15,.05,.15]);assert(checks.clip.some((v,i)=>i%2&&v>.15),'new ROI outside projection crop remains visible in 3D');
+ await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>ND.pontos.length),3,'editor Escape must not clear the pending projection');
+ const before=await page.evaluate(()=>({session:RadaiContourEditor.current().session.session,mesh:ND3.editorObjs[0].n,draws:ND3.editorRevision}));
+ await page.getByRole('button',{name:'Center structure',exact:true}).click();await page.waitForFunction(()=>!RadaiContourEditor.current().busy);
+ await page.getByRole('button',{name:'Return to viewer',exact:true}).click();assert(await page.locator('#nd_trabalho').isVisible());// The original parent is restored by the host.
+ assert.equal(await page.locator('#nd_inline_editor #nd_palco3d').count(),0);assert.equal(await page.locator('#nd_palco3d').count(),1);
+ assert.equal(operations.filter(x=>x.endsWith('/save')).length,0);
+ const opened=operations.filter(x=>x.endsWith('/open')).length;
+ await page.locator('#nd_dicom_tools [data-dicom-tool=editor]').click();await page.waitForFunction(()=>RadaiContourEditor.current()?.initialReady);
+ assert.equal(await page.evaluate(()=>RadaiContourEditor.current().session.session),before.session);assert.equal(operations.filter(x=>x.endsWith('/open')).length,opened);
+ await page.getByRole('button',{name:'Return to viewer',exact:true}).click();
+ assert.deepEqual(errors,[]);console.log('PASS: real NIDUS + host API inline ROI mesh, physical identity, crop, Escape, return and draft resume without export');
+}finally{await browser.close()}})().catch(e=>{console.error(e.stack);process.exitCode=1});

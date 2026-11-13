@@ -20,9 +20,11 @@ function stl(){
   let revision=1,undo=0,rejectBrush=false,openCount=0,holdMesh=false,releaseMesh=null;
   const rows=[{bilhete:'tof-source',desc:'Synthetic original TOF',modalidade:'MR',cortes:101},
    {bilhete:'cine-source',desc:'Synthetic acquired TWIST',modalidade:'MR',cortes:30},
-   {bilhete:'mip-derived',desc:'Synthetic TOF MIP',modalidade:'MR',cortes:30}];
+   {bilhete:'mip-derived',desc:'Synthetic TOF MIP',modalidade:'MR',cortes:30},
+   ...Array.from({length:65},(_,i)=>({bilhete:'other-'+i,desc:'Synthetic series '+i,modalidade:'MR',cortes:30}))];
   const metadata={itens:[{bilhete:'tof-source',preferida:true,original:true,tridimensional:true,possivel_tof:true},
-   {bilhete:'cine-source',preferida:false},{bilhete:'mip-derived',preferida:false,derivada:true}]};
+   {bilhete:'cine-source',preferida:false},{bilhete:'mip-derived',preferida:false,derivada:true},
+   ...Array.from({length:65},(_,i)=>({bilhete:'other-'+i,preferida:false}))]};
   const group={id:'folder-temporal',kind:'volume3d',count:3,can_rotate:true,timing_known:true,label:'CINE 1',series_tickets:[{bilhete:'cine-source',origem:'pasta'}]};
   page.on('pageerror',e=>errors.push(e.stack||e.message));
   await page.addInitScript(()=>window.addEventListener('DOMContentLoaded',()=>{window.ndAbrirEscolha=function(){ND.escolhendo=true}},{capture:true,once:true}));
@@ -31,6 +33,7 @@ function stl(){
    if(url.pathname==='/nidus/projecao')return route.fulfill({contentType:'text/html',body:fs.readFileSync(process.argv[2],'utf8')});
    calls.push({path:url.pathname,body});
    if(url.pathname==='/neuro/api/status')return route.fulfill({json:{token:'synthetic-token'}});
+   if(url.pathname==='/api/nidus/tubos')return route.fulfill({json:{sessao:'session-A',incidencias:1,teto:12}});
    if(url.pathname==='/api/nidus/consenso')return route.fulfill({json:{candidate:'candidate-A',revision,undo_available:false,empty:false}});
    if(url.pathname==='/api/nidus/consenso/pincel'){
     assert.equal(body.candidate,'candidate-A');assert.equal(body.revision,revision);
@@ -49,26 +52,53 @@ function stl(){
    }
    if(url.pathname==='/api/nidus/linhas')return route.fulfill({json:{largura:256,altura:256,indice:Math.round(Number(url.searchParams.get('pos'))*100),camadas:[]}});
    if(url.pathname==='/api/nidus/malhas')return route.fulfill({json:{malhas:[]}});
-   if(url.pathname==='/api/nidus/series-metadata'){assert(!body.ancora,'new folder must not be scoped to the old patient');return route.fulfill({json:metadata})}
+   if(url.pathname==='/api/nidus/series-metadata'){assert(!body.ancora,'new folder must not be scoped to the old patient');assert.equal(body.itens.length,68,'inspect all 68 real-world-sized series, not only the first 60');return route.fulfill({json:metadata})}
    if(url.pathname==='/api/nidus/temporal/folder-discover'){
-    assert.equal(body.ancora.bilhete,'tof-source');assert.equal(body.itens.length,3);
+    assert.equal(body.ancora.bilhete,'tof-source');assert.equal(body.itens.length,68);
     return route.fulfill({json:{groups:[group],auto_select:group.id,selection_required:false,scope:'patient-study'}});
    }
    if(url.pathname==='/api/nidus/temporal/prepare'){assert.equal(body.group,group.id);return route.fulfill({json:{job:'folder-job'}})}
    if(url.pathname==='/api/nidus/temporal/status/folder-job')return route.fulfill({json:{state:'ready',completed:3,total:3,frames:[0,1,2].map(index=>({index,time_seconds:index*.1}))}});
-   if(url.pathname==='/api/nidus/abrir'){openCount++;return route.fulfill({json:{chave:'new-source',forma:[101,101,101],modalidade:'MR',hu:false,geometria:geometry,telas:{0:[256,256],1:[256,256],2:[256,256]},osso:{tem:false}}})}
+   if(url.pathname==='/api/nidus/abrir'){openCount++;return route.fulfill({json:{chave:'new-source',forma:[101,101,101],modalidade:'MR',hu:false,geometria:geometry,identity:{uid:'synthetic-uid',frame_uid:'synthetic-frame'},telas:{0:[256,256],1:[256,256],2:[256,256]},osso:{tem:false}}})}
    if(/\/api\/nidus\/(projecao|corte)$/.test(url.pathname)||url.pathname.startsWith('/api/nidus/temporal/frame/'))return route.fulfill({contentType:'image/svg+xml',body:image});
    return route.fulfill({json:{}});
   });
   await page.goto('http://127.0.0.1:18799/nidus/projecao');
   await page.waitForSelector('#nd_dicom_tools');
   await page.evaluate(async geo=>{
-   ND.b='static';ND.ultima={bilhete:'static',origem:'pasta'};ND.aberta=true;ND.abrindo=false;ND.sessao='session-A';
+   ND.identity={uid:'synthetic-uid',frame_uid:'synthetic-frame'};ND.b='static';ND.chave='synthetic-static';ND.ultima={bilhete:'static',origem:'pasta'};ND.aberta=true;ND.abrindo=false;ND.sessao='session-A';
    ND.forma=[101,101,101];ND.geo=geo;ND.telas={0:[256,256],1:[256,256],2:[256,256]};ND.caixa=null;
    ndModalidade('MR');ndTravas();ndConsControles();await Promise.all([ndProjetar(),ndCorte(0),ndCorte(1),ndCorte(2)]);
   },geometry);
   assert.equal(await page.locator('#nd_angio_max').count(),0);
   await page.locator('[data-dicom-tool="zoomIn"]').dblclick();assert(await page.locator('#nd_colB').isVisible());
+  await page.locator('#nd_palco > .ui-organico').waitFor({state:'detached'});
+  await page.locator('#nd_palco').hover();
+  await page.locator('[data-dicom-tool="brush"]').click();
+  const projection=await page.locator('#nd_svg').boundingBox();
+  await page.mouse.move(projection.x+projection.width*.45,projection.y+projection.height*.5);
+  await page.mouse.down();await page.mouse.move(projection.x+projection.width*.55,projection.y+projection.height*.5,{steps:6});await page.mouse.up();
+  assert(await page.evaluate(()=>ND.pontos.length>=3&&!!ND.projectionMask),'brush must paint a savable raster incidence in the TOF projection');
+  const painted=await page.evaluate(()=>ND.projectionMask);
+  await page.locator('[data-dicom-tool="eraser"]').click();
+  await page.mouse.click(projection.x+projection.width*.5,projection.y+projection.height*.5);
+  const erased=await page.evaluate(()=>ND.projectionMask);
+  assert.notEqual(painted,erased,'eraser changes pixels inside the projection silhouette');
+  const countBits=base64=>[...Buffer.from(base64,'base64')].reduce((n,b)=>n+b.toString(2).replaceAll('0','').length,0);
+  assert(countBits(erased)>0&&countBits(erased)<countBits(painted),'eraser removes only painted pixels');
+  await page.locator('#nd_bt_guardar').click();
+  await page.waitForFunction(()=>!ND.cruzando&&ND.guardadas.length===1);
+  assert.equal(calls.filter(c=>c.path==='/api/nidus/tubos').at(-1).body.incidencias[0].mascara,erased,'saved incidence sends the exact raster, including erased pixels, into consensus');
+  assert.equal(await page.locator('#nd_bt_guardar [data-radai-frase]').innerText(),await page.evaluate(()=>radaiFrase('Projeção salva')));
+  await page.evaluate(()=>{ND.pontos=[];ND.projectionMask=null;ndPintarMarca();ndAtualizarGuardar()});
+  await page.locator('[data-dicom-tool="brush"]').click();
+  await page.mouse.click(projection.x+projection.width*.5,projection.y+projection.height*.5);
+  assert(await page.evaluate(()=>!!ndSalvo().projectionMask));
+  await page.locator('[data-dicom-tool="eraser"]').click();
+  await page.mouse.click(projection.x+projection.width*.5,projection.y+projection.height*.5);
+  assert(await page.evaluate(()=>!ND.projectionMask&&!ND.pontos.length&&!ndSalvo().projectionMask&&!ndSalvo().pontos.length),'erasing every pixel persists the empty draft');
+  await page.evaluate(()=>ndAplicar(ndSalvo(),true));assert.equal(await page.evaluate(()=>ND.pontos.length),0,'resume cannot resurrect erased projection pixels');
+  await page.locator('#nd_pp0').hover();
   await page.locator('[data-dicom-tool="brush"]').click();
   await page.waitForFunction(()=>ND.consensoEditavel&&!ND.consensoBusy&&ND.consCandidate==='candidate-A'&&ND.consIndices[0]===50);
   assert.equal(await page.evaluate(()=>ND.consRevision),1);
@@ -126,11 +156,30 @@ function stl(){
   rejectBrush=true;await stroke();await page.waitForFunction(()=>!ND.consensoBusy&&document.getElementById('nd_msg').textContent.includes('Synthetic revision conflict'));
   assert.equal(await page.evaluate(()=>ND.consRevision),4);
   const editorCalls=await page.evaluate(async()=>{
-   const calls=[];window.RadaiContourEditor.open=async options=>calls.push(options);
+   const calls=[];window.editorChecks={};window.RadaiContourEditor.open=async options=>{
+    calls.push({tool:options.tool,b:options.b,source:options.source});
+    if(calls.length===1){
+     ND.pontos=[[1,1],[2,1],[2,2]];window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));
+     editorChecks.escape=ND.pontos.length===3;
+     const body={session:'editor-session',revision:1,reference:{b:'static',source:'thumbnail',uid:'wrong',frame_uid:'synthetic-frame'},meshes:[{roi:1,name:'Painted ROI',geometry_revision:1,coordinate_system:'LPS_mm',color:[255,36,59],vertices:[[80,80,80],[90,80,80],[80,90,80]],faces:[[0,1,2]]}]};
+     options.onPreview(body);editorChecks.wrongUid=!(ND3.editorObjs||[]).length;
+     body.reference.uid='synthetic-uid';body.reference.frame_uid='wrong';options.onPreview(body);editorChecks.wrongFrame=!(ND3.editorObjs||[]).length;
+     body.reference.frame_uid='synthetic-frame';ND.caixa=[.1,.2,.1,.2,.1,.2];options.onPreview(body);
+     const object=ND3.editorObjs[0],clip=nd3RecorteLocal();editorChecks.visible=!!object&&clip[1]>=.9&&clip[3]>=.9;
+     editorChecks.crop=JSON.stringify(ND.caixa)==='[0.1,0.2,0.1,0.2,0.1,0.2]';
+     body.revision=2;options.onPreview(body);editorChecks.reuse=object===ND3.editorObjs[0];
+     body.revision=1;body.meshes=[];options.onPreview(body);editorChecks.stale=object===ND3.editorObjs[0];
+     options.externalScene.center([80,70,60]);
+     editorChecks.center=[.6,.7,.8].every((q,i)=>Math.abs(ND.planos[i]-(q*101-.5)/100)<1e-10);
+     ND.caixa=null;ND.pontos=[];
+    }
+    options.onClose(null,{draft:true});
+   };
    for(const key of ['measure','window','editor']){document.querySelector('[data-dicom-tool="'+key+'"]').click();await Promise.resolve();await Promise.resolve()}
    return calls;
   });
   assert.deepEqual(editorCalls.map(c=>c.tool),['measure','window','brush']);assert(editorCalls.every(c=>c.b==='static'&&c.source==='thumbnail'));
+  assert.deepEqual(await page.evaluate(()=>editorChecks),{escape:true,wrongUid:true,wrongFrame:true,visible:true,crop:true,reuse:true,stale:true,center:true});
   const oldMeshRequest=page.waitForRequest(request=>new URL(request.url()).pathname==='/api/nidus/consenso/malha/download');
   holdMesh=true;await page.evaluate(()=>{void NidusBrush.mesh()});await oldMeshRequest;
   await page.evaluate(data=>{
@@ -141,14 +190,19 @@ function stl(){
   assert.equal(openCount,1);assert.equal(await page.evaluate(()=>ND3.consensusObj),null,'new source clears the old consensus mesh');
   assert(releaseMesh);releaseMesh();await page.waitForTimeout(80);
   assert.equal(await page.evaluate(()=>ND3.consensusObj),null,'late STL from the previous series must never be reapplied');
-  assert.equal(await page.evaluate(()=>ND_IMAGE_CACHE.stats().decoded<=8),true);
+  assert.equal(await page.evaluate(()=>ND_IMAGE_CACHE.stats().decoded<=12),true);
   assert.equal(await page.evaluate(()=>ND_IMAGE_CACHE.stats().entries>=72),true);
-  await page.locator('#nd_cine_open').click();await page.waitForSelector('.nd-cine-group-list');
-  assert.match(await page.locator('.nd-cine-group-list').innerText(),/Synthetic acquired TWIST/);
-  await page.locator('.nd-cine-group-list button').click();await page.waitForFunction(()=>NidusTemporal.state.ready);
+  await page.locator('#nd_cine_open').click();await page.waitForFunction(()=>NidusTemporal.state.ready);
+  assert.equal(await page.locator('.nd-cine-group-list').count(),0,'a unique acquired temporal group opens without choosing it twice');
   assert.equal(await page.locator('#nd_cine_source').textContent(),'Synthetic acquired TWIST');
   assert(!calls.some(c=>c.path==='/api/nidus/temporal/discover'),'folder selection must reuse its detected temporal group');
   assert.equal(await page.evaluate(()=>ND.b),'tof-source');
+  await page.evaluate(()=>NidusTemporal.leave());
+  await page.evaluate(()=>{NidusTemporal.state.folderOffers=null});
+  const scansBefore=calls.filter(c=>c.path==='/api/varrer/iniciar').length;
+  await page.locator('#nd_cine_open').click();await page.waitForFunction(()=>NidusTemporal.state.ready);
+  assert.equal(calls.filter(c=>c.path==='/api/varrer/iniciar').length,scansBefore,'loaded patient discovery must not reopen the folder scan');
+  assert.equal(await page.locator('#nd_escolha').isVisible(),false);
   await page.evaluate(()=>NidusTemporal.leave());
   const previous=openCount;
   await page.evaluate(()=>{ND.escolhendo=true;NidusFolder.discovered([{bilhete:'a'},{bilhete:'b'}],{itens:['a','b'].map(b=>({bilhete:b,preferida:true,original:true,tridimensional:true,possivel_tof:true}))},'C:\\SYNTHETIC',true)});

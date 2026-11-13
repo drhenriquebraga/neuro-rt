@@ -20,7 +20,7 @@ NIDUS_TEMPORAL_JS = r"""
  }
  function status(message){text(el('nd_cine_status'),message)}
  function pause(){C.playing=false;clearTimeout(C.timer);C.timer=null;if(el('nd_cine_play'))text(el('nd_cine_play'),'Reproduzir')}
- function invalidate(){pause();clearTimeout(C.angleTimer);C.generation++;cancelJob(C.job);C.job=null;C.ready=false;C.frames=[];
+ function invalidate(){pause();clearTimeout(C.angleTimer);C.generation++;if(!C.ready)cancelJob(C.job);C.job=null;C.ready=false;C.frames=[];
   if(C.dialog){var dialog=C.dialog;C.dialog=null;dialog.finish()}
   if(C.cache)C.cache.reset();controls();return C.generation;
  }
@@ -161,14 +161,30 @@ NIDUS_TEMPORAL_JS = r"""
   if(C.picking){var anchor={bilhete:series.bilhete,origem:series.origem||'pasta'};C.source=String(series.rotulo||series.desc||'');ndPopup().fechar();discover(anchor);return}
   if(C.active)leave();return oldOpen.apply(this,arguments);
  };
- function choose(){
+ function sourceLabel(offer,group){
+  var labels=(group.series_tickets||[]).map(function(ticket){var row=offer.rows.find(function(r){return r.bilhete===ticket.bilhete});
+   return row&&(row.desc||row.curto||row.rotulo)}).filter(Boolean);
+  return Array.from(new Set(labels)).join(' · ')||group.label||'CINE';
+ }
+ async function choose(force){
   var offer=C.folderOffers;
-  if(!C.active&&offer&&offer.anchor.bilhete===ND.b&&offer.groups.length){
-   groupList(offer.groups,function(group){
-    var labels=(group.series_tickets||[]).map(function(ticket){var row=offer.rows.find(function(r){return r.bilhete===ticket.bilhete});
-     return row&&(row.desc||row.curto||row.rotulo)}).filter(Boolean);
-    return Array.from(new Set(labels)).join(' · ')||group.label||'CINE';
-   });return;
+  if(force!==true&&ND.b&&ND.ultima){
+   var anchor={bilhete:ND.b,origem:ND.ultima.origem||'pasta'},reference=ND.b,load=ND.carga;
+   enter();var generation=invalidate(),dialog=new NidusOpeningDialog({roots:[el('nd_wrap')],title:'CINE de enchimento',
+    onCancel:function(){if(C.generation===generation){invalidate();status('Preparo cancelado.')}}});C.dialog=dialog;
+   dialog.step('Procurando fases adquiridas…');
+   try{
+    if(!offer||offer.anchor.bilhete!==reference||offer.anchor.origem!==anchor.origem||!offer.groups.length){
+     var rows=Array.from(C.rows.values()).concat(Object.values(ND.porB||{}));
+     offer=await window.NidusFolder.ensure(anchor,rows);
+    }
+    if(!C.active||C.generation!==generation||ND.b!==reference||ND.carga!==load)return;
+    C.dialog=null;dialog.finish();
+    if(offer.groups.length===1){C.group=offer.groups[0];C.source=sourceLabel(offer,C.group);el('nd_cine_source').textContent=C.source;prepare()}
+    else if(offer.groups.length>1)groupList(offer.groups,function(group){return sourceLabel(offer,group)});
+    else status('Nenhuma sequência temporal compatível foi encontrada.');
+   }catch(error){if(C.generation===generation){C.dialog=null;dialog.finish();status(error.message||'Não foi possível preparar este grupo temporal.')}}
+   return;
   }
   C.picking=true;ND_MIN_CORTES=1;ndAbrirEscolha();
  }
@@ -198,7 +214,7 @@ NIDUS_TEMPORAL_JS = r"""
    '<div id="nd_cine_angles" class="nd-cine-controls"><label>LAO/RAO <input id="nd_cine_lao" type="number" min="-180" max="180" step="5" value="0"></label><label>CRA/CAU <input id="nd_cine_cra" type="number" min="-90" max="90" step="5" value="0"></label><span id="nd_cine_timing"></span></div>'+
    '<details><summary class="nd-bt">?</summary><p data-radai-frase>A velocidade de reprodução não altera os tempos adquiridos. Sem fases interpoladas.</p><p data-radai-frase>Referência do NIDUS preservada. O CINE não modifica nem exporta os contornos.</p></details>';
   el('nd_trabalho').before(panel);
-  var head=panel.querySelector('.nd-cine-head'),pick=button('Escolher outra série',choose);pick.id='nd_cine_choose';head.append(pick,button('Voltar à referência',leave));
+  var head=panel.querySelector('.nd-cine-head'),pick=button('Escolher outra série',function(){choose(true)});pick.id='nd_cine_choose';head.append(pick,button('Voltar à referência',leave));
   var pb=button('Reproduzir',play);pb.id='nd_cine_play';el('nd_cine_controls').prepend(pb);
   ND_INCIDENCIAS.forEach(function(preset){el('nd_cine_presets').appendChild(button(preset[0],function(){C.lao=preset[1];C.cra=preset[2];el('nd_cine_lao').value=C.lao;el('nd_cine_cra').value=C.cra;prepare()}))});
   el('nd_cine_slider').oninput=function(){pause();display(Number(this.value))};

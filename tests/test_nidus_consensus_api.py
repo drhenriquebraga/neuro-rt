@@ -163,6 +163,7 @@ class NidusConsensusAPITests(unittest.TestCase):
         _, prepared = self.request('/api/nidus/consenso', {'s':'synthetic-session','temperatura':50})
         original = self.sessions['synthetic-session']['candidato'].packed.bits.copy()
         payload = {'s':'synthetic-session', 'candidate':prepared['candidate'], 'revision':prepared['revision']}
+        queue_before = list(self.queue.events)
         with patch('neuro_rt.nidus_consensus_mesh.candidate_mesh', wraps=candidate_mesh) as mesh:
             status, first = self.request('/api/nidus/consenso/malha', payload)
             self.assertEqual(status, 200, first)
@@ -170,6 +171,7 @@ class NidusConsensusAPITests(unittest.TestCase):
             self.assertEqual(status, 200, second)
             self.assertEqual(first['url'], second['url'])
             self.assertEqual(mesh.call_count, 1)
+        self.assertEqual(self.queue.events, queue_before, 'Read-only 3D preview must not enter the segmentation queue')
         self.assertEqual(first['coordinate_system'], 'LPS_mm')
         self.assertGreater(first['triangles'], 0)
         self.assertIn('/api/nidus/consenso/malha/download?', first['url'])

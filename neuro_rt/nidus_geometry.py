@@ -180,7 +180,7 @@ def contour_segments(plane):
             for (x0, y0), (x1, y1) in N.contorno_do_tubo(padded, 0, 0)]
 
 
-def source_signature(folder, series_uid):
+def source_signature(folder, series_uid, *, include_identity=False):
     """Private identity fingerprint, captured when the source is first opened."""
     import pydicom
     import SimpleITK as sitk
@@ -194,7 +194,13 @@ def source_signature(folder, series_uid):
            for header in headers):
         raise ValueError('Referências DICOM incompletas.')
     values = sorted(tuple(str(header.get(tag, '')) for tag in tags) for header in headers)
-    return hashlib.sha256(json.dumps(values, separators=(',', ':')).encode()).hexdigest()
+    digest = hashlib.sha256(json.dumps(values, separators=(',', ':')).encode()).hexdigest()
+    if include_identity:
+        frames = {str(header.FrameOfReferenceUID) for header in headers}
+        if len(frames) != 1:
+            raise ValueError('Referências DICOM incompatíveis.')
+        return digest, {'uid': str(series_uid), 'frame_uid': frames.pop()}
+    return digest
 
 
 def export_candidate(candidate, source_folder, series_uid, host_root, work, *, checkpoint=lambda: None,

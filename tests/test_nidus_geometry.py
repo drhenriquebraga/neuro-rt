@@ -83,6 +83,10 @@ class NidusGeometryTests(unittest.TestCase):
             root=Path(temporary)
             uid,_=make_series(root/'source',modality='CT')
             signature=G.source_signature(root/'source',uid)
+            identified, identity=G.source_signature(root/'source',uid,include_identity=True)
+            self.assertEqual(identified,signature)
+            self.assertEqual(identity['uid'],uid)
+            self.assertTrue(identity['frame_uid'])
             file=next((root/'source').glob('*.dcm'))
             ds=pydicom.dcmread(file);ds.PatientID='SYNTHETIC_CHANGED';ds.save_as(file,enforce_file_format=True)
             with self.assertRaisesRegex(ValueError,'referências DICOM mudaram'):

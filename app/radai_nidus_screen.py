@@ -9,7 +9,9 @@ import radai_nidus
 import radai_recon3d_gl
 import radai_web
 from neuro_rt.nidus_preload import NIDUS_PRELOAD_JS
+from neuro_rt.nidus_loading_states import NIDUS_THINKING_JS
 from neuro_rt.nidus_brush_ui import NIDUS_BRUSH_JS
+from neuro_rt.nidus_projection_paint import NIDUS_PROJECTION_PAINT_JS
 from neuro_rt.nidus_folder_picker import NIDUS_FOLDER_JS
 from neuro_rt.nidus_temporal_ui import NIDUS_TEMPORAL_JS
 
@@ -97,6 +99,7 @@ CSS = u"""
  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #nd_msg.erro{color:var(--perigo,#E96A5C)}
 #nd_msg.ok{color:var(--success,#5BC57F)}
+#nd_msg:empty{display:none}
 .nd-wrap input[type=range]{accent-color:var(--mod-nidus);cursor:pointer}
 
 .nd-trabalho{display:flex;gap:12px;min-height:0;align-items:stretch}
@@ -474,7 +477,8 @@ var ND_MIN_CORTES = @MIN_CORTES@;
 var ND_INCIDENCIAS = @INCIDENCIAS_JS@;
 var ND_LADO_PREVIA = @LADO_PREVIA@;
 var ND_ABA = Math.random().toString(36).slice(2, 10);
-var ND_IMAGE_CACHE = new NidusImageCache({maxBytes:128*1024*1024,maxEntries:96,maxDecodedEntries:8});
+var ND_IMAGE_CACHE = new NidusImageCache({maxBytes:192*1024*1024,maxEntries:512,maxDecodedEntries:12});
+var ND_MPR_CACHE = new NidusImageCache({maxBytes:48*1024*1024,maxEntries:96,maxDecodedEntries:8});
 ND.carga=0; ND.corteSeq={}; ND.corteBusy={}; ND.preparo=null; ND.vizinhos=null; ND.ossoVersion=0;
 
 var ND_EPS = 0.5, ND_TETO_VERTICES = 120, ND_PASSO_MIN = 0.6;
@@ -581,6 +585,7 @@ function ndTravas(){
 }
 function ndAtualizarGuardar(){
  var g=ndEl('nd_bt_guardar'); if(!g || !g.setAttribute) return;
+ var label=g.querySelector&&g.querySelector('[data-radai-frase]');if(label)ndTexto(label,ND.saveConfirmed?'Projeção salva':'Guardar incidência');
  var falta=!(ND.pontos && ND.pontos.length>=3);
  g.setAttribute('aria-disabled', falta?'true':'false');
  if(falta) g.setAttribute('title', 'circule o ninho antes de guardar (3 pontos, no mínimo)');
@@ -608,7 +613,7 @@ function ndRotuloDaLista(s){
    +molde.replace(/%s/g,function(){ return vs.shift() });
 }
 function ndSeries(linhas, origem, pastaNova){
- var lista=(linhas||[]).filter(function(s){ return s && s.bilhete && !s.carregando }).slice(0,60);
+ var lista=(linhas||[]).filter(function(s){ return s && s.bilhete && !s.carregando }).slice(0,128);
  if(!lista.length) return;
  ND.tofPedido=(ND.tofPedido||0)+1;
  var pedido=ND.tofPedido, ultima=ND.ultima||{}, nota=ndEl('nd_tof_sugestao');
@@ -722,7 +727,7 @@ function ndAbrirSerie(s){
  if(ND.preparo){ND.preparo.finish();ND.preparo=null}
  if(ND.vizinhos)ND.vizinhos.abort();
  clearTimeout(ND.vizinhosTimer); clearTimeout(ND.rodaTimer);
- ND_IMAGE_CACHE.reset();
+ ND_IMAGE_CACHE.reset();ND_MPR_CACHE.reset();
  ND.tofPedido=(ND.tofPedido||0)+1;
  ndFecharEscolha();
  if(ND.tabela && s.origem!=='acervo') ND.tabela.marcar(null);
@@ -754,7 +759,7 @@ function ndAbrirSerie(s){
   onCancel:function(){
    if(carga!==ND.carga)return;
    ND.carga++;ND.preparo=null;ND.abrindo=false;ND.projetando=false;
-   ND_IMAGE_CACHE.reset();ndCarregando(false);
+   ND_IMAGE_CACHE.reset();ND_MPR_CACHE.reset();ndCarregando(false);
    ['nd_proj','nd_pl0','nd_pl1','nd_pl2'].forEach(function(id){var im=ndEl(id);if(im)im.removeAttribute('src')});
    ndBloquear('Preparo cancelado.',true);ndMsg(ND.motivo,'');
   }
@@ -779,7 +784,7 @@ function ndAbrirSerie(s){
     return;
    }
    ND.chave=String(d.chave||'');
-   ND.forma=d.forma; ND.telas=d.telas||null; ND.geo=d.geometria||null;
+   ND.forma=d.forma; ND.telas=d.telas||null; ND.geo=d.geometria||null;ND.identity=d.identity||null;
    ND.hu=(d.hu!==false);
    if(d.modalidade) ndModalidade(d.modalidade);
    ND.passos=d.passos||null; ND.lado_util=d.lado_util||0;
@@ -814,7 +819,7 @@ function ndAbrirSerie(s){
   .catch(function(e){ if(b!==ND.b || carga!==ND.carga) return;
    if(e && e.name==='AbortError')return;
    ND.abrindo=false;ndCarregando(false);preparo.finish();ND.preparo=null;
-   ND_IMAGE_CACHE.reset();
+   ND_IMAGE_CACHE.reset();ND_MPR_CACHE.reset();
    ndBloquear('Não foi possível preparar todas as imagens. Tente novamente.',true);ndMsg(ND.motivo,'erro') });
  ndPintarGuardadas();
 }
@@ -1345,7 +1350,7 @@ function ndPressionar(ev){
   return;
  }
  if(ev.preventDefault) ev.preventDefault();
- ND.tracando=true; ND.pontos=[ndPonto(ev)]; ndPintarMarca();
+ ND.saveConfirmed=false;ND.tracando=true; ND.pontos=[ndPonto(ev)]; ndPintarMarca();
 }
 
 function ndArrastar(ev){
@@ -1607,9 +1612,11 @@ function ndGuardar(auto){
  ND.tracando=false;
  ND.guardadas.push({lao:ND.lao, cra:ND.cra, pontos:ND.pontos.slice(),
    caixa:ND.caixa?ND.caixa.slice():null, jan:ND.jan, modo:ND.modo,
-   laje:ND.laje, osso:ND.osso, pendente:true});
+   laje:ND.laje, osso:ND.osso, mascara:ND.savingProjectionMask||null, pendente:true});
  ND.pontos=[]; ndPintarMarca();
  ndPintarGuardadas(); ndRegistrar('guardar');
+ ND.saveConfirmed=true;clearTimeout(ND.saveConfirmTimer);ndAtualizarGuardar();
+ ND.saveConfirmTimer=setTimeout(function(){ND.saveConfirmed=false;ndAtualizarGuardar()},2200);
  ndMsg('incidência '+ND.guardadas.length+' guardada — '+ndRotulo(ND),'ok');
  ndCalcular();
 }
@@ -1698,7 +1705,7 @@ function ndCalcular(refazer){
  fetch('/api/nidus/tubos',{method:'POST',
    headers:{'Content-Type':'application/json'},
    body:JSON.stringify({b:b, lado:ND.lado, incidencias:g.map(function(x){
-    return {lao:x.lao, cra:x.cra, pontos:x.pontos} })})})
+    return {lao:x.lao, cra:x.cra, pontos:x.pontos, mascara:x.mascara||null} })})})
   .then(function(r){return r.json()}).then(function(d){
    if(b!==ND.b) return;
    ND.cruzando=false;
@@ -1752,13 +1759,13 @@ function ndCorte(eixo, brilho, inicial){
   ndCarregando(false, palco) }
  var url='/api/nidus/corte?b='+encodeURIComponent(ND.b)
    +'&eixo='+eixo+'&pos='+ND.planos[eixo]+'&janela='+ND.jan;
- if(!ND.abrindo && !ND_IMAGE_CACHE.get(url)){
+ if(!ND.abrindo && !ND_MPR_CACHE.get(url)){
   if(brilho)ndCarregando(true,palco,'carregando o corte…');
   else ND_T_CORTE[eixo]=setTimeout(function(){if(atual())ndCarregando(true,palco,'carregando o corte…')},250);
  }
  img.onload=null;img.onerror=null;
  ndLinhas(eixo);
- return ND_IMAGE_CACHE.paint(img,url,{priority:2,current:atual,
+ return ND_MPR_CACHE.paint(img,url,{priority:2,current:atual,
   signal:inicial&&ND.preparo?ND.preparo.signal:undefined}).then(function(){if(atual()){ND.corteBusy[eixo]=false;fim()}})
   .catch(function(e){
    if(!atual() || (e&&e.name==='AbortError'))return;
@@ -1831,7 +1838,7 @@ function ndProcurar(){
  if(!window.uiExplorador) return;
  window.uiExplorador({inicial:(ndEl('nd_pasta').value||'').trim(),
   origem:ndEl('nd_procurar'),
-  aoUsar:function(c){ ndEl('nd_pasta').value=c||''; ndOutra() }});
+  aoUsar:function(c){ ndEl('nd_pasta').value=c||''; ndCarregarPasta() }});
 }
 
 var ND_PAD={W:0, H:0, m:14, quente:null, arrasto:false, t:null};
@@ -2124,6 +2131,7 @@ function nd3PintarCaixa(w, h){
  nd3Desenhar(ND3.objs.pele, VP, N9, ND3.atraves?0.03:0.14, false);
  if(ND.consensoEditavel&&ND3.consensusSession===ND.sessao&&ND3.consensusCandidate===ND.consCandidate&&ND3.consensusRevision===ND.consRevision)
   nd3Desenhar(ND3.consensusObj,VP,N9,.72,false);
+ if(ND3.editorReference===ND.b)(ND3.editorObjs||[]).forEach(function(object){nd3Desenhar(object,VP,N9,.72,false)});
  r3gCorte(ND3, null);
  gl.disable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
  r3gCamera(ND3, r3gM4mul(VP, cx.M), N9); r3gLiso(ND3, true); r3gUmEm(ND3, ND3.aux.arame, 0.85);
@@ -2331,7 +2339,7 @@ function ndLayoutA(){
  bar.appendChild(ndEl('nd_cons_vazio'));
  ndEl('nd_mpr').hidden=true;
  var oldTop=col.querySelector('.nd-cima');if(oldTop)oldTop.hidden=true;
- document.addEventListener('keydown',function(event){if(event.key!=='Escape')return;
+ document.addEventListener('keydown',function(event){if(event.key!=='Escape'||ND.inlineEditorActive)return;
   var open=bar.querySelectorAll('details[open]');if(!open.length)return;
   open.forEach(function(item){item.open=false});open[open.length-1].querySelector('summary').focus();event.preventDefault();event.stopPropagation();
  });
@@ -2465,7 +2473,7 @@ async function ndEditarConsenso(){
   if(session!==ND.sessao) return;
   ND.consensoEditavel=true;
   ndConsVazio(candidate.empty===true);
-  ndMsg('sugestão pronta para editar: desenhe no axial, coronal ou sagital; o contorno continua não aprovado','ok');
+  ndMsg('','');
   [0,1,2].forEach(ndLinhas);
  }catch(error){if(session===ND.sessao) ndMsg(String(error.message||error),'erro')}
  finally{ND.consensoBusy=false;ndConsControles()}
@@ -2661,7 +2669,7 @@ window.addEventListener('DOMContentLoaded', function(){
  var vs=ndEl('nd_vista');
  if(vs) vs.addEventListener('change', function(){ nd3Vista(vs.value) });
  window.addEventListener('keydown', function(ev){
-  if(!ND.cineActive && ev.key==='Escape' && !ND.tracando && ND.pontos.length){ ND.pontos=[]; ndPintarMarca(); ndAtualizarGuardar() } });
+  if(!ND.cineActive && !ND.inlineEditorActive && !document.querySelector('.ui-modal') && ev.key==='Escape' && !ND.tracando && ND.pontos.length){ ND.pontos=[]; ndPintarMarca(); ndAtualizarGuardar() } });
  ndLigarPad();
  nd3Iniciar(); nd3SalaPadrao(); nd3Vista('sala');
  ndSincronizar(); ndTravas(); ndPintarGuardadas(); ndAjustarTela();
@@ -2669,7 +2677,7 @@ window.addEventListener('DOMContentLoaded', function(){
 });
 """
 
-JS = (radai_recon3d_gl.JS + JS_SALA_COMPARTILHADA + radai_nidus.JS_CONVENCAO + NIDUS_PRELOAD_JS
+JS = (radai_recon3d_gl.JS + JS_SALA_COMPARTILHADA + radai_nidus.JS_CONVENCAO + NIDUS_THINKING_JS + NIDUS_PRELOAD_JS
       + JS_TELA.replace(u"@LADO@", str(LADO_DA_TELA))
       .replace(u"@LADOS@", json.dumps(LADOS))
       .replace(u"@MODALIDADES@", json.dumps(list(MODALIDADES)))
@@ -2679,7 +2687,7 @@ JS = (radai_recon3d_gl.JS + JS_SALA_COMPARTILHADA + radai_nidus.JS_CONVENCAO + N
           ensure_ascii=False))
       .replace(u"@LADO_PREVIA@", str(LADO_DA_PREVIA)))
 
-JS += NIDUS_FOLDER_JS + NIDUS_BRUSH_JS + NIDUS_TEMPORAL_JS
+JS += NIDUS_FOLDER_JS + NIDUS_BRUSH_JS + NIDUS_PROJECTION_PAINT_JS + NIDUS_TEMPORAL_JS
 
 AJUDA_PROJECAO_PARALELA = (
     u"A projeção é paralela, sem ampliação. A sala mostra a posição do arco "
@@ -3037,9 +3045,7 @@ def _escolha():
              u'placeholder="C:\\... ou \\\\servidor\\...">@FAV@</div>'
              u'<button type="button" class="ui-bt" id="nd_procurar">'
              u'@ICO_PASTA@<span data-radai-frase>Procurar&hellip;</span>'
-             u'</button><button type="button" class="ui-bt" id="nd_listar" '
-             u'onclick="ndOutra()"><span data-radai-frase>Listar s&eacute;ries'
-             u'</span></button><button type="button" class="ui-bt pri" id="nd_carregar_pasta" '
+             u'</button><button type="button" class="ui-bt pri" id="nd_carregar_pasta" '
              u'onclick="ndCarregarPasta()"><span data-radai-frase>Carregar esta pasta</span></button></div>'
              u'<div class="nd-filtro">@FILTRO@</div>'
              u'<div class="ui-vl-est" id="nd_busca" role="status" '
@@ -3331,9 +3337,10 @@ def montar(app, host_services=None):
             serie.chave_estavel = chave_da_serie(pasta, uid or u"")
             try:
                 from neuro_rt.nidus_geometry import source_signature
-                serie.nidus_source_signature = source_signature(pasta, uid)
+                serie.nidus_source_signature, serie.nidus_identity = source_signature(pasta, uid, include_identity=True)
             except (OSError, ValueError):
                 serie.nidus_source_signature = None
+                serie.nidus_identity = None
             _ler_osso(serie, pasta, uid or u"")
             _ABERTA.update({"chave": chave, "serie": serie,
                             "visto": time.time()})
@@ -3360,6 +3367,7 @@ def montar(app, host_services=None):
             _ERROS.pop(str(b), None)
             return {"forma": list(serie.forma),
                     "geometria": radai_nidus.geometria_da_serie(serie),
+                    "identity": getattr(serie, "nidus_identity", None),
                     "espacamento": list(serie.mm),
                     "passos": serie.passos(LADOS),
                     "lado_util": serie.lado_util,
@@ -3375,14 +3383,14 @@ def montar(app, host_services=None):
     @app.post("/api/nidus/series-metadata")
     async def _series_metadata(request: Request):
         raw = await request.body()
-        if not 0 < len(raw) <= 16384:
+        if not 0 < len(raw) <= 65536:
             return JSONResponse(status_code=400, content={"erro": "Pedido inválido."})
         try:
             payload = json.loads(raw)
             itens = payload["itens"]
             ancora = payload.get("ancora")
             values = list(itens) + ([ancora] if ancora is not None else [])
-            if (not isinstance(itens, list) or not 1 <= len(itens) <= 60 or
+            if (not isinstance(itens, list) or not 1 <= len(itens) <= 128 or
                     any(not isinstance(item, dict) or set(item) - {"bilhete", "origem"} or
                         not isinstance(item.get("bilhete"), str) or not 1 <= len(item["bilhete"]) <= 256 or
                         item.get("origem", "pasta") not in ("pasta", "acervo") for item in values)):
@@ -3644,13 +3652,17 @@ def montar(app, host_services=None):
         cra = float(inc.get("cra") or 0)
         pts = [(float(p[0]), float(p[1])) for p in (inc.get("pontos") or ())]
         chave = (chave_serie, lado, round(lao, 3), round(cra, 3),
-                 tuple((round(x, 3), round(y, 3)) for x, y in pts))
+                 tuple((round(x, 3), round(y, 3)) for x, y in pts), inc.get('mascara'))
         with _TRAVA:
             t = _TUBOS.get(chave)
             if t is not None:
                 _TUBOS.move_to_end(chave)
                 return t
-        t = serie.tubo(pts, lao, cra, lado)
+        if inc.get('mascara'):
+            from neuro_rt.nidus_projection_paint import painted_tube
+            t = painted_tube(serie, inc, lado)
+        else:
+            t = serie.tubo(pts, lao, cra, lado)
         with _TRAVA:
             _TUBOS[chave] = t
             while len(_TUBOS) > TETO_INCIDENCIAS:
@@ -3661,8 +3673,12 @@ def montar(app, host_services=None):
     async def _tubos(request: Request):
         b = ""
         try:
-            c = await request.json() or {}
+            raw = await request.body()
+            if len(raw) > 3 * 1024 * 1024:
+                return JSONResponse(status_code=413, content={'erro': 'Pedido de incidências muito grande.'})
+            c = json.loads(raw) or {}
             import radai_nidus as N
+            from neuro_rt.nidus_projection_paint import projection_consensus
             b = str(c.get("b") or "")
             t0 = time.perf_counter()
             serie = await radai_web.no_threadpool(_serie, b)
@@ -3687,7 +3703,7 @@ def montar(app, host_services=None):
             _SESSOES[chave] = {"tubos": masc, "angulos": angulos,
                                "forma": serie.forma, "mm": serie.mm,
                                "b": b, "consenso": await radai_web.no_threadpool(
-                                   lambda: N.consenso(serie.img, incs, lado=lado)),
+                                   lambda: projection_consensus(serie.img, incs, lado)),
                                'source_signature': getattr(serie, 'nidus_source_signature', None),
                                "inter": (N.intersecao(masc)
                                          if len(masc) > 1 else None)}

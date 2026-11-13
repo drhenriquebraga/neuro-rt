@@ -26,6 +26,7 @@ NIDUS_PRELOAD_JS = r"""
   this.entries=new Map(); this.pending=new Map(); this.queue=[];
   this.bytes=0; this.decodedEntries=0; this.generation=0; this.running=false;
   this.controller=new AbortController(); this.painted=new Map();
+  this.decodeChain=Promise.resolve();
  }
  NidusImageCache.prototype._key=keyFor;
  NidusImageCache.prototype.get=function(url){
@@ -83,8 +84,15 @@ NIDUS_PRELOAD_JS = r"""
    task={key:key,url:url,generation:this.generation,priority:Number(options.priority)||0,
          clients:[{signal:signal,current:options.current}]};
    task.promise=new Promise(function(resolve,reject){ task.resolve=resolve;task.reject=reject });
-   this.pending.set(key,task); this.queue.push(task);
-   this.queue.sort(function(a,b){return b.priority-a.priority}); this._drain();
+   this.pending.set(key,task);
+   if(cached){
+    // A retained PNG must never wait behind a cold HTTP projection. Decode at
+    // most one local image at a time and pin it while that short queue runs.
+    cached.pins++;
+    this.decodeChain=this.decodeChain.catch(function(){}).then(function(){return self._decodeStored(task,cached)});
+   }else{
+    this.queue.push(task);this.queue.sort(function(a,b){return b.priority-a.priority});this._drain();
+   }
   }else{
    task.clients.push({signal:signal,current:options.current});
    if(Number(options.priority)>task.priority){
@@ -101,6 +109,18 @@ NIDUS_PRELOAD_JS = r"""
    task.promise.then(function(entry){cleanup();if(signal.aborted)reject(aborted());else resolve(entry)},
                      function(error){cleanup();reject(error)});
   });
+ };
+ NidusImageCache.prototype._decodeStored=async function(task,entry){
+  try{
+   if(task.generation!==this.generation||!this._wanted(task))throw aborted();
+   var image=new Image();image.src=entry.url;await image.decode();
+   if(task.generation!==this.generation||!this._wanted(task))throw aborted();
+   var bytes=entry.width*entry.height*4;
+   if(!this._trim(bytes,1,0,entry))throw new RangeError('NIDUS image cache limit');
+   entry.image=image;entry.decodedBytes=bytes;entry.bytes+=bytes;this.bytes+=bytes;this.decodedEntries++;
+   task.resolve(entry);
+  }catch(error){task.reject(error)}
+  finally{entry.pins=Math.max(0,entry.pins-1);if(this.pending.get(task.key)===task)this.pending.delete(task.key)}
  };
  NidusImageCache.prototype._drain=async function(){
   if(this.running) return; this.running=true;
@@ -199,12 +219,14 @@ NIDUS_PRELOAD_JS = r"""
    root.inert=true;root.setAttribute('aria-busy','true');return snapshot;
   });
   function translate(node,label){
-   if(global.uiTexto)global.uiTexto(node,label);else node.textContent=label;
+   var value=global.radaiFrase?global.radaiFrase(label):label;
+   if(global.uiTexto)global.uiTexto(node,value);else node.textContent=value;
   }
   function restore(){
    self._roots.forEach(function(s){s.root.inert=s.inert;
     if(s.busy===null)s.root.removeAttribute('aria-busy');else s.root.setAttribute('aria-busy',s.busy)});
    global.uiCarregando(art,false);
+   if(self.thinking)self.thinking.close();
   }
   function close(){
    if(self.closed)return;self.closed=true;restore();
@@ -215,9 +237,11 @@ NIDUS_PRELOAD_JS = r"""
   this.modal=global.uiModal({titulo:options.title||'Preparando a série',no:box,largura:480,
                            fecharFora:false,origem:options.origin,aoFechar:close});
   cancel.addEventListener('click',function(){self.cancel()});
+  global.uiCarregando(art,true,'');
+  if(global.NidusThinking)self.thinking=global.NidusThinking.mount(art);
   this.step=function(label,done,total){
    if(self.closed)return;
-   translate(status,label);global.uiCarregando(art,true,label);
+   translate(status,label);if(self.thinking)self.thinking.step(label);
    progress.setAttribute('aria-label',status.textContent);
    if(Number.isFinite(done)&&Number.isFinite(total)&&total>0){
     progress.max=total;progress.value=Math.min(total,Math.max(0,done));

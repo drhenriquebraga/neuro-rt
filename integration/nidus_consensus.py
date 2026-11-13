@@ -299,7 +299,10 @@ def attach_consensus_api(app, sessions, resolve_source):
                     value['consensus_mesh'] = {'candidate': candidate.id, 'revision': candidate.revision,
                                               'id': identity, 'stl': mesh['stl'], 'metadata': metadata}
                     return dict(metadata)
-            return queued(value, service, 'preparing', calculate)
+            # This bounded read-only view is interactive; it must not wait behind
+            # an unrelated segmentation/export job in the clinical work queue.
+            # Its per-session lock and revision check still serialize snapshots.
+            return calculate(lambda: None)
         return await perform(run)
 
     @app.get('/api/nidus/consenso/malha/download')

@@ -48,6 +48,12 @@ const hold = () => {let release; const promise=new Promise(resolve=>{release=res
   if(output){fs.mkdirSync(output,{recursive:true});await page.screenshot({path:path.join(output,'nidus-initial-loading.png'),fullPage:true})}
   lastMpr.release();while(!warmWaiting)await delay(20);
   assert.equal(await page.evaluate(()=>ND.abrindo),true,'preset preparation also holds readiness');
+  const art=page.locator('.nd-thinking');
+  assert.equal(await art.count(),1);
+  const firstState=await art.innerText();
+  assert.notEqual(firstState,await page.locator('.ui-modal p[role="status"]').innerText(),'art and progress status must not duplicate the same sentence');
+  await page.waitForFunction(previous=>document.querySelector('.nd-thinking').innerText!==previous,firstState);
+  assert.equal(await page.locator('.nd-thinking .t-think-text').evaluate(e=>getComputedStyle(e).transitionDuration),'0s');
   warm.release();await page.waitForFunction(()=>ND.aberta&&!ND.abrindo&&!ND.projetando);
   assert.equal(await page.locator('#nd_wrap').evaluate(e=>e.inert),false);
   assert.deepEqual(await page.evaluate(()=>['nd_proj','nd_pl0','nd_pl1','nd_pl2'].map(id=>document.getElementById(id).naturalWidth)),[256,256,256,256]);

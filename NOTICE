@@ -38,6 +38,12 @@ LICENSE.template-MNI.txt; a licença do NeuroRT não os substitui.
 Somente os NIfTI públicos fixados em catalog/atlas_assets.json são distribuídos.
 Nenhuma imagem de exame, cache de demonstração ou resultado integra a release.
 
+NIDUS loading status uses the public free Thinking states recipe by
+Jakub Antalik / Transitions.dev, adapted to actual DICOM preparation phases.
+Source: https://github.com/Jakubantalik/transitions.dev/blob/main/cli/free/thinking-states.md
+Only this scoped application component is incorporated; the upstream library
+is not redistributed as a standalone library. Reduced-motion behavior is kept.
+
 Os dois runtimes privados preservam LICENSE.txt do CPython e os textos das
 dependências nos respectivos diretórios de distribuição. O runtime científico
 usa CPython embeddable 3.12.10 e um lock independente; não copia os executáveis

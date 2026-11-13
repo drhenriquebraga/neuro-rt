@@ -135,6 +135,14 @@ function harness() {
   assert(c.get(rotation[10]).image);assert(c.get(rotation[36]).image,'visible projection remains pinned');
   assert.equal(c.stats().decoded,8);c.reset();assert.equal(c.stats().decoded,0);
 
+  h=harness();c=new h.NidusImageCache({maxBytes:300,maxEntries:3,maxDecodedEntries:1});
+  await c.load('/stored');await c.load('/second');assert.equal(c.get('/stored').image,null);
+  h.gates.set('/cold-network',deferred());const cold=c.load('/cold-network');
+  await c.load('/stored');
+  assert(c.get('/stored').image,'a retained image decodes while an unrelated cold projection is still pending');
+  assert.equal(h.requested.filter(url=>url==='/stored').length,1);
+  h.gates.get('/cold-network').resolve();await cold;c.reset();
+
   h = harness();let cancelledCount = 0;
   const root = new h.Element();root.setAttribute('aria-busy','false');
   const dialog = new h.NidusOpeningDialog({roots:[root],onCancel:()=>cancelledCount++});
