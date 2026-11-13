@@ -8,6 +8,8 @@ import radai_menu
 import radai_nidus
 import radai_recon3d_gl
 import radai_web
+from neuro_rt.nidus_preload import NIDUS_PRELOAD_JS
+from neuro_rt.nidus_temporal_ui import NIDUS_TEMPORAL_JS
 
 try:
     from radai_recon3d_carm import JS as JS_SALA_COMPARTILHADA
@@ -472,6 +474,8 @@ var ND_MIN_CORTES = @MIN_CORTES@;
 var ND_INCIDENCIAS = @INCIDENCIAS_JS@;
 var ND_LADO_PREVIA = @LADO_PREVIA@;
 var ND_ABA = Math.random().toString(36).slice(2, 10);
+var ND_IMAGE_CACHE = new NidusImageCache({maxBytes:128*1024*1024,maxEntries:32});
+ND.carga=0; ND.corteSeq={}; ND.corteBusy={}; ND.preparo=null; ND.vizinhos=null; ND.ossoVersion=0;
 
 var ND_EPS = 0.5, ND_TETO_VERTICES = 120, ND_PASSO_MIN = 0.6;
 var ND_TETO_HISTORICO = 60, ND_FILA_A_CADA_MS = 15000, ND_FILA_TENTATIVAS = 960;
@@ -549,9 +553,10 @@ function ndAplicar(f, comDesenho){
  }
 }
 
-function ndPodeDesenhar(){ return !!(ND.aberta && !ND.projetando) }
+function ndDisponivel(){ return !!(ND.aberta && !ND.abrindo && !ND.cineActive) }
+function ndPodeDesenhar(){ return !!(ndDisponivel() && !ND.projetando) }
 function ndTravas(){
- var aberta=!!ND.aberta;
+ var aberta=ndDisponivel();
  ND_TRAVAVEIS.forEach(function(i){ var e=ndEl(i); if(e) e.disabled=!aberta });
  ['#nd_incid .nd-bt','#nd_jan .nd-bt'].forEach(function(sel){
   var bs=document.querySelectorAll(sel);
@@ -706,6 +711,11 @@ function ndRotuloDaSerie(t){
 
 function ndAbrirSerie(s){
  if(!s || !s.bilhete) return;
+ var carga=++ND.carga;
+ if(ND.preparo){ND.preparo.finish();ND.preparo=null}
+ if(ND.vizinhos)ND.vizinhos.abort();
+ clearTimeout(ND.vizinhosTimer); clearTimeout(ND.rodaTimer);
+ ND_IMAGE_CACHE.reset();
  ND.tofPedido=(ND.tofPedido||0)+1;
  ndFecharEscolha();
  if(ND.tabela && s.origem!=='acervo') ND.tabela.marcar(null);
@@ -718,6 +728,8 @@ function ndAbrirSerie(s){
  ND.recruzar=false; ND.voltando=false; ND.refeitas=0; ND.recuperavel=false;
  ND.bom=null; ND.historico=[]; ND.fila=null; ND.tem_osso=false; ND.ossoInfo=null;
  ND.restaurou=false; ND.substituirOsso=false;
+ ND.corteBusy={};
+ ND.ossoVersion=0;
  ND.geo=null; ND.seguir=true; ND.previa=false; ND.previaNoAr=false; ND.previaDepois=false;
  // GUARDA: série nova abre nos padrões; só o estado salvo DELA os muda (depois do abrir).
  ndPadroes();
@@ -729,18 +741,30 @@ function ndAbrirSerie(s){
  // GUARDA: a imagem da série anterior sai já; sob o carregamento ela pareceria a nova.
  ['nd_proj','nd_pl0','nd_pl1','nd_pl2'].forEach(function(i){
   var im=ndEl(i); if(im && im.removeAttribute) im.removeAttribute('src') });
- ndCarregando(true);
+ var preparo=new NidusOpeningDialog({
+  roots:[ndEl('nd_wrap')],
+  title:'Preparando a série',initialLabel:'Lendo as imagens da série…',
+  onCancel:function(){
+   if(carga!==ND.carga)return;
+   ND.carga++;ND.preparo=null;ND.abrindo=false;ND.projetando=false;
+   ND_IMAGE_CACHE.reset();ndCarregando(false);
+   ['nd_proj','nd_pl0','nd_pl1','nd_pl2'].forEach(function(id){var im=ndEl(id);if(im)im.removeAttribute('src')});
+   ndBloquear('Preparo cancelado.',true);ndMsg(ND.motivo,'');
+  }
+ });
+ ND.preparo=preparo;
  [0,1,2].forEach(function(eixo){ ndLinhas(eixo) });
  ndEscala(null); ndOsso(null);
  ndMsg('abrindo a série…','');
  var b=ND.b;
  fetch('/api/nidus/abrir',{method:'POST',
+   signal:preparo.signal,
    headers:{'Content-Type':'application/json'},
    body:JSON.stringify({b:b, origem:s.origem||''})})
-  .then(function(r){return r.json()}).then(function(d){
-   if(b!==ND.b) return;
-   ND.abrindo=false;
+  .then(function(r){return r.json()}).then(async function(d){
+   if(b!==ND.b || carga!==ND.carga) return;
    if(!d || d.erro || !d.forma){
+    ND.abrindo=false;preparo.finish();ND.preparo=null;
     ndCarregando(false);
     ndBloquear((d && d.erro) ? String(d.erro) : 'a série não pôde ser lida.');
     ndMsg2(ND.motivo, 'nesta série nada pode ser desenhado: escolha outra na lista.', 'erro');
@@ -758,17 +782,33 @@ function ndAbrirSerie(s){
    if(salvo) ndAplicar(salvo, true);
    ND.restaurou=!!ND.guardadas.length;
    ndSincronizar(); ndOsso(d.osso||null); ndTravas();
+   ndPintarMarca(); ndPintarCaixas(); ndPintarPegada();
+   preparo.step('Preparando a projeção e os cortes…',0,4);
+   var prontos=0;
+   await Promise.all([ndProjetar(false,true),ndCorte(0,false,true),ndCorte(1,false,true),ndCorte(2,false,true)]
+    .map(function(p){return p.then(function(){
+     if(carga===ND.carga)preparo.step('Preparando a projeção e os cortes…',++prontos,4);
+    })}));
+   if(carga!==ND.carga || preparo.signal.aborted)return;
+   var urls=ndUrlsPreparo(true);
+   preparo.step('Preparando as incidências…',0,urls.length);
+   await ND_IMAGE_CACHE.warm(urls,{signal:preparo.signal,onProgress:function(n,total){
+    if(carga===ND.carga)preparo.step('Preparando as incidências…',n,total);
+   }});
+   if(carga!==ND.carga || preparo.signal.aborted)return;
+   ND.abrindo=false;preparo.finish();ND.preparo=null;
+   ndTravas();ndConsControles();ndPintarGuardadas();
    if(ND.restaurou)
     ndMsg('a marcação salva desta série voltou: as incidências estão na lista','ok');
    else ndMsg('série aberta — escolha a incidência e circule a área','');
-   ndPintarMarca(); ndPintarCaixas(); ndPintarPegada();
-   ndProjetar(); ndPintarPlanos(true); ndPintarGuardadas();
    nd3Malhas();
    if(ND.guardadas.length) ndCalcular();
   })
-  .catch(function(e){ if(b!==ND.b) return;
-   ND.abrindo=false; ndCarregando(false);
-   ndBloquear('não consegui abrir: '+e, true); ndMsg(ND.motivo,'erro') });
+  .catch(function(e){ if(b!==ND.b || carga!==ND.carga) return;
+   if(e && e.name==='AbortError')return;
+   ND.abrindo=false;ndCarregando(false);preparo.finish();ND.preparo=null;
+   ND_IMAGE_CACHE.reset();
+   ndBloquear('Não foi possível preparar todas as imagens. Tente novamente.',true);ndMsg(ND.motivo,'erro') });
  ndPintarGuardadas();
 }
 
@@ -798,6 +838,7 @@ function ndUrlDaProjecao(lao, cra, lado){
    +'&lao='+lao+'&cra='+cra+'&modo='+ND.modo+'&janela='+ND.jan
    +'&lado='+lado+(ND.laje?('&laje='+ND.laje):'')
    +'&osso='+((ND.osso && ND.tem_osso)?1:0)
+   +'&osso_v='+ND.ossoVersion
    +((ND.caixa && !ndCaixaCheia(ND.caixa))?('&caixa='+ND.caixa.map(function(v){ return v.toFixed(4) }).join(',')):'');
 }
 function ndAlinharProjecao(img, lado){
@@ -805,35 +846,63 @@ function ndAlinharProjecao(img, lado){
  var offset=50*(1/lado-1/ND.lado);
  img.style.transform=offset?'translate('+(-offset)+'%, '+offset+'%)':'';
 }
-function ndProjetar(previa){
- if(!ND.b || !ND.aberta) return;
- var img=ndEl('nd_proj'), b=ND.b, lado=previa?ND_LADO_PREVIA:ND.resolucao;
+function ndUrlsPreparo(presets){
+ var angulos=presets?ND_INCIDENCIAS.map(function(i){return[i[1],i[2]]}):[];
+ [-10,-5,5,10].forEach(function(d){
+  angulos.push([Math.max(-180,Math.min(180,ND.lao+d)),ND.cra]);
+  angulos.push([ND.lao,Math.max(-90,Math.min(90,ND.cra+d))]);
+ });
+ return angulos.map(function(a){
+  var u=new URL(ndUrlDaProjecao(a[0],a[1],ND.resolucao),location.href);
+  u.searchParams.set('t',ND_ABA+'-preparo-'+ND.carga);u.searchParams.set('n','0');return u.href;
+ });
+}
+function ndAgendarVizinhos(){
+ clearTimeout(ND.vizinhosTimer);
+ if(ND.vizinhos)ND.vizinhos.abort();
+ if(!ndDisponivel() || ND.cineActive)return;
+ var carga=ND.carga, controller=new AbortController();ND.vizinhos=controller;
+ ND.vizinhosTimer=setTimeout(function(){
+  if(carga!==ND.carga || !ndDisponivel())return;
+  ND_IMAGE_CACHE.warm(ndUrlsPreparo(false),{signal:controller.signal}).catch(function(){});
+ },180);
+}
+function ndProjetar(previa, inicial){
+ if(!ND.b || !ND.aberta) return Promise.resolve();
+ var img=ndEl('nd_proj'), b=ND.b, carga=ND.carga, lado=previa?ND_LADO_PREVIA:ND.resolucao;
+ var seq=++ND.seqProj, lao=previa?ND.ver.lao:ND.lao, cra=previa?ND.ver.cra:ND.cra;
+ var url=ndUrlDaProjecao(lao,cra,lado), cached=ND_IMAGE_CACHE.get(url);
+ function atual(){return b===ND.b && carga===ND.carga && seq===ND.seqProj}
+ img.onload=null;img.onerror=null;
  ND.projetando=true; ND.tracando=false;
+ if(ND.vizinhos)ND.vizinhos.abort();clearTimeout(ND.vizinhosTimer);
  if(previa){
   ND.previa=true; ND.previaNoAr=true;
-  img.onerror=function(){ if(b!==ND.b) return; ND.previaNoAr=false };
-  img.onload=function(){ if(b!==ND.b) return;
-   ndAlinharProjecao(img, lado); ND.previaNoAr=false;
-   if(ND.previaDepois){ ND.previaDepois=false; ndProjetar(true) } };
-  ND.seqProj++;
-  img.src=ndUrlDaProjecao(ND.ver.lao, ND.ver.cra, lado);
-  ndEstado(); ndTravas();
-  return;
+ }else{
+  ND.previa=false;ND.previaNoAr=false;ND.previaDepois=false;
  }
- ND.previa=false; ND.previaNoAr=false; ND.previaDepois=false;
- ndTravas();
- img.onerror=function(){ if(b!==ND.b) return;
-  img.removeAttribute('src'); ND.projetando=false;
-  ndCarregando(false); ndTravas(); ndEstado(); ndFalhou('proj') };
- img.onload=function(){ if(b!==ND.b) return;
-  ndAlinharProjecao(img, lado);
-  ND.projetando=false; ND.voltando=false;
-  ndCarregando(false); ndMarcarBom(); ndTravas(); ndEstado() };
- ndCarregando(true);
- ND.seqProj++;
- img.src=ndUrlDaProjecao(ND.lao, ND.cra, lado);
- ndEstado();
- ndPedirEixos(ND.lao, ND.cra);
+ ndTravas();ndEstado();
+ // Keep the last frame during a cache miss; the pencil stays blocked until the
+ // requested final image has decoded. Cached presets need no loading overlay.
+ if(!cached && !previa && !ND.abrindo)ndCarregando(true);
+ if(!previa)ndPedirEixos(lao,cra);
+ return ND_IMAGE_CACHE.paint(img,url,{priority:previa?2:3,current:atual,
+   signal:inicial&&ND.preparo?ND.preparo.signal:undefined}).then(function(){
+  if(!atual())return;
+  ndAlinharProjecao(img,lado);
+  if(previa){
+   ND.previaNoAr=false;
+   if(ND.previaDepois){ND.previaDepois=false;ndProjetar(true)}
+  }else{
+   ND.projetando=false;ND.voltando=false;ndCarregando(false);ndMarcarBom();ndAgendarVizinhos();
+  }
+  ndTravas();ndEstado();
+ }).catch(function(e){
+  if(!atual() || (e&&e.name==='AbortError'))return;
+  ND.previaNoAr=false;
+  if(inicial)throw e;
+  if(!previa){ND.projetando=true;ndCarregando(false);ndTravas();ndEstado();ndFalhou('proj')}
+ });
 }
 function ndMudarResolucao(campo){
  var lado=+campo.value;
@@ -966,11 +1035,15 @@ function ndSeguirAlternar(){
  if(ND.seguir) ndEnquadrar();
 }
 function ndRoda(ev){
- if(!ND.b) return;
+ if(!ndDisponivel() || !ev.deltaY) return;
  if(ev.preventDefault) ev.preventDefault();
- ndSeguirDesligar();
- var p=ndEl('nd_palco'), r=p.getBoundingClientRect();
- ndZoomEm(ND.zoom.k*(ev.deltaY<0?1.15:1/1.15), ev.clientX-r.left, ev.clientY-r.top);
+ if(ev.ctrlKey){
+  ndSeguirDesligar();
+  var p=ndEl('nd_palco'), r=p.getBoundingClientRect();
+  ndZoomEm(ND.zoom.k*(ev.deltaY<0?1.15:1/1.15),ev.clientX-r.left,ev.clientY-r.top);return;
+ }
+ var passo=ev.deltaY>0?5:-5;
+ ndAngulo(ev.shiftKey?ND.lao:ND.lao+passo,ev.shiftKey?ND.cra+passo:ND.cra);
 }
 var ND_ARRASTO=null;
 function ndQuerMover(ev){ return !!(ev && (ev.button===1 || ev.shiftKey)) }
@@ -1151,7 +1224,7 @@ function ndPontoNoCorte(svg, ev, eixo){
 }
 var ND_CX=null;
 function ndCaixaPegar(eixo, ev){
- if(!ND.caixaOn || !ND.telas || !ND.caixa || !ND.aberta) return;
+ if(!ND.caixaOn || !ND.telas || !ND.caixa || !ndDisponivel() || ND.corteBusy[eixo]) return;
  var svg=ndEl('nd_cx'+eixo), p=ndPontoNoCorte(svg, ev, eixo), r=ndCaixaNoCorte(eixo);
  var tol=0.035, dx=p[0]>r[0]-tol && p[0]<r[2]+tol, dy=p[1]>r[1]-tol && p[1]<r[3]+tol;
  var h={a0:Math.abs(p[0]-r[0])<tol && dy, a1:Math.abs(p[0]-r[2])<tol && dy,
@@ -1192,7 +1265,7 @@ function ndCaixaSoltar(){
 function ndIncidencia(lao,cra,nome){ ndAngulo(lao, cra) }
 
 function ndAngulo(lao, cra){
- if(!ND.aberta) return;
+ if(!ndDisponivel()) return;
  lao=Math.max(-180, Math.min(180, Math.round(+lao||0)));
  cra=Math.max(-90, Math.min(90, Math.round(+cra||0)));
  if(lao===ND.lao && cra===ND.cra){
@@ -1211,7 +1284,7 @@ function ndAngulo(lao, cra){
  if(guardou) ndMsg('o traço da incidência anterior foi guardado antes de girar','ok');
 }
 function ndPreverAng(lao, cra){
- if(!ND.aberta) return;
+ if(!ndDisponivel()) return;
  lao=Math.round(+lao||0); cra=Math.round(+cra||0);
  lao=((lao+180)%360+360)%360-180; if(lao===-180 && ND.ver.lao>0) lao=180;
  cra=Math.max(-90, Math.min(90, cra));
@@ -1486,14 +1559,16 @@ function ndFilaVigiar(espera){
  }, (espera==null) ? ND_FILA_A_CADA_MS : espera);
 }
 function ndOssoRecarregar(porque){
- var b=ND.b;
+ var b=ND.b,carga=ND.carga;
  fetch('/api/nidus/osso',{method:'POST', headers:{'Content-Type':'application/json'},
    body:JSON.stringify({b:b})})
   .then(function(r){return r.json()}).then(function(d){
-   if(b!==ND.b) return;
+   if(b!==ND.b || carga!==ND.carga) return;
    if(!d || !d.osso){ ndPintarOsso();
     ndMsg2((d && d.erro) ? String(d.erro) : 'sem resposta', 'não consegui reler a segmentação: escolha a série de novo.', 'erro');
     return }
+   if(ND.vizinhos)ND.vizinhos.abort();
+   ND.ossoVersion++;
    ndOsso(d.osso);
    if(ND.tem_osso){ ND.osso=true; ndPintarOsso(); ndRegistrar('osso'); ndProjetar();
     nd3Esquecer(); nd3Malhas();
@@ -1657,21 +1732,30 @@ function ndLinhasFalharam(motivo){
 }
 
 var ND_T_CORTE={};
-function ndCorte(eixo, brilho){
+function ndCorte(eixo, brilho, inicial){
  var img=ndEl('nd_pl'+eixo), palco=ndEl('nd_pp'+eixo);
- if(!img || !ND.b || !ND.aberta) return;
+ if(!img || !ND.b || !ND.aberta) return Promise.resolve();
  if(ND_T_CORTE[eixo]){ clearTimeout(ND_T_CORTE[eixo]); ND_T_CORTE[eixo]=null }
- var b=ND.b;
+ var b=ND.b,carga=ND.carga;
+ ND.corteSeq[eixo]=(ND.corteSeq[eixo]||0)+1;var seq=ND.corteSeq[eixo];
+ ND.corteBusy[eixo]=true;
+ function atual(){return b===ND.b && carga===ND.carga && seq===ND.corteSeq[eixo]}
  function fim(){ if(ND_T_CORTE[eixo]){ clearTimeout(ND_T_CORTE[eixo]); ND_T_CORTE[eixo]=null }
   ndCarregando(false, palco) }
- if(brilho) ndCarregando(true, palco, ND.abrindo?'abrindo a série…':'carregando o corte…');
- else ND_T_CORTE[eixo]=setTimeout(function(){
-  ndCarregando(true, palco, 'carregando o corte…') }, 250);
- img.onerror=function(){ if(b!==ND.b) return; img.removeAttribute('src'); fim(); ndFalhou('corte') };
- img.onload=function(){ fim() };
- img.src='/api/nidus/corte?b='+encodeURIComponent(ND.b)
+ var url='/api/nidus/corte?b='+encodeURIComponent(ND.b)
    +'&eixo='+eixo+'&pos='+ND.planos[eixo]+'&janela='+ND.jan;
+ if(!ND.abrindo && !ND_IMAGE_CACHE.get(url)){
+  if(brilho)ndCarregando(true,palco,'carregando o corte…');
+  else ND_T_CORTE[eixo]=setTimeout(function(){if(atual())ndCarregando(true,palco,'carregando o corte…')},250);
+ }
+ img.onload=null;img.onerror=null;
  ndLinhas(eixo);
+ return ND_IMAGE_CACHE.paint(img,url,{priority:2,current:atual,
+  signal:inicial&&ND.preparo?ND.preparo.signal:undefined}).then(function(){if(atual()){ND.corteBusy[eixo]=false;fim()}})
+  .catch(function(e){
+   if(!atual() || (e&&e.name==='AbortError'))return;
+   fim();if(inicial)throw e;ndFalhou('corte');
+  });
 }
 
 function ndPintarPlanos(brilho){
@@ -1714,13 +1798,13 @@ function ndLinhas(eixo){
 }
 
 function ndJanela(j){
- if(!ND.aberta) return;
+ if(!ndDisponivel()) return;
  ND.jan=j;
  ndSincronizar(); ndRegistrar('janela');
  ndProjetar(); ndPintarPlanos(true);
 }
 function ndModo(m){
- if(!ND.aberta) return;
+ if(!ndDisponivel()) return;
  ND.modo=m;
  ndSincronizar(); ndRegistrar('modo'); ndProjetar();
 }
@@ -2181,7 +2265,7 @@ function ndMaximizarAngio(){
  ndAjustarTela();
 }
 function ndMprRoda(eixo,event){
- if(!ND.aberta || !ND.forma || ND.consensoBusy || !event.deltaY)return;
+ if(!ndDisponivel() || !ND.forma || ND.consensoBusy || !event.deltaY)return;
  event.preventDefault();
  var n=ND.forma[eixo]||1;
  ND.planos[eixo]=Math.max(0,Math.min(1,ND.planos[eixo]+(event.deltaY>0?1:-1)/Math.max(1,n-1)));
@@ -2249,7 +2333,7 @@ function ndPopoverPosition(details){
  panel.style.left=shift+'px';
 }
 function ndConsControles(){
- var ready=!!ND.sessao && !ND.cruzando && !ND.consensoBusy;
+ var ready=ndDisponivel() && !!ND.sessao && !ND.cruzando && !ND.consensoBusy;
  ['nd_cons_editar','nd_cons_exportar'].forEach(function(id){ var e=ndEl(id); if(e) e.disabled=!ready });
  var center=ndEl('nd_cons_centrar');if(center)center.disabled=!ready;
  var incluir=ndEl('nd_cons_anatomia'), painel=ndEl('nd_cons_anatomia_painel');
@@ -2261,7 +2345,7 @@ function ndConsControles(){
   ND.consEntrega=null; ndEl('nd_cons_entrega').hidden=true;
  }
  [0,1,2].forEach(function(axis){
-  var b=ndEl('nd_max'+axis); if(b) b.disabled=!ND.aberta || ND.cruzando || ND.consensoBusy;
+  var b=ndEl('nd_max'+axis); if(b) b.disabled=!ndDisponivel() || ND.cruzando || ND.consensoBusy;
   var pane=ndEl('nd_pp'+axis); if(pane) pane.classList.toggle('nd-editavel', !!(ready && ND.consensoEditavel));
  });
  var slider=ndEl('nd_temperatura'); if(slider) slider.disabled=!ready || ND.consensoEditavel;
@@ -2421,7 +2505,7 @@ function ndEditPaint(trace){
  svg.innerHTML='<rect width="100%" height="100%" fill="transparent"/><polyline class="nd-edit-trace" points="'+points+'"/>';
 }
 function ndEditStart(axis,event){
- if(!ND.consensoEditavel || ND.consensoBusy || event.button!==0 || !ND.forma) return;
+ if(!ndDisponivel() || ND.corteBusy[axis] || !ND.consensoEditavel || ND.consensoBusy || event.button!==0 || !ND.forma) return;
  var index=Math.round(ND.planos[axis]*(ND.forma[axis]-1));
  if(ND.consIndices[axis]!==index) return;
  var svg=ndEl('nd_ed'+axis);event.preventDefault();
@@ -2573,7 +2657,7 @@ window.addEventListener('DOMContentLoaded', function(){
 });
 """
 
-JS = (radai_recon3d_gl.JS + JS_SALA_COMPARTILHADA + radai_nidus.JS_CONVENCAO
+JS = (radai_recon3d_gl.JS + JS_SALA_COMPARTILHADA + radai_nidus.JS_CONVENCAO + NIDUS_PRELOAD_JS
       + JS_TELA.replace(u"@LADO@", str(LADO_DA_TELA))
       .replace(u"@LADOS@", json.dumps(LADOS))
       .replace(u"@MODALIDADES@", json.dumps(list(MODALIDADES)))
@@ -2582,6 +2666,8 @@ JS = (radai_recon3d_gl.JS + JS_SALA_COMPARTILHADA + radai_nidus.JS_CONVENCAO
           [[n, int(a), int(b)] for n, a, b in radai_nidus.INCIDENCIAS],
           ensure_ascii=False))
       .replace(u"@LADO_PREVIA@", str(LADO_DA_PREVIA)))
+
+JS += NIDUS_TEMPORAL_JS
 
 AJUDA_PROJECAO_PARALELA = (
     u"A projeção é paralela, sem ampliação. A sala mostra a posição do arco "
@@ -2594,6 +2680,10 @@ AJUDA_CONVENCAO = (
 AJUDA_PREVIA = (
     u"Enquanto um ângulo é arrastado, chega uma prévia em baixa resolução; o "
     u"lápis espera a projeção cheia.")
+
+AJUDA_RODA = (
+    u"Na angiografia, a roda gira LAO/RAO em passos de 5°. Shift + roda gira CRA/CAU; "
+    u"Ctrl + roda ajusta o zoom. Nos três MPR, a roda percorre os cortes.")
 
 AJUDA_RESOLUCAO = (
     u"A projeção final usa a maior amostragem disponível no motor, a partir dos dados originais, sem super-resolução por IA. "
@@ -2628,7 +2718,7 @@ def _cabeca():
         u"a lógica da angiografia biplanar.",
         radai_nidus.SEM_VOLUME, radai_nidus.LIMITACAO_CLINICA,
         radai_nidus.LIMITACAO_RM, AJUDA_PROJECAO_PARALELA, AJUDA_CONVENCAO,
-        AJUDA_PREVIA, AJUDA_RESOLUCAO, AJUDA_CONTRASTE_RM, AJUDA_3D, AJUDA_LINHAS)
+        AJUDA_PREVIA, AJUDA_RODA, AJUDA_RESOLUCAO, AJUDA_CONTRASTE_RM, AJUDA_3D, AJUDA_LINHAS)
     return radai_ui.cabeca_de_funcao(
         u"cruzamento", u"NIDUS RT", u"", ajuda, u"nidus")
 
@@ -3246,7 +3336,7 @@ def montar(app, host_services=None):
     def _tela():
         from integration.localization import with_catalog
 
-        return with_catalog(radai_menu.aplicar(pagina(), "nidus_projecao"), "neuro")
+        return with_catalog(radai_menu.aplicar(pagina(), "nidus_projecao"), "neuro", "nidus-temporal")
 
     def _abrir(b, resolvido=None):
         try:
@@ -3323,6 +3413,16 @@ def montar(app, host_services=None):
     _TRAVA_PROJ = threading.Lock()
     _TRAVA_PEDIDAS = threading.Lock()
     _PEDIDAS = OrderedDict()
+
+    def _resolver_temporal(ticket, origem):
+        if origem == "acervo":
+            import radai_tabela_acervo
+            return radai_tabela_acervo.resolver(ticket)
+        import radai_thumbnail
+        return radai_thumbnail.resolver(ticket)
+
+    from neuro_rt.nidus_temporal_api import attach_temporal
+    attach_temporal(app, _resolver_temporal, projection_lock=_TRAVA_PROJ)
 
     def _anotar_pedida(aba, n):
         if not aba or n <= 0:

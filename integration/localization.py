@@ -10,6 +10,10 @@ def with_catalog(page, *names, study=False):
     root = Path(__file__).resolve().parents[1] / 'web'
     catalog = {}
     for name in names:
+        if name == 'nidus-temporal':
+            from neuro_rt.nidus_temporal_i18n import merge_catalog
+            catalog = merge_catalog(catalog)
+            continue
         data = json.loads((root / (name + '-i18n.json')).read_text(encoding='utf-8'))
         for language, phrases in data.items():
             catalog.setdefault(language, {}).update(phrases)

@@ -1,5 +1,6 @@
 """Manual Nidus editing/export on synthetic oblique reference data only."""
 from pathlib import Path
+import os
 import sys
 import tempfile
 import unittest
@@ -9,7 +10,7 @@ from types import SimpleNamespace
 import numpy as np
 import SimpleITK as sitk
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'RECON_3D/app'))
+sys.path.insert(0, os.environ.get('RADAI_RECON_APP', str(Path(__file__).resolve().parents[2] / 'RECON_3D/app')))
 import radai_projection as N
 from neuro_rt import nidus_geometry as G
 
@@ -63,7 +64,7 @@ class NidusGeometryTests(unittest.TestCase):
                 packed=lambda temperature, progress=None: N.compactar(mask))
             candidate = G.NidusCandidate(core, 42)
             output = G.export_candidate(candidate, root / 'source', uid,
-                Path(__file__).resolve().parents[2] / 'AUTO_CONTORNO', root / 'result')
+                Path(os.environ.get('NEURO_HOST_ROOT', str(Path(__file__).resolve().parents[2] / 'AUTO_CONTORNO'))), root / 'result')
             written = pydicom.dcmread(output)
             self.assertEqual(str(written.ApprovalStatus), 'UNAPPROVED')
             self.assertEqual(written.ReferencedFrameOfReferenceSequence[0].FrameOfReferenceUID, frame)
