@@ -2649,7 +2649,7 @@ window.addEventListener('DOMContentLoaded', function(){
  var vs=ndEl('nd_vista');
  if(vs) vs.addEventListener('change', function(){ nd3Vista(vs.value) });
  window.addEventListener('keydown', function(ev){
-  if(ev.key==='Escape' && !ND.tracando && ND.pontos.length){ ND.pontos=[]; ndPintarMarca(); ndAtualizarGuardar() } });
+  if(!ND.cineActive && ev.key==='Escape' && !ND.tracando && ND.pontos.length){ ND.pontos=[]; ndPintarMarca(); ndAtualizarGuardar() } });
  ndLigarPad();
  nd3Iniciar(); nd3SalaPadrao(); nd3Vista('sala');
  ndSincronizar(); ndTravas(); ndPintarGuardadas(); ndAjustarTela();

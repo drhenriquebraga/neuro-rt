@@ -94,6 +94,14 @@ const sample=index=>'<svg xmlns="http://www.w3.org/2000/svg" width="512" height=
    if(out&&['en','pt-BR','ar','ja'].includes(locale))await page.screenshot({path:path.join(out,'cine-ready-'+locale+'.png'),fullPage:true});
 
    if(locale==='en'){
+    await page.evaluate(()=>{
+     const closing=uiModal({titulo:'Synthetic closing dialog',html:'<p>Synthetic fixture</p>'});
+     closing.fechar();
+     window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));
+    });
+    assert.equal(await page.evaluate(()=>JSON.stringify({b:ND.b,sessao:ND.sessao,photo:ndFoto()})),reference,
+     'Escape during the dialog exit animation must not clear a pending static trace');
+    await page.waitForSelector('.ui-modal',{state:'detached'});
     const frameCount=()=>calls.filter(c=>c.path.startsWith('/api/nidus/temporal/frame/')).length;
     const framesBefore=frameCount();
     await page.locator('#nd_cine_play').click();await page.waitForFunction(()=>NidusTemporal.state.index===2);
