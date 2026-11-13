@@ -134,8 +134,9 @@ const sample=index=>'<svg xmlns="http://www.w3.org/2000/svg" width="512" height=
    assert(await page.locator('#nd_serie_cx').isVisible());
    assert.equal(await page.locator('#nd_serie_cx').innerText(),staticLabel,'return must restore the static reference card');
    assert.equal(await page.evaluate(()=>JSON.stringify({b:ND.b,sessao:ND.sessao,photo:ndFoto()})),reference);
-   await page.locator('#nd_angio_max').click();assert(await page.locator('#nd_colB').isHidden());
-   await page.locator('#nd_angio_max').click();assert(await page.locator('#nd_colB').isVisible());
+   assert.equal(await page.locator('#nd_angio_max').count(),0);
+   await page.locator('#nd_pp0').dblclick();assert.equal(await page.evaluate(()=>ND.principal),0);
+   await page.locator('#nd_layout_original').click();assert(await page.locator('#nd_colB').isVisible());
    scenario='empty';await choose();
    await page.waitForFunction(()=>document.getElementById('nd_cine_status').textContent===radaiFrase('Nenhuma sequência temporal compatível foi encontrada.'));
    const noTemporal=page.locator('.ui-modal-veu.vis:not(.saindo)');await noTemporal.waitFor();

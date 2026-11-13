@@ -29,7 +29,7 @@ const expected=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
    for(const width of [1366,390]){
     console.log('Review '+locale+' '+width);
     await page.setViewportSize({width,height:width===1366?768:844});
-    await page.evaluate(()=>{ndMaximizar(null);if(ND.angioMax)ndMaximizarAngio();ndAjustarTela()});
+    await page.evaluate(()=>{ndMaximizar(null);ndAjustarTela()});
     for(const axis of [0,1,2]){
      await page.locator('#nd_pp'+axis).dblclick();
      assert.equal(await page.evaluate(()=>ND.principal),axis,'MPR swap');
@@ -39,18 +39,12 @@ const expected=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
      assert(Math.abs(after.pos-before.pos-1/(before.n-1))<1e-9,'wheel moved more than one slice');
      assert.equal(after.zoom,before.zoom,'MPR wheel changed angio zoom');
     }
-    try{await page.locator('#nd_angio_max').click({timeout:5000});}
-    catch(error){
-     await page.screenshot({path:process.argv[4]+'/nidus-a-blocked-'+locale+'-'+width+'.png',fullPage:true});
-     console.log(await page.evaluate(()=>{const b=document.getElementById('nd_angio_max'),r=b.getBoundingClientRect();return {button:{x:r.x,y:r.y,width:r.width,height:r.height},interceptor:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.outerHTML.slice(0,180)}}));
-     throw error;
-    }
+    await page.locator('#nd_layout_original').click();
     assert.equal(await page.evaluate(()=>ND.principal),null);
-    assert(await page.locator('#nd_colB').isHidden());
-    await page.locator('#nd_angio_max').click();
+    assert.equal(await page.locator('#nd_angio_max').count(),0);
     assert(await page.locator('#nd_colB').isVisible());
     await page.evaluate(()=>ndZoomRepor());
-    await page.locator('#nd_palco').dispatchEvent('wheel',{deltaY:-120,clientX:200,clientY:200,cancelable:true});
+    await page.locator('#nd_palco').dispatchEvent('wheel',{deltaY:-120,ctrlKey:true,clientX:200,clientY:200,cancelable:true});
     assert(Math.abs(await page.evaluate(()=>ND.zoom.k)-1.15)<1e-9,'angio wheel zoomed more than once');
     await page.locator('#nd_cons_centrar').click();
     await page.waitForFunction(()=>ND.planos[0]===.25&&ND.planos[1]===.4&&ND.planos[2]===.75);
@@ -85,5 +79,5 @@ const expected=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
  }finally{await browser.close()}
  fs.writeFileSync(process.argv[4]+'/nidus-a-review.json',JSON.stringify(findings,null,2));
  if(findings.length)throw Error(JSON.stringify(findings.slice(0,8))+'; total findings='+findings.length);
- console.log('PASS '+locales.length+' locales, laptop/mobile, three MPR swaps, one-slice wheel, angio maximize/restore, consensus center/error states, keyboard popovers');
+ console.log('PASS '+locales.length+' locales, laptop/mobile, three MPR swaps, one-slice wheel, no fullscreen, consensus center/error states, keyboard popovers');
 })().catch(error=>{console.error(error);process.exitCode=1});

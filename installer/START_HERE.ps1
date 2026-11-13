@@ -31,7 +31,7 @@ function Resolve-NeuroSuite([string]$Root) {
         $python = Join-Path $suite $relative
         if (Test-Path -LiteralPath $python -PathType Leaf) { return [pscustomobject]@{ Root=$suite; Python=$python } }
     }
-    throw 'Selecione a Local Suite completa 8.21 ou posterior.'
+    throw 'Selecione a Local Suite completa 8.23 ou posterior.'
 }
 function New-NeuroBackendArguments([string]$CodeRoot, [string]$Root, [string[]]$Options) {
     $entry = 'import sys; sys.path.insert(0, sys.argv.pop(1)); from neuro_rt.setup_wizard import main; sys.exit(main())'
@@ -161,7 +161,7 @@ function Start-NeuroWizardAction($Context,[string]$Kind) {
     } catch {
         Remove-NeuroJobFiles $Context
         $Context.LastPhase='Não foi possível iniciar'
-        Write-NeuroWizardFailure $Context 'Confira a pasta da Local Suite completa 8.21 ou posterior e escolha uma pasta nova de destino.' 'WIZARD_START_FAILED' $Kind
+        Write-NeuroWizardFailure $Context 'Confira a pasta da Local Suite completa 8.23 ou posterior e escolha uma pasta nova de destino.' 'WIZARD_START_FAILED' $Kind
     }
     Update-NeuroControls $Context
 }
@@ -262,7 +262,7 @@ function New-NeuroWizard([string]$InitialSuiteRoot='', [string]$InitialOutputFol
     $subtitle=New-NeuroLabel 'Preparar na suíte instalada ou montar um pacote para transportar.'
     $subtitle.SetBounds(0,43,850,22); $subtitle.Anchor='Top, Left, Right'
     $header.Controls.AddRange(@($title,$subtitle)); Add-NeuroRow $header 78
-    $suitePanel=New-Object Windows.Forms.Panel; $suitePanel.Width=896; $suiteLabel=New-NeuroLabel 'Pasta da Local Suite completa (8.21 ou posterior)'
+    $suitePanel=New-Object Windows.Forms.Panel; $suitePanel.Width=896; $suiteLabel=New-NeuroLabel 'Pasta da Local Suite completa (8.23 ou posterior)'
     $suiteLabel.SetBounds(0,0,840,20)
     $rootText=New-Object Windows.Forms.TextBox; $rootText.SetBounds(0,25,745,28); $rootText.Anchor='Top, Left, Right'
     $browseSuite=New-NeuroButton 'Escolher…'; $browseSuite.SetBounds(755,23,138,32); $browseSuite.Anchor='Top, Right'
@@ -320,7 +320,7 @@ function New-NeuroWizard([string]$InitialSuiteRoot='', [string]$InitialOutputFol
     $offline.Add_Click({param($sender,$eventArgs) Start-NeuroWizardAction $sender.Tag 'offline'})
     $cancel.Add_Click({param($sender,$eventArgs) Request-NeuroCancel $sender.Tag})
     $browseSuite.Add_Click({param($sender,$eventArgs)
-        $dialog=New-Object Windows.Forms.FolderBrowserDialog;$dialog.Description='Selecione a pasta da Local Suite completa 8.21 ou posterior.';$dialog.ShowNewFolderButton=$false
+        $dialog=New-Object Windows.Forms.FolderBrowserDialog;$dialog.Description='Selecione a pasta da Local Suite completa 8.23 ou posterior.';$dialog.ShowNewFolderButton=$false
         try {if ($dialog.ShowDialog($sender.Tag.Form) -eq 'OK') {$sender.Tag.RootText.Text=$dialog.SelectedPath}} finally {$dialog.Dispose()} })
     $browseOutput.Add_Click({param($sender,$eventArgs)
         $dialog=New-Object Windows.Forms.FolderBrowserDialog;$dialog.Description='Escolha onde criar a NOVA pasta do pacote offline.';$dialog.ShowNewFolderButton=$false
@@ -351,7 +351,7 @@ if ($MyInvocation.InvocationName -ne '.') {
         [void]$wizard.Form.ShowDialog();$wizard.Form.Dispose();exit 0
     } catch {
         [Console]::Error.WriteLine('WIZARD_START_FAILED · Etapa: startup · '+$_.Exception.GetType().Name)
-        [Console]::Error.WriteLine('Não foi possível abrir o assistente. Use a Local Suite completa 8.21 ou posterior.')
+        [Console]::Error.WriteLine('Não foi possível abrir o assistente. Use a Local Suite completa 8.23 ou posterior.')
         exit 1
     }
 }

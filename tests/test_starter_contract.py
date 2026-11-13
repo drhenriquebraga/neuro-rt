@@ -19,8 +19,8 @@ class StarterContract(unittest.TestCase):
 
     def test_corrective_release_requires_the_corrected_host(self):
         module = json.loads((ROOT / 'module.json').read_text(encoding='utf8'))
-        self.assertEqual(module['version'], '1.3.5')
-        self.assertEqual(module['host_min_version'], '8.21')
+        self.assertEqual(module['version'], '1.3.7')
+        self.assertEqual(module['host_min_version'], '8.23')
 
 
 if __name__ == '__main__':

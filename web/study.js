@@ -229,6 +229,7 @@
   async function refreshJobs() { const data = await api('studies'),records=[...(data.results||[]),...(data.studies||(Array.isArray(data)?data:[]))]; state.jobs=Array.from(new Map(records.map(job=>[jobKey(job),job])).values()); renderJobs(); if (!state.job && state.jobs.length) await selectResultSeries(jobKey(state.jobs[state.jobs.length-1])); }
   function artifactURL(artifact) { return '/neuro/api/studies/' + encodeURIComponent(jobId(state.job)) + '/artifacts/' + encodeURIComponent(artifact.artifact_id); }
   function clearScene() {
+    if (el('viewer')) delete el('viewer').dataset.contourReference;
     closeExpandedPlane();
     if (state.abort) state.abort.abort(); state.abort = new AbortController(); state.scene = null; state.rois = {}; state.artifactMap = {}; el('viewer').hidden = true;
     ['axial','coronal','sagittal'].forEach(name => el('slice-' + name).replaceChildren());
@@ -278,6 +279,7 @@
     if (!state.artifactMap['view.json']) return;
     const scene = await artifactFetch('view.json','json'); if (generation !== state.generation) return;
     state.scene = scene; el('viewer').hidden = false;
+    el('viewer').dataset.contourReference = view.reference_ticket || '';
     (scene.rois || []).forEach(roi => { state.rois[roi.id] = {...roi,visible:roi.visible !== false,opacity:roi.opacity == null ? .7 : roi.opacity}; });
     ['axial','coronal','sagittal'].forEach(name => { const p = scene.planes[name], range = el('range-' + name); range.max = Math.max(0,p.count-1); range.value = p.center; loadSlice(name,generation); });
     renderStructures(); initialize3D(); await loadVisibleMeshes(generation);
@@ -454,6 +456,12 @@
   function observeTranslationTargets(){document.querySelectorAll('.nr-wrap,#model-help,#radai_rev').forEach(node=>translationObserver.observe(node,{childList:true,subtree:true,characterData:true}));}
   observeTranslationTargets();
   translateDynamic();
+  if (window.RadaiDicomAdapters && el('viewer')) {
+    window.RadaiDicomAdapters.register({scope:el('viewer'), selection:() => {
+      const ticket=el('viewer').dataset.contourReference;
+      return ticket ? {b:ticket,source:'thumbnail'} : null;
+    }, ready:() => !!state.scene});
+  }
   api('status').then(data => {
     state.token = data.token || data.csrf_token || '';
     if (!state.token) throw Error(pickerUnavailable);

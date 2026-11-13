@@ -9,7 +9,7 @@ from urllib.parse import urlencode
 
 def attach_consensus_api(app, sessions, resolve_source):
     from fastapi import HTTPException, Request
-    from fastapi.responses import FileResponse, JSONResponse
+    from fastapi.responses import FileResponse, JSONResponse, Response
     from starlette.concurrency import run_in_threadpool
     from neuro_rt.nidus_geometry import NidusCandidate, export_candidate, source_signature
     from neuro_rt.series_selection import describe_series
@@ -50,6 +50,20 @@ def attach_consensus_api(app, sessions, resolve_source):
 
     def folder(service, candidate):
         return service.settings.data_dir / 'nidus' / candidate.id
+
+    def current_candidate(value, data):
+        if (not isinstance(data.get('candidate'), str) or type(data.get('revision')) is not int
+                or data['revision'] < 1):
+            raise HTTPException(400, 'Identificação da revisão inválida.')
+        candidate = value.get('candidato')
+        if (candidate is None or candidate.id != data['candidate']
+                or candidate.revision != data['revision']):
+            raise HTTPException(409, 'O contorno mudou. Atualize a revisão antes de editar.')
+        return candidate
+
+    def publish_candidate(value, candidate):
+        value['candidato'] = candidate
+        value.pop('consensus_mesh', None)
 
     def queued(value, service, operation, callback):
         bridge = service.host_services.queue_bridge
@@ -184,7 +198,7 @@ def attach_consensus_api(app, sessions, resolve_source):
                 candidate = NidusCandidate(value['consenso'], data['temperatura'], progress=checkpoint)
                 with value['consenso_lock']:
                     candidate.save(folder(service, candidate), checkpoint=checkpoint)
-                    value['candidato'] = candidate
+                    publish_candidate(value, candidate)
                 return candidate.metadata()
             return queued(value, service, 'running', calculate)
         return await perform(run)
@@ -202,7 +216,7 @@ def attach_consensus_api(app, sessions, resolve_source):
                     candidate = candidate.fork()
                     candidate.edit(data['eixo'], data['indice'], data['pontos'], data['operacao'])
                     candidate.save(folder(service, candidate), checkpoint=checkpoint)
-                    value['candidato'] = candidate
+                    publish_candidate(value, candidate)
                     return candidate.metadata()
             return queued(value, service, 'running', calculate)
         return await perform(run)
@@ -220,10 +234,86 @@ def attach_consensus_api(app, sessions, resolve_source):
                     candidate = candidate.fork()
                     candidate.undo()
                     candidate.save(folder(service, candidate), checkpoint=checkpoint)
-                    value['candidato'] = candidate
+                    publish_candidate(value, candidate)
                     return candidate.metadata()
             return queued(value, service, 'running', calculate)
         return await perform(run)
+
+    @app.post('/api/nidus/consenso/pincel')
+    async def brush(request: Request):
+        fields = ('s', 'candidate', 'revision', 'eixo', 'indice', 'pontos', 'operacao', 'raio_mm')
+        data, service = await body(request, fields)
+        value = session(data['s'])
+        def run():
+            def calculate(checkpoint):
+                with value['consenso_lock']:
+                    candidate = current_candidate(value, data).fork()
+                    changed = candidate.brush(data['eixo'], data['indice'], data['pontos'],
+                                              data['operacao'], data['raio_mm'])
+                    if changed:
+                        candidate.save(folder(service, candidate), checkpoint=checkpoint)
+                        publish_candidate(value, candidate)
+                    result = candidate.metadata()
+                    result['brush'] = {'changed_voxels': changed, 'axis': data['eixo'],
+                                       'index': data['indice'], 'radius_mm': float(data['raio_mm'])}
+                    return result
+            return queued(value, service, 'running', calculate)
+        return await perform(run)
+
+    @app.post('/api/nidus/consenso/pincel/desfazer')
+    async def brush_undo(request: Request):
+        data, service = await body(request, ('s', 'candidate', 'revision'))
+        value = session(data['s'])
+        def run():
+            def calculate(checkpoint):
+                with value['consenso_lock']:
+                    candidate = current_candidate(value, data).fork()
+                    if candidate.undo():
+                        candidate.save(folder(service, candidate), checkpoint=checkpoint)
+                        publish_candidate(value, candidate)
+                    return candidate.metadata()
+            return queued(value, service, 'running', calculate)
+        return await perform(run)
+
+    @app.post('/api/nidus/consenso/malha')
+    async def consensus_mesh(request: Request):
+        data, service = await body(request, ('s', 'candidate', 'revision'))
+        value = session(data['s'])
+        def run():
+            def calculate(checkpoint):
+                from neuro_rt.nidus_consensus_mesh import candidate_mesh
+                with value['consenso_lock']:
+                    candidate = current_candidate(value, data)
+                    cache = value.get('consensus_mesh')
+                    if cache and cache['candidate'] == candidate.id and cache['revision'] == candidate.revision:
+                        return dict(cache['metadata'])
+                    mesh = candidate_mesh(candidate)
+                    checkpoint()
+                    identity = uuid.uuid4().hex
+                    empty = len(mesh['faces']) == 0
+                    metadata = {'candidate': candidate.id, 'revision': candidate.revision,
+                                'empty': empty, 'triangles': int(len(mesh['faces'])),
+                                'coordinate_system': mesh['coordinate_system'], 'bounds_lps': mesh['bounds_lps'],
+                                'url': '' if empty else '/api/nidus/consenso/malha/download?' +
+                                    urlencode({'s': data['s'], 'id': identity})}
+                    value['consensus_mesh'] = {'candidate': candidate.id, 'revision': candidate.revision,
+                                              'id': identity, 'stl': mesh['stl'], 'metadata': metadata}
+                    return dict(metadata)
+            return queued(value, service, 'preparing', calculate)
+        return await perform(run)
+
+    @app.get('/api/nidus/consenso/malha/download')
+    def consensus_mesh_download(request: Request, s: str = '', id: str = ''):
+        local(request)
+        value = session(s)
+        with value['consenso_lock']:
+            cache = value.get('consensus_mesh')
+            candidate = value.get('candidato')
+            if (not cache or not candidate or cache['id'] != id or cache['candidate'] != candidate.id
+                    or cache['revision'] != candidate.revision):
+                raise HTTPException(404, 'A malha desta revisão não está mais disponível.')
+            return Response(cache['stl'], media_type='application/octet-stream',
+                            headers={'Cache-Control': 'no-store', 'X-Nidus-Revision': str(candidate.revision)})
 
     @app.post('/api/nidus/consenso/exportar')
     async def export(request: Request):

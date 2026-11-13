@@ -44,7 +44,9 @@ function harness() {
           })]);
         }
         return {ok: !url.includes('http-error'), status: 500,
-          blob: async () => ({size: 10, width: url.includes('large') ? 100 : 4, height: 4, bad: url.includes('bad-image')})};
+          blob: async () => ({size:url.includes('native')?1024*1024+4096:10,
+            width:url.includes('native')?1024:url.includes('large')?100:4,
+            height:url.includes('native')?1024:4,bad:url.includes('bad-image')})};
       } finally {active--}
     },
     uiTexto: (node, text) => {node.textContent = text}, uiCarregando: () => {},
@@ -117,6 +119,21 @@ function harness() {
   await assert.rejects(c.warm(['/c','/d'], {signal: cancelled.signal, onProgress: () => {progress++; cancelled.abort()}}), {name:'AbortError'});
   assert.equal(progress, 1); assert(!h.requested.includes('/d'));
   c.reset(); assert.equal(c.stats().bytes, 0);assert.equal(c.stats().entries, 0);
+
+  h=harness();c=new h.NidusImageCache({maxBytes:128*1024*1024,maxEntries:96,maxDecodedEntries:8});
+  const rotation=Array.from({length:72},(_,index)=>'/native?angle='+(-180+index*5));
+  const fixed=new h.Image();await c.paint(fixed,rotation[36]);
+  await c.warm(rotation);
+  assert.equal(c.stats().entries,72,'retain every encoded 5-degree projection');
+  assert.equal(c.stats().decoded,8,'decoded references obey their independent bound');
+  assert(c.stats().bytes<=128*1024*1024);
+  assert(rotation.every(url=>c.get(url)),'complete encoded rotation remains cached');
+  assert.equal(c.get(rotation[10]).image,null,'old unpinned decoded buffer is released');
+  const countBeforeDecode=h.requested.length;
+  await c.load(rotation[10]);
+  assert.equal(h.requested.length,countBeforeDecode,'encoded cache hit never downloads or renders again');
+  assert(c.get(rotation[10]).image);assert(c.get(rotation[36]).image,'visible projection remains pinned');
+  assert.equal(c.stats().decoded,8);c.reset();assert.equal(c.stats().decoded,0);
 
   h = harness();let cancelledCount = 0;
   const root = new h.Element();root.setAttribute('aria-busy','false');

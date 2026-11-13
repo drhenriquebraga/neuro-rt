@@ -63,6 +63,9 @@ class NidusGeometryTests(unittest.TestCase):
                 eixos=N.eixos_lps(image), temperature=float,
                 packed=lambda temperature, progress=None: N.compactar(mask))
             candidate = G.NidusCandidate(core, 42)
+            candidate.brush(0, 3, [[.2, .2]], 'add', 1.4)
+            candidate.brush(0, 3, [[.4, .4]], 'remove', .8)
+            self.assertTrue(candidate.edited)
             output = G.export_candidate(candidate, root / 'source', uid,
                 Path(os.environ.get('NEURO_HOST_ROOT', str(Path(__file__).resolve().parents[2] / 'AUTO_CONTORNO'))), root / 'result')
             written = pydicom.dcmread(output)

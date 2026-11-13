@@ -88,6 +88,29 @@ class NidusCandidate:
         self.revision += 1
         return True
 
+    def brush(self, axis, index, points, operation, radius_mm):
+        """Apply one physical 2-D stroke to exactly one native reference plane."""
+        import numpy as np
+        import radai_projection as N
+        from .nidus_brush import stroke_mask_mm
+        if operation not in ('add', 'remove'):
+            raise ValueError('Operação do pincel inválida.')
+        before = self.plane(axis, index)
+        row_mm, column_mm = N.mm_do_corte(self.eixos[2], axis)
+        delta = stroke_mask_mm(before.shape, (row_mm, column_mm), points, radius_mm)
+        result = before | delta if operation == 'add' else before & ~delta
+        changed = int(np.count_nonzero(before != result))
+        if not changed:
+            return 0
+        self.history.append((axis, index, np.packbits(before.reshape(-1)), before.shape))
+        while len(self.history) > 60 or sum(item[2].nbytes for item in self.history) > 16*1024*1024:
+            self.history.pop(0)
+            self.untracked_edits = True
+        self._set_plane(axis, index, result)
+        self.edited = True
+        self.revision += 1
+        return changed
+
     def mask(self):
         import numpy as np
         return np.unpackbits(self.packed.bits, axis=-1, count=self.packed.shape[2]).astype(bool)
@@ -103,6 +126,7 @@ class NidusCandidate:
     def metadata(self):
         return {'candidate': self.id, 'temperature': self.temperature, 'revision': self.revision,
                 'edited': self.edited, 'approval_status': 'UNAPPROVED',
+                'undo_available': bool(self.history), 'undo_depth': len(self.history),
                 'empty': not bool(self.packed.bits.any()),
                 'incidence_count': len(getattr(self.core, 'fields', [])),
                 'incidence_digest': getattr(self.core, 'incidence_digest', ''),

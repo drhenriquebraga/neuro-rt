@@ -9,6 +9,8 @@ import radai_nidus
 import radai_recon3d_gl
 import radai_web
 from neuro_rt.nidus_preload import NIDUS_PRELOAD_JS
+from neuro_rt.nidus_brush_ui import NIDUS_BRUSH_JS
+from neuro_rt.nidus_folder_picker import NIDUS_FOLDER_JS
 from neuro_rt.nidus_temporal_ui import NIDUS_TEMPORAL_JS
 
 try:
@@ -412,8 +414,6 @@ CSS = u"""
 .nd-layout-a #nd_proj_aux > .nd-palco{width:100%;height:auto;flex:1 1 0;min-height:0}
 .nd-layout-a #nd_proj_aux .nd-ferr-palco{top:4px;right:4px}
 .nd-layout-a #nd_proj_aux .nd-ferr-palco .nd-bt{font-size:9px;padding:2px 4px;min-height:22px}
-.nd-layout-a .nd-angio-max{grid-template-columns:minmax(0,1fr)}
-.nd-layout-a .nd-angio-max > .nd-colB{display:none}
 .nd-actionbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:10px 12px}
 .nd-actionbar .nd-consenso-acoes{display:contents}
 .nd-actionbar .nd-consenso{margin:0 0 0 auto;max-width:250px;min-width:180px;padding-left:12px;border-left:1px solid var(--line)}
@@ -442,7 +442,7 @@ CSS = u"""
 .nd-layout-a .nd-ctl3d .nd-bt{max-width:100%;white-space:normal;text-align:left}
 .nd-layout-a #nd_rodape{text-align:center}
 .nd-layout-a #nd_rodape .ui-alerta{justify-content:center;padding-top:4px}
-@media(max-width:1050px){.nd-layout-a .nd-trabalho{grid-template-columns:minmax(0,1fr);height:auto!important}.nd-layout-a .nd-colA{height:460px}.nd-layout-a .nd-colB{height:530px}.nd-actionbar .nd-consenso{max-width:none;margin-left:auto}.nd-layout-a .nd-angio-max .nd-colA{height:70vh}}
+@media(max-width:1050px){.nd-layout-a .nd-trabalho{grid-template-columns:minmax(0,1fr);height:auto!important}.nd-layout-a .nd-colA{height:460px}.nd-layout-a .nd-colB{height:530px}.nd-actionbar .nd-consenso{max-width:none;margin-left:auto}}
 @media(max-width:600px){.nd-layout-a .nd-colA{height:380px}.nd-layout-a .nd-colB{height:480px}.nd-layout-a .nd-leitura{font-size:10px!important}.nd-actionbar .nd-consenso{flex:1 1 100%;border-left:0;padding-left:0}.nd-layout-a .nd-cabeca{flex-wrap:wrap;gap:6px}.nd-layout-a .nd-serie{max-width:100%;width:100%}.nd-layout-a .nd-ferr-palco .nd-bt{font-size:10px;padding:2px 5px}.nd-layout-a #nd_3d_cx > .nd-rot > span:first-child,.nd-layout-a #nd_estado{display:none}}
 @media (prefers-reduced-motion:reduce){.nd-estado.previa i{animation:none}}
 """
@@ -474,7 +474,7 @@ var ND_MIN_CORTES = @MIN_CORTES@;
 var ND_INCIDENCIAS = @INCIDENCIAS_JS@;
 var ND_LADO_PREVIA = @LADO_PREVIA@;
 var ND_ABA = Math.random().toString(36).slice(2, 10);
-var ND_IMAGE_CACHE = new NidusImageCache({maxBytes:128*1024*1024,maxEntries:32});
+var ND_IMAGE_CACHE = new NidusImageCache({maxBytes:128*1024*1024,maxEntries:96,maxDecodedEntries:8});
 ND.carga=0; ND.corteSeq={}; ND.corteBusy={}; ND.preparo=null; ND.vizinhos=null; ND.ossoVersion=0;
 
 var ND_EPS = 0.5, ND_TETO_VERTICES = 120, ND_PASSO_MIN = 0.6;
@@ -607,7 +607,7 @@ function ndRotuloDaLista(s){
  return (s.modalidade?(ndEsc(s.modalidade)+' · '):'')
    +molde.replace(/%s/g,function(){ return vs.shift() });
 }
-function ndSeries(linhas, origem){
+function ndSeries(linhas, origem, pastaNova){
  var lista=(linhas||[]).filter(function(s){ return s && s.bilhete && !s.carregando }).slice(0,60);
  if(!lista.length) return;
  ND.tofPedido=(ND.tofPedido||0)+1;
@@ -615,7 +615,7 @@ function ndSeries(linhas, origem){
  if(nota) nota.textContent='';
  var itens=lista.map(function(s){ return {bilhete:s.bilhete, origem:origem} });
  var corpo={itens:itens};
- if(ultima.bilhete) corpo.ancora={bilhete:ultima.bilhete, origem:ultima.origem||'pasta'};
+ if(ultima.bilhete&&!pastaNova) corpo.ancora={bilhete:ultima.bilhete, origem:ultima.origem||'pasta'};
  return fetch('/api/nidus/series-metadata',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corpo)})
   .then(function(r){ if(!r.ok) throw Error('metadata'); return r.json() }).then(function(d){
    if(pedido!==ND.tofPedido || !ND.escolhendo) return;
@@ -638,19 +638,26 @@ function ndSeries(linhas, origem){
    });
    if(nota && achou) ndFrases(nota,['Sugestão pelos metadados; confirme a sequência e escolha a série original, sem MIP.']);
    if(window.radaiRetraduzir) window.radaiRetraduzir();
+   return d;
   }).catch(function(){ /* Metadata hints never prevent a manual choice. */ });
 }
-function ndListar(pasta){
+function ndListar(pasta,carregar){
  var alvo=ndEl('nd_series');
  pasta=(pasta||'').trim();
  if(!pasta){ if(window.uiTremer) window.uiTremer(ndEl('nd_pasta')); return }
  ND.porB={};
+ ND.folderScan=(ND.folderScan||0)+1;var scan=ND.folderScan;
  if(!window.uiVarrerLista){ ndFrases(alvo, ['não consegui listar esta pasta']); return }
  window.uiVarrerLista({alvo:'nd_series', estado:'nd_busca', uso:'series',
   chave:'nidus', pasta:pasta, dias:'nd_dias',
   opcoes:{modalidades:ND_MODALIDADES, min_cortes:ND_MIN_CORTES},
   vazio:'Nenhuma série nesta pasta.',
-  aoFim:function(linhas){ ndSeries(linhas,'pasta') },
+  aoFim:function(linhas){
+   Promise.resolve(ndSeries(linhas,'pasta',true)).then(function(metadata){
+    if(scan!==ND.folderScan)return;
+    if(window.NidusFolder)window.NidusFolder.discovered(linhas,metadata,pasta,!!carregar);
+   });
+  },
   linha:function(s){
    ND.porB[s.bilhete]=s;
    return '<button type="button" class="nd-it" role="option" data-b="'
@@ -848,6 +855,7 @@ function ndAlinharProjecao(img, lado){
 }
 function ndUrlsPreparo(presets){
  var angulos=presets?ND_INCIDENCIAS.map(function(i){return[i[1],i[2]]}):[];
+ if(presets)for(var angle=-180;angle<180;angle+=5)angulos.push([angle,0]);
  [-10,-5,5,10].forEach(function(d){
   angulos.push([Math.max(-180,Math.min(180,ND.lao+d)),ND.cra]);
   angulos.push([ND.lao,Math.max(-90,Math.min(90,ND.cra+d))]);
@@ -1813,6 +1821,11 @@ function ndOutra(){
  if(!p){ if(window.uiTremer) window.uiTremer(ndEl('nd_pasta')); return }
  ndListar(p);
 }
+function ndCarregarPasta(){
+ var p=(ndEl('nd_pasta').value||'').trim();
+ if(!p){if(window.uiTremer)window.uiTremer(ndEl('nd_pasta'));return}
+ ndListar(p,true);
+}
 
 function ndProcurar(){
  if(!window.uiExplorador) return;
@@ -2001,8 +2014,8 @@ function nd3CaixaDentro(a, b){
 // GUARDA: arrastar a caixa não refaz malha (o sombreador recorta); refaz ao soltar só se a caixa nova sair da que fez a malha.
 function nd3Malhas(){
  if(ND3.emSala || !ND.b || !ND.aberta || !ND3.gl) { nd3Pedir(); return }
- var c=ND.caixa;
- if(!c || ndCaixaCheia(c)){ nd3Esquecer(); ND3.motivoMalha=''; nd3Pedir(); return }
+ var c=nd3RecorteLocal();
+ if(!c){ nd3Esquecer(); ND3.motivoMalha=''; nd3Pedir(); return }
  if(ND3.caixaMalha && nd3CaixaDentro(c, ND3.caixaMalha)){ nd3Pedir(); return }
  var meu=++ND3.n, b=ND.b, alvo=c.slice();
  ND3.motivoMalha='montando…'; nd3Canto();
@@ -2026,9 +2039,14 @@ function nd3Malhas(){
    });
   }).catch(function(){ if(meu!==ND3.n) return; ND3.motivoMalha='o 3D não veio do servidor'; nd3Canto() });
 }
+function nd3RecorteLocal(){
+ if(ND.caixa&&!ndCaixaCheia(ND.caixa))return ND.caixa;
+ return ND.consensoEditavel&&ND3.consensusSession===ND.sessao&&ND3.consensusCandidate===ND.consCandidate&&ND3.consensusRevision===ND.consRevision?ND3.consensusBox:null;
+}
 function nd3Caixa(){
- if(!ND.geo || !ND.caixa || ndCaixaCheia(ND.caixa)) return null;
- var c=ND.caixa, Q=ND.geo.da_caixa;
+ var c=nd3RecorteLocal();
+ if(!ND.geo || !c) return null;
+ var Q=ND.geo.da_caixa;
  var lo=[c[0],c[2],c[4]], hi=[c[1],c[3],c[5]];
  var cantos=ndCantos(c), centro=ndM4(Q, [(lo[0]+hi[0])/2, (lo[1]+hi[1])/2, (lo[2]+hi[2])/2]);
  var e=[0,1,2].map(function(a){ return [Q[a], Q[4+a], Q[8+a]] });
@@ -2104,6 +2122,8 @@ function nd3PintarCaixa(w, h){
  nd3Desenhar(ND3.objs.vaso, VP, N9, 1, false);
  nd3Desenhar(ND3.objs.osso, VP, N9, ND3.atraves?0.1:0.5, false);
  nd3Desenhar(ND3.objs.pele, VP, N9, ND3.atraves?0.03:0.14, false);
+ if(ND.consensoEditavel&&ND3.consensusSession===ND.sessao&&ND3.consensusCandidate===ND.consCandidate&&ND3.consensusRevision===ND.consRevision)
+  nd3Desenhar(ND3.consensusObj,VP,N9,.72,false);
  r3gCorte(ND3, null);
  gl.disable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
  r3gCamera(ND3, r3gM4mul(VP, cx.M), N9); r3gLiso(ND3, true); r3gUmEm(ND3, ND3.aux.arame, 0.85);
@@ -2237,10 +2257,7 @@ function nd3SalaPadrao(){ ND3.cam={yaw:120, pitch:16, dist:3050}; nd3Pedir() }
 function ndMaximizar(eixo){
  if(eixo!==null && (!ND.aberta || ND.cruzando || ND.consensoBusy)) return;
  var host=ndEl('nd_mpr_main'), box=ndEl('nd_proj_cx'); if(!host || !box) return;
- var palco=ndEl('nd_palco'), aux=ndEl('nd_proj_aux'), trabalho=ndEl('nd_trabalho');
- if(trabalho) trabalho.classList.remove('nd-angio-max');
- ND.angioMax=false;
- var maxButton=ndEl('nd_angio_max');if(maxButton){maxButton.setAttribute('aria-pressed','false');ndTexto(maxButton,'Maximizar angiografia')}
+ var palco=ndEl('nd_palco'), aux=ndEl('nd_proj_aux');
  if(palco && palco.parentNode!==box) box.insertBefore(palco,ndEl('nd_mpr_main'));
  if(aux) aux.hidden=true;
  if(ND.principal!==null){
@@ -2257,15 +2274,8 @@ function ndMaximizar(eixo){
  var back=ndEl('nd_layout_original'); if(back) back.hidden=eixo===null;
  ndAjustarTela(); nd3Pedir();
 }
-function ndMaximizarAngio(){
- var expandir=!ND.angioMax;
- ndMaximizar(null); ND.angioMax=expandir;
- ndEl('nd_trabalho').classList.toggle('nd-angio-max',expandir);
- var b=ndEl('nd_angio_max');if(b){b.setAttribute('aria-pressed',String(expandir));ndTexto(b,expandir?'Restaurar estação':'Maximizar angiografia')}
- ndAjustarTela();
-}
 function ndMprRoda(eixo,event){
- if(!ndDisponivel() || !ND.forma || ND.consensoBusy || !event.deltaY)return;
+ if(!ndDisponivel() || !ND.forma || ND.consensoBusy || ND.consTrace || !event.deltaY)return;
  event.preventDefault();
  var n=ND.forma[eixo]||1;
  ND.planos[eixo]=Math.max(0,Math.min(1,ND.planos[eixo]+(event.deltaY>0?1:-1)/Math.max(1,n-1)));
@@ -2300,9 +2310,10 @@ function ndLayoutA(){
  var aux=document.createElement('section');aux.id='nd_proj_aux';aux.className='p';aux.hidden=true;
  aux.innerHTML='<div class="nd-mpr-title"><span data-radai-frase>Projeção vascular</span><button type="button" class="nd-bt" onclick="ndMaximizar(null)" data-radai-frase>Restaurar estação</button></div>';
  grid.appendChild(aux);
- ndEl('nd_palco').addEventListener('dblclick',function(event){if(ND.tracando)return;event.preventDefault();if(ND.principal!==null)ndMaximizar(null);else ndMaximizarAngio()});
- var max=document.createElement('button');max.id='nd_angio_max';max.type='button';max.className='nd-bt';max.setAttribute('aria-pressed','false');max.setAttribute('data-radai-frase','');max.textContent='Maximizar angiografia';max.onclick=ndMaximizarAngio;
- ndEl('nd_proj_cx').querySelector('.nd-rot .dir').prepend(max);
+ ndEl('nd_palco').addEventListener('dblclick',function(event){
+  if(ND.tracando || event.target.closest('button,input,select,a,[role="button"]'))return;
+  if(ND.principal!==null){event.preventDefault();ndMaximizar(null)}
+ });
  var bar=document.createElement('section');bar.id='nd_actionbar';bar.className='nd-cx nd-actionbar';work.after(bar);
  var details=document.createElement('details');details.className='nd-inc-popover';details.id='nd_inc_details';
  details.innerHTML='<summary class="nd-bt" data-radai-frase>Incidências guardadas</summary>';
@@ -2629,6 +2640,7 @@ window.addEventListener('DOMContentLoaded', function(){
  [0,1,2].forEach(function(eixo){
   var s=ndEl('nd_pos'+eixo);
   if(s) s.addEventListener('input', function(){
+   if(ND.consTrace||ND.consensoBusy){s.value=ND.planos[eixo]*100;return}
    ND.planos[eixo]=+s.value/100; ndCorte(eixo, false) });
   var edit=ndEl('nd_ed'+eixo);
   if(edit){edit.addEventListener('pointerdown',function(e){ndEditStart(eixo,e)});
@@ -2667,7 +2679,7 @@ JS = (radai_recon3d_gl.JS + JS_SALA_COMPARTILHADA + radai_nidus.JS_CONVENCAO + N
           ensure_ascii=False))
       .replace(u"@LADO_PREVIA@", str(LADO_DA_PREVIA)))
 
-JS += NIDUS_TEMPORAL_JS
+JS += NIDUS_FOLDER_JS + NIDUS_BRUSH_JS + NIDUS_TEMPORAL_JS
 
 AJUDA_PROJECAO_PARALELA = (
     u"A projeção é paralela, sem ampliação. A sala mostra a posição do arco "
@@ -3025,9 +3037,10 @@ def _escolha():
              u'placeholder="C:\\... ou \\\\servidor\\...">@FAV@</div>'
              u'<button type="button" class="ui-bt" id="nd_procurar">'
              u'@ICO_PASTA@<span data-radai-frase>Procurar&hellip;</span>'
-             u'</button><button type="button" class="ui-bt pri" id="nd_listar" '
+             u'</button><button type="button" class="ui-bt" id="nd_listar" '
              u'onclick="ndOutra()"><span data-radai-frase>Listar s&eacute;ries'
-             u'</span></button></div>'
+             u'</span></button><button type="button" class="ui-bt pri" id="nd_carregar_pasta" '
+             u'onclick="ndCarregarPasta()"><span data-radai-frase>Carregar esta pasta</span></button></div>'
              u'<div class="nd-filtro">@FILTRO@</div>'
              u'<div class="ui-vl-est" id="nd_busca" role="status" '
              u'aria-live="polite"></div>'

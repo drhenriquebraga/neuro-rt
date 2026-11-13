@@ -22,8 +22,9 @@ NIDUS_PRELOAD_JS = r"""
   options=options||{};
   this.maxBytes=options.maxBytes||128*1024*1024;
   this.maxEntries=options.maxEntries||32;
+  this.maxDecodedEntries=options.maxDecodedEntries||this.maxEntries;
   this.entries=new Map(); this.pending=new Map(); this.queue=[];
-  this.bytes=0; this.generation=0; this.running=false;
+  this.bytes=0; this.decodedEntries=0; this.generation=0; this.running=false;
   this.controller=new AbortController(); this.painted=new Map();
  }
  NidusImageCache.prototype._key=keyFor;
@@ -33,16 +34,30 @@ NIDUS_PRELOAD_JS = r"""
   return entry||null;
  };
  NidusImageCache.prototype._drop=function(key, entry){
+  if(entry.image)this.decodedEntries--;
   this.entries.delete(key); this.bytes-=entry.bytes;
   URL.revokeObjectURL(entry.url); entry.image=null;
  };
- NidusImageCache.prototype._trim=function(incomingBytes){
+ NidusImageCache.prototype._dropDecoded=function(entry){
+  if(!entry.image)return;
+  entry.image.src='';entry.image=null;this.decodedEntries--;
+  this.bytes-=entry.decodedBytes;entry.bytes-=entry.decodedBytes;entry.decodedBytes=0;
+ };
+ NidusImageCache.prototype._trim=function(incomingBytes, decoded, extraEntry, keep){
   var iterator=this.entries.entries(), item;
-  while(this.bytes+incomingBytes>this.maxBytes || this.entries.size>=this.maxEntries){
-   item=iterator.next(); if(item.done) break;
-   if(!item.value[1].pins) this._drop(item.value[0],item.value[1]);
+  // Angiography keeps the encoded full-quality rotation without retaining 72
+  // decoded RGBA buffers. The default retains all CINE frames for playback.
+  while(this.decodedEntries+decoded>this.maxDecodedEntries || this.bytes+incomingBytes>this.maxBytes){
+   item=iterator.next();if(item.done)break;
+   if(item.value[1]!==keep && !item.value[1].pins)this._dropDecoded(item.value[1]);
   }
-  return this.bytes+incomingBytes<=this.maxBytes && this.entries.size<this.maxEntries;
+  iterator=this.entries.entries();
+  while(this.bytes+incomingBytes>this.maxBytes || this.entries.size+extraEntry>this.maxEntries){
+   item=iterator.next(); if(item.done) break;
+   if(item.value[1]!==keep && !item.value[1].pins) this._drop(item.value[0],item.value[1]);
+  }
+  return this.bytes+incomingBytes<=this.maxBytes && this.entries.size+extraEntry<=this.maxEntries
+    && this.decodedEntries+decoded<=this.maxDecodedEntries;
  };
  NidusImageCache.prototype._wanted=function(task){
   return task.clients.some(function(client){
@@ -62,7 +77,7 @@ NIDUS_PRELOAD_JS = r"""
   var self=this, signal=options.signal;
   if(signal && signal.aborted) return Promise.reject(aborted());
   this._prune();
-  var cached=this.get(url); if(cached) return Promise.resolve(cached);
+  var cached=this.get(url); if(cached&&cached.image) return Promise.resolve(cached);
   var key=keyFor(url), task=this.pending.get(key);
   if(!task){
    task={key:key,url:url,generation:this.generation,priority:Number(options.priority)||0,
@@ -94,22 +109,26 @@ NIDUS_PRELOAD_JS = r"""
     var task=this.queue.shift(), generation=this.generation, objectUrl=null;
     try{
      if(task.generation!==generation || !this._wanted(task)) throw aborted();
-     var response=await fetch(task.url,{signal:this.controller.signal,cache:'no-store'});
-     if(!response.ok) throw new Error('HTTP '+response.status);
-     var blob=await response.blob();
-     if(task.generation!==this.generation) throw aborted();
-     objectUrl=URL.createObjectURL(blob);
-     var image=new Image(); image.src=objectUrl;
+     var existing=this.entries.get(task.key),blob=null;
+     if(!existing){
+      var response=await fetch(task.url,{signal:this.controller.signal,cache:'no-store'});
+      if(!response.ok) throw new Error('HTTP '+response.status);
+      blob=await response.blob();
+      if(task.generation!==this.generation) throw aborted();
+      objectUrl=URL.createObjectURL(blob);
+     }
+     var image=new Image();image.src=existing?existing.url:objectUrl;
      await image.decode();
      if(task.generation!==this.generation) throw aborted();
      var width=image.naturalWidth, height=image.naturalHeight;
      if(!width||!height) throw new Error('Invalid image');
      // Include decoded RGBA, not just tiny compressed PNGs, in the memory bound.
-     var bytes=blob.size+width*height*4;
-     if(!this._trim(bytes)) throw new RangeError('NIDUS image cache limit');
-     var entry={key:task.key,url:objectUrl,image:image,width:width,height:height,
-                bytes:bytes,pins:0,generation:generation};
-     objectUrl=null;this.entries.set(task.key,entry);this.bytes+=bytes;task.resolve(entry);
+     var decodedBytes=width*height*4,bytes=(existing?0:blob.size)+decodedBytes;
+     if(!this._trim(bytes,1,existing?0:1,existing)) throw new RangeError('NIDUS image cache limit');
+     var entry=existing||{key:task.key,url:objectUrl,width:width,height:height,
+                         bytes:blob.size,pins:0,generation:generation};
+     entry.image=image;entry.decodedBytes=decodedBytes;entry.bytes+=decodedBytes;
+     objectUrl=null;this.entries.set(task.key,entry);this.bytes+=bytes;this.decodedEntries++;task.resolve(entry);
     }catch(error){if(objectUrl)URL.revokeObjectURL(objectUrl);task.reject(error)}
     finally{if(this.pending.get(task.key)===task)this.pending.delete(task.key)}
    }
@@ -155,7 +174,7 @@ NIDUS_PRELOAD_JS = r"""
  };
  NidusImageCache.prototype.stats=function(){
   return{bytes:this.bytes,entries:this.entries.size,queued:this.queue.length,
-         generation:this.generation,running:this.running};
+         decoded:this.decodedEntries,generation:this.generation,running:this.running};
  };
 
  function NidusOpeningDialog(options){

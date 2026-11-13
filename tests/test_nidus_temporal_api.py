@@ -147,6 +147,45 @@ class TemporalAPI(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(len(response.json()['groups']), 1)
 
+    def test_folder_inventory_may_find_real_cine_beside_static_tof_without_switching_reference(self):
+        static_uid = generate_uid()
+        ds = pydicom.dcmread(Path(self.temp.name) / 'p0-z0.dcm')
+        ds.SeriesInstanceUID, ds.SOPInstanceUID = static_uid, generate_uid()
+        ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
+        ds.SeriesDescription, ds.ProtocolName = 'SYNTHETIC TOF', '3D TOF'
+        del ds.TemporalPositionIdentifier
+        del ds.NumberOfTemporalPositions
+        ds.save_as(Path(self.temp.name) / 'static.dcm', enforce_file_format=True)
+        mapping = {'known': (self.temp.name, self.sources[0]['uid']), 'static': (self.temp.name, static_uid)}
+        self.service.resolver = lambda ticket, origin: mapping[ticket]
+        body = {'itens':[{'bilhete':'known'}, {'bilhete':'static'}], 'ancora':{'bilhete':'static'}}
+        response = self.client.post('/api/nidus/temporal/folder-discover', json=body)
+        self.assertEqual(response.status_code, 200, response.text)
+        groups = response.json()['groups']
+        self.assertEqual(len(groups), 1)
+        self.assertEqual(groups[0]['series_tickets'], [{'bilhete':'known', 'origem':'pasta'}])
+        self.assertNotIn('SYNTHETIC TOF', groups[0]['label'])
+        self.assertNotIn(self.temp.name, response.text)
+        self.assertEqual(self.client.post('/api/nidus/temporal/discover', json=body).json()['groups'], [])
+        # A small Enhanced/single-file series may not have appeared in the old picker.
+        body['itens'] = [{'bilhete':'static'}]
+        response = self.client.post('/api/nidus/temporal/folder-discover', json=body)
+        self.assertEqual(len(response.json()['groups']), 1)
+        self.assertEqual(response.json()['groups'][0]['series_tickets'], [])
+
+    def test_folder_inventory_requires_study_anchor_and_excludes_other_subjects(self):
+        self.assertEqual(self.client.post('/api/nidus/temporal/folder-discover',
+            json={'itens':[{'bilhete':'known'}]}).status_code, 422)
+        with tempfile.TemporaryDirectory() as other:
+            sources = classic(Path(other), patient='SYNTHETIC_OTHER')
+            mapping = {'known': (self.temp.name, self.sources[0]['uid']), 'other': (other, sources[0]['uid'])}
+            self.service.resolver = lambda ticket, origin: mapping[ticket]
+            response = self.client.post('/api/nidus/temporal/folder-discover', json={
+                'itens':[{'bilhete':'known'}, {'bilhete':'other'}], 'ancora':{'bilhete':'known'}})
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(len(response.json()['groups']), 1)
+            self.assertEqual(response.json()['groups'][0]['series_tickets'], [{'bilhete':'known', 'origem':'pasta'}])
+
     def test_cancel_prevents_late_pixels_from_becoming_playable(self):
         group = self.group()
         self.lock.acquire()

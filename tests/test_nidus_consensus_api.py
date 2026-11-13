@@ -7,6 +7,8 @@ import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
+from urllib.parse import urlsplit
+import struct
 
 import SimpleITK as sitk
 import numpy as np
@@ -126,6 +128,75 @@ class NidusConsensusAPITests(unittest.TestCase):
         self.assertEqual(status,409)
         self.assertTrue(self.queue.is_cancelled)
         self.assertFalse(self.sessions['synthetic-session'].get('exportacoes'))
+
+    def test_physical_brush_requires_current_candidate_and_revision_and_can_undo(self):
+        _, prepared = self.request('/api/nidus/consenso', {'s':'synthetic-session','temperatura':50})
+        before = self.sessions['synthetic-session']['candidato'].packed.bits.copy()
+        payload = {'s':'synthetic-session', 'candidate':prepared['candidate'], 'revision':prepared['revision'],
+                   'eixo':0, 'indice':2, 'pontos':[[.05,.05]], 'operacao':'add', 'raio_mm':1.5}
+        self.assertEqual(self.request('/api/nidus/consenso/pincel', dict(payload, revision=999))[0], 409)
+        self.assertEqual(self.request('/api/nidus/consenso/pincel', dict(payload, candidate='old'))[0], 409)
+        status, edited = self.request('/api/nidus/consenso/pincel', payload)
+        self.assertEqual(status, 200, edited)
+        self.assertGreater(edited['brush']['changed_voxels'], 0)
+        self.assertGreater(edited['revision'], prepared['revision'])
+        self.assertTrue(edited['undo_available'])
+        self.assertEqual(self.request('/api/nidus/consenso/pincel', payload)[0], 409)
+        status, undone = self.request('/api/nidus/consenso/pincel/desfazer',
+            {key: edited[key] for key in ('candidate','revision')} | {'s':'synthetic-session'})
+        self.assertEqual(status, 200, undone)
+        np.testing.assert_array_equal(self.sessions['synthetic-session']['candidato'].packed.bits, before)
+
+    def test_failed_brush_save_keeps_original_candidate_and_revision(self):
+        _, prepared = self.request('/api/nidus/consenso', {'s':'synthetic-session','temperatura':50})
+        previous = self.sessions['synthetic-session']['candidato']
+        bits = previous.packed.bits.copy()
+        payload = {'s':'synthetic-session', 'candidate':prepared['candidate'], 'revision':prepared['revision'],
+                   'eixo':0, 'indice':2, 'pontos':[[.05,.05]], 'operacao':'add', 'raio_mm':1.5}
+        with patch('neuro_rt.nidus_geometry.NidusCandidate.save', side_effect=PermissionError('synthetic')):
+            self.assertEqual(self.request('/api/nidus/consenso/pincel', payload)[0], 409)
+        self.assertIs(self.sessions['synthetic-session']['candidato'], previous)
+        np.testing.assert_array_equal(previous.packed.bits, bits)
+
+    def test_consensus_mesh_is_revision_bound_and_cached_without_editing_mask(self):
+        from neuro_rt.nidus_consensus_mesh import candidate_mesh
+        _, prepared = self.request('/api/nidus/consenso', {'s':'synthetic-session','temperatura':50})
+        original = self.sessions['synthetic-session']['candidato'].packed.bits.copy()
+        payload = {'s':'synthetic-session', 'candidate':prepared['candidate'], 'revision':prepared['revision']}
+        with patch('neuro_rt.nidus_consensus_mesh.candidate_mesh', wraps=candidate_mesh) as mesh:
+            status, first = self.request('/api/nidus/consenso/malha', payload)
+            self.assertEqual(status, 200, first)
+            status, second = self.request('/api/nidus/consenso/malha', payload)
+            self.assertEqual(status, 200, second)
+            self.assertEqual(first['url'], second['url'])
+            self.assertEqual(mesh.call_count, 1)
+        self.assertEqual(first['coordinate_system'], 'LPS_mm')
+        self.assertGreater(first['triangles'], 0)
+        self.assertIn('/api/nidus/consenso/malha/download?', first['url'])
+        self.assertEqual(first['revision'], prepared['revision'])
+        np.testing.assert_array_equal(self.sessions['synthetic-session']['candidato'].packed.bits, original)
+        self.assertEqual(self.request('/api/nidus/consenso/malha', dict(payload, revision=999))[0], 409)
+        status, binary = self.get_binary(first['url'])
+        self.assertEqual(status, 200)
+        self.assertEqual(struct.unpack('<I', binary[80:84])[0], first['triangles'])
+        self.request('/api/nidus/consenso/pincel', payload | {
+            'eixo':0, 'indice':2, 'pontos':[[.05,.05]], 'operacao':'add', 'raio_mm':1.5})
+        self.assertEqual(self.get_binary(first['url'])[0], 404, 'Old geometry must not survive a changed contour')
+
+    def get_binary(self, url):
+        parsed = urlsplit(url)
+        async def invoke():
+            scope = {'type':'http','http_version':'1.1','method':'GET','scheme':'http',
+                'path':parsed.path,'raw_path':parsed.path.encode(),'query_string':parsed.query.encode(),
+                'headers':[(b'host',b'127.0.0.1')], 'client':('127.0.0.1',1234),
+                'server':('127.0.0.1',80),'root_path':''}
+            messages = []
+            async def receive(): return {'type':'http.request','body':b'','more_body':False}
+            async def send(message): messages.append(message)
+            await self.app(scope, receive, send)
+            return (next(m['status'] for m in messages if m['type']=='http.response.start'),
+                    b''.join(m.get('body',b'') for m in messages if m['type']=='http.response.body'))
+        return asyncio.run(invoke())
 
     def test_joint_export_freezes_native_nidus_and_only_uses_eligible_same_exam_anatomy(self):
         service = self.app.state.neuro_rt

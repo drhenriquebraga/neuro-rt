@@ -216,6 +216,42 @@ class TemporalService:
                 raise temporal.TemporalError('RESOURCE_LIMIT') from None
             return self.status(job.id)
 
+    def folder_discover(self, body):
+        """Inventory real time points near a chosen study, without opening a new reference.
+
+        This separate operation deliberately does not relax explicit discover():
+        its static anchor scopes identity only; a returned group still requires
+        its own opaque id before preparation, and is labelled as a different source.
+        """
+        from .nidus_temporal_inventory import study_sources
+        if (not isinstance(body, dict) or set(body) != {'itens', 'ancora'} or
+                not isinstance(body['itens'], list) or not 1 <= len(body['itens']) <= 128):
+            raise temporal.TemporalError('INVALID_REQUEST')
+        anchor_source = self._resolve(body['ancora'])
+        anchor = temporal.source_identity(anchor_source['folder'], anchor_source['uid'])
+        if anchor is None:
+            raise temporal.TemporalError('UNKNOWN_TICKET')
+        rows = [(row, self._resolve(row)) for row in body['itens']]
+        sources = study_sources([source['folder'] for _, source in rows] + [anchor_source['folder']], anchor)
+        result = temporal.discover(sources, anchor_identity=anchor)
+        public = []
+        with self.lock:
+            self._reap()
+            for number, group in enumerate(result.groups[:self.max_groups], 1):
+                self.groups[group.id] = (group, time.monotonic())
+                uids = {plane.uid for frame in group.frames for plane in frame.planes}
+                tickets = []
+                for row, source in rows:
+                    reference = {'bilhete': row['bilhete'], 'origem': row.get('origem', 'pasta')}
+                    if source['uid'] in uids and reference not in tickets:
+                        tickets.append(reference)
+                public.append(dict(group.public(), label='CINE %d' % number, series_tickets=tickets))
+            while len(self.groups) > self.max_groups:
+                self.groups.popitem(last=False)
+        return {'groups': public, 'rejected': result.rejected, 'scope': 'patient-study',
+                'auto_select': public[0]['id'] if len(public) == 1 else None,
+                'selection_required': len(public) > 1}
+
     def _get(self, key):
         self._reap()
         job = self.jobs.get(key)
@@ -370,6 +406,13 @@ def attach_temporal(app, resolver, *, projection_lock, renderer=None):
     async def prepare(request: Request):
         try:
             return service.prepare(await body(request))
+        except Exception as error:
+            return failed(error)
+
+    @app.post(PREFIX + '/folder-discover')
+    async def folder_discover(request: Request):
+        try:
+            return await run_in_threadpool(service.folder_discover, await body(request))
         except Exception as error:
             return failed(error)
 

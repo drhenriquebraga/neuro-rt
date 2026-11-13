@@ -123,13 +123,17 @@ NIDUS_TEMPORAL_JS = r"""
    C.dialog=null;dialog.finish();
   }
  }
- function groupList(groups){
+ function groupList(groups,sourceFor){
   var box=document.createElement('div');box.className='nd-cine-group-list';
-  var modal=uiModal({titulo:'Fases adquiridas',no:box,origem:el('nd_cine_choose'),largura:560});
+  var modal=uiModal({titulo:'Fases adquiridas',no:box,origem:el(C.active?'nd_cine_choose':'nd_cine_open'),largura:560});
   groups.forEach(function(group,index){
    var row=document.createElement('div');row.style.cssText='display:flex;gap:12px;align-items:center;margin:12px 0';
-   var desc=document.createElement('span');desc.textContent=(index+1)+' · '+group.count+' · '+(group.kind==='volume3d'?'3D':'2D');
-   row.append(desc,button('Abrir CINE',function(){modal.fechar();C.group=group;prepare()}));box.appendChild(row);
+   var desc=document.createElement('span');desc.textContent=(sourceFor?sourceFor(group):(index+1))+' · '+group.count+' · '+(group.kind==='volume3d'?'3D':'2D');
+   desc.setAttribute('translate','no');desc.style.flex='1';
+   row.append(desc,button('Abrir CINE',function(){
+    modal.fechar();if(sourceFor){C.source=sourceFor(group);enter();el('nd_cine_source').textContent=C.source}
+    C.group=group;prepare();
+   }));box.appendChild(row);
   });if(window.radaiRetraduzir)window.radaiRetraduzir();
  }
  async function discover(anchor){
@@ -157,10 +161,24 @@ NIDUS_TEMPORAL_JS = r"""
   if(C.picking){var anchor={bilhete:series.bilhete,origem:series.origem||'pasta'};C.source=String(series.rotulo||series.desc||'');ndPopup().fechar();discover(anchor);return}
   if(C.active)leave();return oldOpen.apply(this,arguments);
  };
- function choose(){C.picking=true;ND_MIN_CORTES=1;ndAbrirEscolha()}
+ function choose(){
+  var offer=C.folderOffers;
+  if(!C.active&&offer&&offer.anchor.bilhete===ND.b&&offer.groups.length){
+   groupList(offer.groups,function(group){
+    var labels=(group.series_tickets||[]).map(function(ticket){var row=offer.rows.find(function(r){return r.bilhete===ticket.bilhete});
+     return row&&(row.desc||row.curto||row.rotulo)}).filter(Boolean);
+    return Array.from(new Set(labels)).join(' · ')||group.label||'CINE';
+   });return;
+  }
+  C.picking=true;ND_MIN_CORTES=1;ndAbrirEscolha();
+ }
  var oldLocks=ndTravas;
  ndTravas=function(){oldLocks.apply(this,arguments);var b=el('nd_cine_open');if(b)b.disabled=!!ND.abrindo};
- window.NidusTemporal={choose:choose,leave:leave,play:play,wheel:wheel,state:C};
+ window.NidusTemporal={choose:choose,leave:leave,play:play,wheel:wheel,state:C,
+  offerGroups:function(groups,rows,anchor){C.folderOffers={groups:groups,rows:rows,anchor:anchor};
+   var open=el('nd_cine_open');if(open){open.dataset.availableGroups=String(groups.length);
+    open.title=(window.radaiFrase?window.radaiFrase('Fases adquiridas'):'Fases adquiridas')+' · '+groups.length;}
+  }};
  window.addEventListener('pagehide',function(){cancelJob(C.job)});
  window.addEventListener('keydown',function(event){
   if(!C.active || event.key!=='Escape' || document.querySelector('.ui-modal:not(.saindo)'))return;
