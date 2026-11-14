@@ -376,12 +376,22 @@ class ResultStore:
         return results
 
     def resolve_artifact(self, study_id, artifact_id):
+        return self.resolve_artifacts(study_id, [artifact_id])[artifact_id]
+
+    def resolve_artifacts(self, study_id, artifact_ids):
+        """Resolve a batch against one checked revision inventory; hash every file."""
         _id(study_id)
-        if not isinstance(artifact_id, str) or not re.fullmatch(r'a[0-9a-f]{32}', artifact_id):
+        artifact_ids = tuple(artifact_ids)
+        if any(not isinstance(value, str) or not re.fullmatch(r'a[0-9a-f]{32}', value)
+               for value in artifact_ids):
             raise ValueError('ID de artefato inválido.')
+        pending, resolved = set(artifact_ids), {}
+        if not pending:
+            return resolved
         for revision, manifest in reversed(self._valid_revisions(study_id)):
             for artifact in manifest.artifacts:
-                if artifact.get('artifact_id') != artifact_id:
+                artifact_id = artifact.get('artifact_id')
+                if artifact_id not in pending:
                     continue
                 target = self._artifact_source(artifact['path'], study_id, artifact['kind'])
                 expected = (self._study(study_id) / 'revisions' / str(revision) /
@@ -390,8 +400,11 @@ class ResultStore:
                     raise FileNotFoundError('Artefato autorizado indisponível.')
                 if sha256_file(target) != artifact.get('sha256'):
                     raise ValueError('Artefato autorizado alterado.')
-                return AuthorizedArtifact(artifact_id, target, artifact['media_type'],
-                                          artifact['kind'], revision)
+                resolved[artifact_id] = AuthorizedArtifact(artifact_id, target, artifact['media_type'],
+                                                          artifact['kind'], revision)
+                pending.remove(artifact_id)
+                if not pending:
+                    return resolved
         raise FileNotFoundError('Artefato autorizado não encontrado.')
 
     def _recover(self):

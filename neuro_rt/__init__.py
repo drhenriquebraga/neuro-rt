@@ -1,3 +1,3 @@
 """NeuroRT: módulo headless independente do Local Suite."""
 
-__version__ = '1.3.8'
+__version__ = '1.3.11'

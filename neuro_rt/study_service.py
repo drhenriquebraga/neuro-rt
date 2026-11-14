@@ -652,9 +652,12 @@ class StudyService:
             for mid, cached_result in list(previous.items()):
                 restored = []
                 try:
+                    records = [next(a for a in saved.artifacts if a['path'] == mask.path and a['kind'] == 'mask')
+                               for mask in cached_result['result'].masks]
+                    artifacts = self.store.resolve_artifacts(ident, [r['artifact_id'] for r in records])
                     for number, mask in enumerate(cached_result['result'].masks):
-                        record = next(a for a in saved.artifacts if a['path'] == mask.path and a['kind'] == 'mask')
-                        artifact = self.store.resolve_artifact(ident, record['artifact_id'])
+                        record = records[number]
+                        artifact = artifacts[record['artifact_id']]
                         target = directory / 'masks' / mid / f'class_{number}.nii.gz'
                         target.parent.mkdir(parents=True, exist_ok=True)
                         shutil.copyfile(artifact.path, target)

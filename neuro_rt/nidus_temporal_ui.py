@@ -206,7 +206,7 @@ NIDUS_TEMPORAL_JS = r"""
   el('nd_jan').insertBefore(open,el('nd_jan').querySelector('[data-j="osso"]'));
   var panel=document.createElement('section');panel.id='nd_cine_panel';panel.className='nd-cx';panel.hidden=true;
   panel.innerHTML='<div class="nd-cine-head"><strong data-radai-frase>CINE de enchimento</strong><span id="nd_cine_status" role="status"></span><span class="nd-cine-flex"></span></div>'+
-   '<div id="nd_cine_source" class="sub" translate="no" style="padding:0 8px"></div><div id="nd_cine_presets" class="nd-cine-controls"></div><div class="nd-cine-stage"><canvas id="nd_cine_canvas" width="1024" height="1024" role="img" aria-label="CINE"></canvas></div>'+
+   '<div id="nd_cine_source" class="sub" translate="no" style="padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0"></div><div id="nd_cine_presets" class="nd-cine-controls"></div><div class="nd-cine-stage"><canvas id="nd_cine_canvas" width="1024" height="1024" role="img" aria-label="CINE"></canvas></div>'+
    '<div class="nd-cine-controls" id="nd_cine_controls"><span id="nd_cine_phase" data-radai-frase>Fase</span><b id="nd_cine_index"></b><span id="nd_cine_time"></span>'+
    '<input id="nd_cine_slider" type="range" min="0" max="1" step="1" value="0" aria-label="Fase" disabled>'+
    '<label><input id="nd_cine_loop" type="checkbox" checked> <span data-radai-frase>Loop</span></label>'+

@@ -1,9 +1,25 @@
 from pathlib import Path
+import os
 
 import numpy as np
 import pydicom
 import SimpleITK as sitk
 from .scientific_io import read_image
+
+
+def native_dicom_path(path):
+    """Keep the same Windows file while removing a prefix GDCM cannot enumerate."""
+    value = os.fspath(path)
+    if os.name == 'nt':
+        if value.startswith('\\\\?\\UNC\\'):
+            return '\\\\' + value[8:]
+        if value.startswith('\\\\?\\') and len(value) > 6 and value[5:7] == ':\\':
+            return value[4:]
+    return value
+
+
+def dicom_file_identity(path):
+    return os.path.normcase(native_dicom_path(Path(path).resolve()))
 
 
 def geometry(image):
@@ -21,6 +37,7 @@ def check_volume(image):
 
 
 def dicom_series(folder, *, allowed_modalities=('MR',)):
+    folder = native_dicom_path(folder)
     reader = sitk.ImageSeriesReader()
     ids = reader.GetGDCMSeriesIDs(str(folder)) or []
     series = []
@@ -37,7 +54,7 @@ def dicom_series(folder, *, allowed_modalities=('MR',)):
 
 
 def load_input(path, uid='', *, allowed_modalities=('MR',)):
-    path = Path(path)
+    path = Path(native_dicom_path(path))
     if path.is_file() and (path.name.lower().endswith('.nii.gz') or path.suffix.lower() == '.nii'):
         image = read_image(path)
         source = {'kind': 'nifti', 'dicom_files': [], 'series_uid': '', 'frame_uid': ''}

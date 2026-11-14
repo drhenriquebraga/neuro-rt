@@ -23,6 +23,29 @@ def sample_manifest(status='completed'):
 
 
 class RecoveryTests(unittest.TestCase):
+    def test_bulk_artifacts_validate_inventory_once_and_reject_tampering(self):
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+            job = self.prepare(tmp)
+            (job / 'masks/other.nii.gz').write_bytes(b'second-mask')
+            first = sample_manifest()
+            manifest = replace(first, requested_model_ids=['MRI_GBM', 'MRI_Meningioma'],
+                results=first.results + [ModelResult('MRI_Meningioma', 'completed',
+                    [MaskArtifact('MRI_Meningioma', 'tumor', 'masks/other.nii.gz')])])
+            store = self.store(tmp)
+            store.save_manifest(manifest)
+            ids = [a['artifact_id'] for a in store.load_manifest('study-1').artifacts]
+            with patch.object(store, '_valid_revisions', wraps=store._valid_revisions) as check:
+                artifacts = store.resolve_artifacts('study-1', ids)
+                self.assertEqual(check.call_count, 1)
+            self.assertEqual(set(artifacts), set(ids))
+            self.assertEqual({a.path.read_bytes() for a in artifacts.values()},
+                             {b'synthetic-mask', b'second-mask'})
+            artifacts[ids[0]].path.write_bytes(b'tampered')
+            with self.assertRaises(ValueError):
+                store.resolve_artifacts('study-1', ids)
+            with self.assertRaises(FileNotFoundError):
+                store.resolve_artifacts('study-1', ['a' + '0' * 32])
+
     def test_manifest_refuses_windows_alias_identifiers(self):
         from neuro_rt.result_store import validate_manifest
         reserved = ['CON', 'PRN', 'AUX', 'NUL'] + [f'{kind}{n}' for kind in ('COM', 'LPT') for n in range(1, 10)]

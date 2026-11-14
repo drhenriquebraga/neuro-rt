@@ -464,7 +464,8 @@
     if (state.refreshing || state.posting) return;
     state.refreshing = true; refreshButtons();
     try {
-      render(await status());
+      const readWeights = async () => {const data = await status(); render(data); return data;};
+      if (setup) await setup.checkWeights(readWeights); else await readWeights();
     } catch (_) { view('unavailable', 'Não foi possível verificar a atualização. A versão instalada continua disponível.', []); }
     finally { state.refreshing = false; refreshButtons(); }
   });

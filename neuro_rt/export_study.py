@@ -163,7 +163,7 @@ def export_study(job_dir, host_app, *, catalog=None):
         import engine
         import numpy as np
         import SimpleITK as sitk
-        from .imaging import geometry, load_input, validate_mask, dicom_series
+        from .imaging import geometry, load_input, validate_mask, dicom_series, dicom_file_identity
 
         reference_image = read_image(str(job / 'inputs/reference.nii.gz'))
         if not _geometry_equal(geometry(reference_image), manifest.reference.geometry):
@@ -212,8 +212,8 @@ def export_study(job_dir, host_app, *, catalog=None):
             original_image, original_source = load_input(original, manifest.reference.series_uid,
                 allowed_modalities=(manifest.reference.modality,))
             _check_source(original_source, manifest.reference, original_image, geometry(reference_image))
-            if {str(Path(f).resolve()) for f in original_source['dicom_files']} != {
-                    str(Path(f).resolve()) for f in source['dicom_files']}:
+            if {dicom_file_identity(f) for f in original_source['dicom_files']} != {
+                    dicom_file_identity(f) for f in source['dicom_files']}:
                 raise ValueError('Arquivos DICOM originais foram substituídos.')
         verify_original()
         path, _ = engine.build_rtstruct(str(source_dir), masks, cru=True,

@@ -282,7 +282,7 @@
     el('viewer').dataset.contourReference = view.reference_ticket || '';
     (scene.rois || []).forEach(roi => { state.rois[roi.id] = {...roi,visible:roi.visible !== false,opacity:roi.opacity == null ? .7 : roi.opacity}; });
     ['axial','coronal','sagittal'].forEach(name => { const p = scene.planes[name], range = el('range-' + name); range.max = Math.max(0,p.count-1); range.value = p.center; loadSlice(name,generation); });
-    renderStructures(); initialize3D(); await loadVisibleMeshes(generation);
+    renderStructures(); initialize3D(); loadVisibleMeshes(generation);
   }
   const sliceRequests = {};
   async function loadSlice(name,generation) {

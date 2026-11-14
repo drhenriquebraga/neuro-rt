@@ -74,9 +74,9 @@ const browserPath=process.env.NEURO_BROWSER_EXECUTABLE||'C:/Program Files/Google
   assert.equal(await trigger.evaluate(e=>document.activeElement===e),true);
   await trigger.click();
   await page.locator('#nr-picker-source-t-folder').click();
-  const folder=page.locator('#nr-series-picker_pasta'), scan=page.locator('#nr-series-picker_form button[type="submit"]');
+  const folder=page.locator('#nr-series-picker_pasta');
   await folder.fill('synthetic-cancel');
-  await scan.click();
+  await folder.press('Enter');
   await page.locator('#nr-series-picker_leitura .ui-ler-lista li').waitFor();
   assert.equal(await page.locator('#nr-picker-results [data-b]').count(),0);
   await page.locator('#nr-series-picker_parar').click();
@@ -85,7 +85,7 @@ const browserPath=process.env.NEURO_BROWSER_EXECUTABLE||'C:/Program Files/Google
   assert.deepEqual(await page.evaluate(()=>NeuroStudy.state.series.map(s=>s.ticket)),['ticket1']);
   assert(await picker.isVisible());
   await folder.fill('synthetic-folder');
-  await scan.click();
+  await folder.press('Enter');
   await page.locator('#nr-picker-results [data-b="ticket5"]').waitFor();
   assert.deepEqual(selections,[['ticket1']],'Listing a folder must not choose a series');
   assert.equal(await page.getByRole('button',{name:'Synthetic partial row'}).count(),0);
