@@ -4,12 +4,9 @@ Only generated logical names enter view.json. The ResultStore publishes each
 artifact with an opaque ID; neither the scene nor the client receives paths.
 """
 import argparse
-import itertools
 import json
 import sys
 from pathlib import Path
-from types import SimpleNamespace
-import xml.etree.ElementTree as ET
 
 if __package__ in (None, ''):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -30,9 +27,8 @@ def build_study_views(job_dir, host_app):
     import numpy as np
     import SimpleITK as sitk
     import radai_recon3d as recon
-    import radai_recon3d_screen as screen
     from neuro_rt.imaging import validate_mask
-    from neuro_rt.build_views import center_slices
+    from neuro_rt.segmentation_views import StudyViews, mask_region, native_surface
     from neuro_rt.result_store import atomic_json
     from neuro_rt.roi_registry import make_roi_identity
     from neuro_rt.model_registry import get_model_spec
@@ -62,74 +58,36 @@ def build_study_views(job_dir, host_app):
                 'color': list(roi_identity.color),
                 'opacity': .7, 'visible': True, 'mesh': None,
             }, source))
-    corners = np.array([image.TransformIndexToPhysicalPoint(tuple(int(v) for v in index))
-                        for index in itertools.product(*[(0,n-1) for n in image.GetSize()])])
-    low, high = corners.min(0), corners.max(0)
-    spacing = max(1., float(np.max(high-low))/319)
-    grid = sitk.Image([int(np.ceil(v/spacing))+1 for v in high-low], sitk.sitkFloat32)
-    grid.SetOrigin(tuple(low)); grid.SetSpacing((spacing,)*3)
-    native = sitk.Resample(image, grid, sitk.Transform(), sitk.sitkLinear, 0., sitk.sitkFloat32)
-    volume = sitk.GetArrayFromImage(native)
-    values = volume[volume > 0]
-    lo, hi = np.percentile(values,[.5,99.5]) if values.size else (0.,1.)
-    if hi <= lo: hi = lo + 1
-    geometry = {'esp_zyx':grid.GetSpacing()[::-1], 'origem':grid.GetOrigin(), 'direcao':grid.GetDirection()}
+    views = StudyViews(image)
     dest = (job / 'views').resolve()
     if not dest.is_relative_to(job):
         raise ValueError('Pasta de visualização fora da área privada do estudo.')
     dest.mkdir(exist_ok=True)
-    union = np.zeros(volume.shape,dtype=bool)
     artifacts = []
     scene = {'schema':'neuro-rt/view/2','orientation':'LPS','engine':'Local Suite',
-             'planes':{},'rois':[],'bounds':[low.tolist(),high.tolist()]}
+             'planes':{},'rois':[],'bounds':[views.low.tolist(),views.high.tolist()],
+             'render_spacing_xyz_mm':views.spacing.tolist()}
     large_anatomy = len(source_rois) > 24
-    # Keep one resampled ROI at a time. An atlas with many classes must not
-    # multiply a full 320-cubed label volume by the number of structures.
-    pngs, overlays = {}, {}
-    for axis in range(3):
-        pngs[axis], overlays[axis] = [], []
-        for index in range(volume.shape[axis]):
-            gray = recon.plano_para_a_tela(np.take(volume,index,axis=axis),axis,geometry['esp_zyx'],('sup','post','esq'))
-            pngs[axis].append(recon.para_png(gray,float(lo+hi)/2,float(hi-lo)))
-            overlays[axis].append([])
     for roi, source in source_rois:
         original = read_image(str(source)); validate_mask(original,image)
-        bits = sitk.GetArrayFromImage(sitk.Resample(original,grid,sitk.Transform(),sitk.sitkNearestNeighbor,0,sitk.sitkUInt8)) > 0
-        union |= bits
         roi['visible'] = not large_anatomy
-        native_bits = sitk.GetArrayFromImage(original) > 0
-        roi['volume_cm3'] = float(np.count_nonzero(native_bits) * np.prod(original.GetSpacing()) / 1000.)
-        if native_bits.any():
-            verts, faces = recon.malha_de_mascara(native_bits,original.GetSpacing()[::-1],
-                original.GetOrigin(),original.GetDirection(),suavizar_mm=0.)
+        roi['volume_cm3'] = float(np.count_nonzero(sitk.GetArrayViewFromImage(original)) * np.prod(original.GetSpacing()) / 1000.)
+        region = mask_region(original)
+        if region is not None:
+            views.add_roi(original,region,roi['id'],roi['color'])
+            verts, faces = native_surface(original,region)
             if len(faces):
                 name = roi['id'] + '.stl'; (dest/name).write_bytes(recon.stl_da_malha(verts,faces))
                 roi['mesh'] = name
                 artifacts.append({'kind':'mesh','path':'views/'+name,'logical_name':name})
         scene['rois'].append(roi)
-        conjunto = {'tipo':'rotulos','rois':[{'nome':roi['id'],'cor':roi['color']}],
-                    'mapa':SimpleNamespace(_vol={roi['id']:bits},
-                        tabela=[{'nome':roi['id'],'chave':roi['id'],'indice':1}]), **geometry}
-        for axis in range(3):
-            for index in range(volume.shape[axis]):
-                if not np.take(bits,index,axis=axis).any(): continue
-                layer = ET.fromstring(screen._png_com_contornos(pngs[axis][index],conjunto,volume.shape,
-                    geometry['esp_zyx'],geometry['origem'],geometry['direcao'],('sup','post','esq'),axis,index,[roi['id']]))
-                group = layer.find('{http://www.w3.org/2000/svg}g')
-                if group is not None:
-                    group.set('data-roi',roi['id']); overlays[axis][index].append(group)
-    centers = center_slices(union)
-    conjunto = {'tipo':'rotulos','rois':[],'mapa':SimpleNamespace(_vol={},tabela=[]),**geometry}
+    centers = views.centers()
     for axis, name in enumerate(('axial','coronal','sagittal')):
-        plane = {'count':volume.shape[axis],'center':centers[axis],'slices':[]}
+        plane = {'count':views.shape[axis],'center':centers[axis],'slices':[]}
         scene['planes'][name] = plane
-        for index in range(volume.shape[axis]):
-            png = pngs[axis][index]
-            svg = screen._png_com_contornos(png,conjunto,volume.shape,geometry['esp_zyx'],geometry['origem'],geometry['direcao'],('sup','post','esq'),axis,index,[])
-            root = ET.fromstring(svg)
-            for group in overlays[axis][index]: root.append(group)
+        for index in range(views.shape[axis]):
             filename = '%s_%03d.svg' % (name,index)
-            (dest/filename).write_bytes(ET.tostring(root,encoding='utf-8'))
+            (dest/filename).write_bytes(views.svg(axis,index))
             plane['slices'].append(filename)
             artifacts.append({'kind':'slice','path':'views/'+filename,'logical_name':filename})
     atomic_json(dest/'view.json',scene)

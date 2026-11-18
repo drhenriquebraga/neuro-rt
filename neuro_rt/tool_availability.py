@@ -1,8 +1,4 @@
-"""Public tool availability for the explicitly authorized test phase.
-
-Keep this gate separate from the scientific catalogue: possessing model assets
-does not make a tool available in the current product delivery.
-"""
+"""Public tool availability independently of the scientific catalogue."""
 from dataclasses import asdict, dataclass
 
 
@@ -18,20 +14,19 @@ class Tool:
 
     @property
     def display_title(self):
-        # The original title is part of the locally signed test-phase policy.
         return 'AutoContorno Neuro' if self.id == 'anatomia' else self.title
 
 
 TOOLS = (
-    Tool('nidus', 'nidus', 'Nidus RT', '/neuro/nidus', True, 'testing', '[fase de testes]'),
+    Tool('nidus', 'nidus', 'Nidus RT', '/neuro/nidus', True, 'ready', ''),
     Tool('glioma', 'neuro_glioma', 'Glioma RT', '/neuro/glioma', True,
-         'testing', '[fase de testes]'),
+         'ready', ''),
     Tool('metastasis', 'neuro_metastasis', 'Metastasis RT', '/neuro/metastasis', True,
-         'testing', '[fase de testes]'),
+         'ready', ''),
     Tool('meningioma', 'neuro_meningioma', 'Meningioma RT', '/neuro/meningioma', True,
-         'testing', '[fase de testes]'),
+         'ready', ''),
     Tool('anatomia', 'neuro_anatomia', 'Anatomia RT', '/neuro/anatomia', True,
-         'testing', '[fase de testes]'),
+         'ready', ''),
 )
 
 
@@ -40,7 +35,7 @@ class ToolUnavailable(ValueError):
 
 
 def available_tools(enabled_ids=None):
-    """Describe runtime readiness without changing the signed tool policies."""
+    """Describe runtime readiness for each tool."""
     enabled_ids = set(enabled_ids) if enabled_ids is not None else {tool.id for tool in TOOLS}
     return [dict(asdict(tool), title=tool.display_title,
                  enabled=tool.enabled and tool.id in enabled_ids,

@@ -22,7 +22,7 @@ def _pagina_ferramentas(renderer, availability=None):
             entry.append('')
         entry[2] = tool.display_title
         status = readiness.get(tool.id, {'enabled': tool.enabled, 'label': tool.label})
-        entry[3] = '/neuro/testing/' + tool.id if status['enabled'] else ''
+        entry[3] = tool.route if status['enabled'] else ''
         entry[5] = status['label']
         original = renderer._cartao(card, color)
         replacement = renderer._cartao(entry, color)
@@ -65,7 +65,6 @@ def pagina_neuro(host_services, plugin_status):
         terms = f'<p id="neuro-terms-help" translate="no"><b class="hm-aj-t">{title}</b></p>'
         terms += ''.join('<p translate="no">' + html.escape(clause['text']) + '</p>'
                          for clause in policy['clauses'])
-        terms += '<p>Na interface atual, o aceite da fase de testes é lembrado por ferramenta.</p>'
         close = '</span></span>'
         if help_html.endswith(close):
             page = page.replace(help_html, help_html[:-len(close)] + terms + close, 1)
@@ -106,7 +105,7 @@ def pagina_estudo(category, host_services):
     page = (Path(__file__).resolve().parents[1] / 'web' / 'study.html').read_text(encoding='utf-8')
     page = page.replace('__NEURO_TITLE__', html.escape(title)).replace('__NEURO_CATEGORY__', category)
     help_html = radai_ui.ajuda(
-        'Esta ferramenta está em fase de testes. Os contornos gerados são sugestões para estudo.',
+        'Os contornos gerados são sugestões para estudo.',
         'Confira as séries de entrada, a referência e os contornos no TPS antes de usar o resultado.',
     )
     header = radai_ui.cabeca_de_funcao(icons[category], title,

@@ -142,10 +142,20 @@ class Service:
         self._demos = {}
         self._load_demos()
         self.host_services = host_services
-        self.studies = None
-        if host_services is not None:
-            from .study_service import StudyService
-            self.studies = StudyService(settings, host_services)
+        self._study_lock = threading.Lock()
+        self._studies = None
+
+    @property
+    def studies(self):
+        if self.host_services is None:
+            return None
+        # Recovery reads the local study history. Opening the NEURO menu and
+        # the basic Nidus viewer must not wait for that history.
+        with self._study_lock:
+            if self._studies is None and not self._closed:
+                from .study_service import StudyService
+                self._studies = StudyService(self.settings, self.host_services)
+            return self._studies
 
     def _load_demos(self):
         cache = self.settings.data_dir / 'demos.json'
@@ -197,14 +207,17 @@ class Service:
         if paths is None or (self.settings.resources is not None and self.weights_status()['state'] == 'ready'):
             return available_tools()
         ready = {'nidus'}
-        if self.studies is not None and 'cranio_buti' in self.studies.catalog:
-            from integration.buti_host import capabilities
-
-            if capabilities(self.settings.host_app, self.settings.host_python)['cranio_buti']['available']:
+        if self.host_services is not None:
+            from .model_registry import load_catalog
+            from integration.buti_host import IDENT, capabilities
+            if (any(spec['id'] == IDENT for spec in load_catalog())
+                    and capabilities(self.settings.host_app, self.settings.host_python)[IDENT]['available']):
                 ready.add('anatomia')
         return available_tools(ready)
 
     def tool_available(self, tool_id):
+        if tool_id == 'nidus':
+            return True
         return any(tool['id'] == tool_id and tool['enabled'] for tool in self.tools())
 
     def weights_status(self):
@@ -214,6 +227,7 @@ class Service:
     def status(self):
         with self._lock:
             jobs = [dict(job) for job in self._jobs.values()]
+        studies = self.studies
         return {'module': 'neuro-rt', 'version': __version__,
                 'code_version': getattr(self.settings.plugin_paths, 'active_version', None) or __version__,
                 'weights': self.weights_status(), 'token': self.token,
@@ -224,7 +238,7 @@ class Service:
                 'processing_preference':self.settings.processing_preference,
                 'shared_config_pending': self.host_services is None,
                 'integrated': self.host_services is not None,
-                'study_jobs': self.studies.list_jobs() if self.studies else [],
+                'study_jobs': studies.list_jobs() if studies else [],
                 'demos': [self._jobs[job_id]['demo'] for job_id in self._demos.values()],
                 'models': self._models_status(), 'tools': self.tools(), 'jobs': jobs[-20:]}
 
@@ -352,19 +366,21 @@ class Service:
 
     def view_file(self,job_id,name):
         self.job(job_id)
-        if not re.fullmatch(r'(?:view\.json|renderer\.js|(?:Tumor|Brain)\.stl|(?:axial|coronal|sagittal)_\d{3}\.(?:png|svg))',name):
+        if not re.fullmatch(r'(?:view\.json|renderer\.js|(?:Tumor|Brain)\.stl|(?:axial|coronal|sagittal)_[0-9]{3,6}\.(?:png|svg))',name):
             raise ValueError('Arquivo de visualização não permitido.')
         path=self.settings.data_dir/'jobs'/job_id/'views'/name
         if not path.is_file():raise FileNotFoundError('Visualização não encontrada.')
         return path
 
     def close(self):
-        if self.studies is not None:
-            self.studies.close()
-        with self._lock:
-            self._closed = True
-            process, thread = self._process, self._thread
-            if process and process.poll() is None:
-                process.terminate()
+        with self._study_lock:
+            with self._lock:
+                self._closed = True
+                process, thread = self._process, self._thread
+                if process and process.poll() is None:
+                    process.terminate()
+            studies = self._studies
+        if studies is not None:
+            studies.close()
         if thread:
             thread.join(timeout=5)

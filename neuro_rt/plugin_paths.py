@@ -99,7 +99,7 @@ def resolve_plugin_paths(host_root, installation_state, *, host_python=None,
         from .plugin_manifest import read_manifest
 
         if read_manifest(_relative_path(code_dir, 'module.json')).base_tools != ('nidus',):
-            raise ValueError('A fase de testes exige os recursos verificados antes de montar o plugin.')
+            raise ValueError('Prepare os recursos verificados antes de montar o plugin.')
     if execution_mode != 'host' and installation_state.get('resources') is not None:
         raise ValueError('Recursos compartilhados exigem execution_mode=host.')
     try:

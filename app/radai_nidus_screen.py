@@ -409,6 +409,7 @@ CSS = u"""
 .nd-layout-a .nd-ctl3d .nd-bt{font-size:10px;padding:2px 5px;min-height:23px}
 .nd-layout-a #nd_mpr_main{height:auto;min-height:0;grid-column:1/3;grid-row:2/4}
 .nd-layout-a #nd_mpr_main > .p{height:100%;min-height:0;gap:5px}
+.nd-layout-a #nd_mpr_main > .nd-3d{height:100%;min-height:0;box-sizing:border-box}
 .nd-layout-a #nd_mpr_main .nd-palco{min-height:0;width:100%;height:auto;flex:1 1 0}
 .nd-layout-a #nd_mpr_main .nd-mpr-title{display:none}
 .nd-layout-a .nd-colA.nd-mpr-principal{grid-template-rows:auto minmax(0,1fr) 28px}
@@ -2246,6 +2247,7 @@ function nd3Vista(valor){
  var a=ndEl('nd_ctl_3d'), s=ndEl('nd_ctl_sala'), t=ndEl('nd_3d_t');
  if(a) a.hidden=ND3.emSala; if(s) s.hidden=!ND3.emSala;
  if(t) ndTexto(t, nome);
+ if(ND.principal===3){var principal=ndEl('nd_principal_t');if(principal)ndTexto(principal,nome)}
  if(!ND3.emSala) nd3Malhas();
  nd3Canto(); nd3Pedir();
 }
@@ -2268,15 +2270,19 @@ function ndMaximizar(eixo){
  var palco=ndEl('nd_palco'), aux=ndEl('nd_proj_aux');
  if(palco && palco.parentNode!==box) box.insertBefore(palco,ndEl('nd_mpr_main'));
  if(aux) aux.hidden=true;
- if(ND.principal!==null){
+ if(ND.principal===3){
+  var room=ndEl('nd_3d_cx'), grid=ndEl('nd_aux_grid');
+  if(room && grid) grid.prepend(room);
+ } else if(ND.principal!==null){
   var old=ndEl('nd_pane'+ND.principal), home=ndEl('nd_home'+ND.principal);
   if(old && home) home.parentNode.insertBefore(old, home);
  }
  ND.principal=eixo;
- if(eixo!==null){ var pane=ndEl('nd_pane'+eixo); if(pane) host.appendChild(pane);
-  if(aux && palco){aux.style.gridArea=['1 / 2','2 / 1','2 / 2'][eixo];aux.appendChild(palco);aux.hidden=false} }
+ if(eixo!==null){ var pane=ndEl(eixo===3?'nd_3d_cx':'nd_pane'+eixo); if(pane) host.appendChild(pane);
+  if(aux && palco){aux.style.gridArea=['1 / 2','2 / 1','2 / 2','1 / 1'][eixo];aux.appendChild(palco);aux.hidden=false} }
  host.hidden=eixo===null; box.classList.toggle('nd-mpr-principal', eixo!==null);
- var title=ndEl('nd_principal_t'); if(title) ndTexto(title, eixo===null?'projeção':['axial','coronal','sagital'][eixo]);
+ var title=ndEl('nd_principal_t'); if(title) ndTexto(title, eixo===null?'projeção':['axial','coronal','sagital',ND3.emSala?'Sala':'3D da caixa'][eixo]);
+ var expandRoom=ndEl('nd_expand_room');if(expandRoom){expandRoom.hidden=eixo===3;expandRoom.setAttribute('aria-pressed',String(eixo===3))}
  var rotation=ndEl('nd_rot_proj'); if(rotation) rotation.hidden=eixo!==null;
  var state=ndEl('nd_estado'); if(state) state.hidden=eixo!==null;
  var back=ndEl('nd_layout_original'); if(back) back.hidden=eixo===null;
@@ -2311,6 +2317,9 @@ function ndLayoutA(){
  wrap.classList.add('nd-layout-a');
  var grid=document.createElement('div');grid.id='nd_aux_grid';grid.className='nd-aux-grid';
  col.appendChild(grid);grid.appendChild(ndEl('nd_3d_cx'));
+ ndEl('nd_palco3d').addEventListener('dblclick',function(event){
+  event.preventDefault();ndMaximizar(ND.principal===3?null:3);
+ });
  [0,1,2].forEach(function(axis){grid.appendChild(ndEl('nd_pane'+axis));grid.appendChild(ndEl('nd_home'+axis));
   var pane=ndEl('nd_pp'+axis);pane.addEventListener('wheel',function(event){ndMprRoda(axis,event)},{passive:false});
   pane.addEventListener('dblclick',function(event){if(ND.consensoEditavel)return;event.preventDefault();ndMaximizar(ND.principal===axis?null:axis)});
@@ -2922,7 +2931,8 @@ PAGINA = u"""<!doctype html><html><head><meta charset="utf-8">
   <div class="nd-cima">
    <section class="nd-cx nd-3d" id="nd_3d_cx" aria-label="Sala">
     <div class="nd-rot"><span id="nd_3d_t" data-radai-frase>Sala</span>
-     <span class="dir">@VISTA@</span></div>
+     <span class="dir">@VISTA@<button type="button" class="nd-bt" id="nd_expand_room"
+      onclick="ndMaximizar(3)" aria-pressed="false" data-radai-frase>Ampliar</button></span></div>
     <div class="nd-palco3d" id="nd_palco3d">
      <canvas id="nd_gl" aria-label="Sala"></canvas>
      <div class="nd-cant" id="nd_cant"></div>

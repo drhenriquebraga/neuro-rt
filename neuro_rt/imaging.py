@@ -32,7 +32,9 @@ def check_volume(image):
         raise ValueError('A entrada precisa ser um volume escalar 3D.')
     if min(image.GetSize()) < 2 or min(image.GetSpacing()) <= 0:
         raise ValueError('Volume sem geometria 3D válida.')
-    if not np.isfinite(sitk.GetArrayViewFromImage(image)).all():
+    values = sitk.GetArrayViewFromImage(image)
+    if not np.issubdtype(values.dtype, np.integer) and any(
+            not np.isfinite(plane).all() for plane in values):
         raise ValueError('Volume contém valores não finitos.')
 
 
@@ -122,7 +124,11 @@ def validate_mask(mask, reference):
              (mask.GetDirection(), reference.GetDirection())))):
         raise ValueError('Máscara fora da geometria da RM de origem; não será exportada.')
     array = sitk.GetArrayViewFromImage(mask)
-    if not np.isin(array, [0, 1]).all():
+    if np.issubdtype(array.dtype, np.integer):
+        binary = array.min() >= 0 and array.max() <= 1
+    else:
+        binary = all(not np.any((plane != 0) & (plane != 1)) for plane in array)
+    if not binary:
         raise ValueError('Saída não é uma máscara binária; probabilidades não viram contorno.')
     voxels = int(np.count_nonzero(array))
     return {'voxels': voxels, 'volume_cm3': voxels * float(np.prod(mask.GetSpacing())) / 1000}

@@ -12,7 +12,8 @@ import shutil
 import sys
 import uuid
 
-from .export import verify_rtstruct
+from .export import (MASK_HEAP_BUDGET, verify_rtstruct, source_planes,
+                     mask_matches_contours, temporary_writer_result)
 from .result_store import atomic_json, validate_manifest
 from .roi_registry import collect_reference_masks
 from .study_types import ExportReceipt
@@ -48,25 +49,20 @@ def _check_source(source, reference, image, expected_geometry):
         raise ValueError('A referência DICOM não corresponde ao manifesto.')
 
 
-def _check_written(path, source, expected, source_dir):
+def _check_written(path, source, expected, source_dir, *, subpixel=False):
     """Validate metadata and exact voxel round trip, including tiny secondary foci."""
     import numpy as np
     import pydicom
     from rt_utils import RTStructBuilder
     from radai_rt import SessaoRT
-    verify_rtstruct(path, source)
     ds = pydicom.dcmread(str(path))
+    verify_rtstruct(path, source, dataset=ds)
     names = [str(roi.ROIName) for roi in ds.StructureSetROISequence]
     delivered, omitted = sorted(set(names) & set(expected)), sorted(set(expected) - set(names))
     if len(names) != len(set(names)) or set(names) - set(expected):
         raise IncompleteExport('O gravador alterou a identidade das ROIs solicitadas.')
     if omitted:
         return ds, delivered, omitted
-    rt = RTStructBuilder.create_from(dicom_series_path=str(source_dir), rt_struct_path=str(path))
-    # The host writes boundaries at half-pixels. rt_utils rounds those vertices
-    # before fillPoly and can add a full rim of voxels. Reuse the host's reader,
-    # which rasterizes at voxel centres, then retain exact array equality below.
-    reader = SessaoRT(None, str(path), None, next(iter(expected.values())).shape, names, rt)
     numbers = {int(roi.ROINumber): str(roi.ROIName) for roi in ds.StructureSetROISequence}
     observations = ds.get('RTROIObservationsSequence', [])
     if {int(item.ReferencedROINumber) for item in observations} != set(numbers):
@@ -75,6 +71,21 @@ def _check_written(path, source, expected, source_dir):
         description = str(item.get('ROIObservationDescription', ''))
         if 'NeuroRT / modelo ' not in description or '/ classe ' not in description:
             raise IncompleteExport('O gravador não conservou a identidade de modelo/classe.')
+    if subpixel:
+        planes = source_planes(source)
+        seen = set()
+        for rc in ds.get('ROIContourSequence', []):
+            name = numbers.get(int(rc.ReferencedROINumber))
+            if name is None or name in seen:
+                raise IncompleteExport('Contorno duplicado ou sem vínculo com a estrutura.')
+            seen.add(name)
+            if not mask_matches_contours(rc, expected[name], planes):
+                omitted.append(name)
+        omitted = sorted(set(omitted) | (set(expected) - seen))
+        return ds, sorted(set(delivered) - set(omitted)), omitted
+    rt = RTStructBuilder.create_from(dicom_series_path=str(source_dir), rt_struct_path=str(path))
+    # NIDUS receipts created with the original writer use its centre sampling.
+    reader = SessaoRT(None, str(path), None, next(iter(expected.values())).shape, names, rt)
     planes = {}
     for file in source['dicom_files']:
         header = pydicom.dcmread(str(file), stop_before_pixels=True,
@@ -110,33 +121,6 @@ def _check_written(path, source, expected, source_dir):
     return ds, sorted(set(delivered) - set(omitted)), omitted
 
 
-def _retry_terminal_contours(engine, path, dataset, omitted, source, expected, source_dir, spacing):
-    """Give the host's terminal contour path one chance to retain lost voxels."""
-    repair = getattr(engine, '_trocar_mascara_terminal', None)
-    numbers = {str(roi.ROIName): int(roi.ROINumber) for roi in dataset.StructureSetROISequence}
-    if not callable(repair) or not set(omitted).issubset(numbers) or abs(spacing[0] - spacing[1]) > 1e-5:
-        return None
-    from rt_utils import RTStructBuilder
-    candidate = path.with_name(path.stem + '-retry.dcm')
-    try:
-        rt = RTStructBuilder.create_from(dicom_series_path=str(source_dir), rt_struct_path=str(path))
-        colors = {int(roi.ReferencedROINumber): list(roi.ROIDisplayColor) for roi in dataset.ROIContourSequence}
-        for name in omitted:
-            number = numbers[name]
-            # The DICOM has already been transformed back into patient LPS.
-            repair(dataset, rt.series_data, name, number, expected[name], colors[number], None, spacing[:2])
-        dataset.save_as(str(candidate))
-        checked, delivered, remaining = _check_written(candidate, source, expected, source_dir)
-        if remaining:
-            return None
-        candidate.replace(path)
-        return checked, delivered, remaining
-    except (OSError, ValueError, KeyError, AttributeError, TypeError):
-        return None
-    finally:
-        candidate.unlink(missing_ok=True)
-
-
 def export_study(job_dir, host_app, *, catalog=None):
     """Return an ExportReceipt, or None for empty masks; update private manifest.
 
@@ -161,7 +145,6 @@ def export_study(job_dir, host_app, *, catalog=None):
         from integration.host_imports import prepare_host_imports
         prepare_host_imports(host_app)
         import engine
-        import numpy as np
         import SimpleITK as sitk
         from .imaging import geometry, load_input, validate_mask, dicom_series, dicom_file_identity
 
@@ -175,6 +158,7 @@ def export_study(job_dir, host_app, *, catalog=None):
             request = json.loads(request_path.read_text(encoding='utf-8'))
             item = next((row for row in request['studies'] if row['study_id'] == manifest.study_id), {})
             requested = item.get('export_classes', {})
+        remaining_ram = MASK_HEAP_BUDGET
         for identity, artifact in collect_reference_masks(manifest, catalog=catalog):
             if artifact.model_id in requested and artifact.class_id not in requested[artifact.model_id]:
                 continue
@@ -184,7 +168,12 @@ def export_study(job_dir, host_app, *, catalog=None):
                 raise ValueError('Geometria privada da máscara diverge de seu manifesto.')
             if not metrics['voxels']:
                 continue
-            bits = np.array(sitk.GetArrayFromImage(image), dtype=bool)
+            # Compact boxes share one RAM budget across all atlas classes.
+            # Larger boxes spill directly to the host's local temporary mapping.
+            bits = engine.MascaraCompacta.de(sitk.GetArrayViewFromImage(image), remaining_ram)
+            size = bits.bytes_guardados()
+            if size <= remaining_ram:
+                remaining_ram -= size
             masks[identity.writer_key] = bits
             expected[identity.roi_name] = bits
             descriptions[identity.writer_key] = identity.description
@@ -216,34 +205,18 @@ def export_study(job_dir, host_app, *, catalog=None):
                     dicom_file_identity(f) for f in source['dicom_files']}:
                 raise ValueError('Arquivos DICOM originais foram substituídos.')
         verify_original()
-        path, _ = engine.build_rtstruct(str(source_dir), masks, cru=True,
-                    descontar=False, suavizar_mm=0., modalidade=manifest.reference.modality,
-                    rotulo='RadAI_NEURO', origem={key: 'neuro-rt' for key in masks},
-                    observacoes=descriptions, decimar_mm=0.)
         exports = job / 'exports'
         exports.mkdir(exist_ok=True)
         filename = f'RS_NeuroRT_{uuid.uuid4().hex}.dcm'
         internal = exports / filename
-        shutil.copyfile(path, internal)
-        # The host remains the sole contour writer. Match its presentation
-        # metadata to the same model/class palette used by NeuroRT's viewers.
-        import pydicom
-        colored = pydicom.dcmread(str(internal))
-        names_by_number = {int(roi.ROINumber): str(roi.ROIName)
-                           for roi in colored.get('StructureSetROISequence', [])}
-        for roi in colored.get('ROIContourSequence', []):
-            name = names_by_number.get(int(roi.ReferencedROINumber))
-            if name in identities:
-                roi.ROIDisplayColor = list(identities[name].color)
-        # The host already emitted Part 10. Preserve its file metadata/encoding;
-        # enforcing a new format would add pydicom's implementation-version tag.
-        colored.save_as(str(internal))
-        ds, delivered, omitted = _check_written(internal, source, expected, source_dir)
-        if omitted:
-            repaired = _retry_terminal_contours(engine, internal, ds, omitted, source, expected,
-                                                 source_dir, reference_image.GetSpacing())
-            if repaired is not None:
-                ds, delivered, omitted = repaired
+        built = engine.build_rtstruct(str(source_dir), masks, cru=True,
+                    descontar=False, suavizar_mm=0., modalidade=manifest.reference.modality,
+                    rotulo='RadAI_NEURO', origem={key: 'neuro-rt' for key in masks},
+                    observacoes=descriptions, decimar_mm=0., contornos_subpixel=True,
+                    cores_por_roi={v.writer_key: v.color for v in identities.values()})
+        with temporary_writer_result(built) as (path, _):
+            shutil.copyfile(path, internal)
+        ds, delivered, omitted = _check_written(internal, source, expected, source_dir, subpixel=True)
         receipt = ExportReceipt('', str(ds.SOPInstanceUID), manifest.reference.ticket,
                                 delivered, omitted, manifest.revision)
         if omitted:

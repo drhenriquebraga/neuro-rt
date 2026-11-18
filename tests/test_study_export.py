@@ -1,4 +1,5 @@
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -14,8 +15,8 @@ from neuro_rt.study_types import MaskArtifact, ModelResult, SeriesDescriptor, St
 from synthetic_dicom import make_series
 from test_pipeline import TEMP_ROOT
 
-ROOT = Path(__file__).resolve().parents[1]
-HOST = ROOT.parent / 'AUTO_CONTORNO'
+ROOT = Path(os.environ.get('NEURO_TEST_PLUGIN', Path(__file__).resolve().parents[1]))
+HOST = Path(os.environ.get('NEURO_TEST_HOST_APP', ROOT.parent / 'AUTO_CONTORNO'))
 
 
 class StudyExportTests(unittest.TestCase):
@@ -56,9 +57,10 @@ class StudyExportTests(unittest.TestCase):
     def run_export(self, job, catalog=None, deny_publication=False, writer_fault=None,
                    capture_writer=False):
         config = ROOT / 'neuro_rt.local.json'
-        if not config.is_file():
+        override = os.environ.get('NEURO_TEST_HOST_PYTHON')
+        if not override and not config.is_file():
             self.skipTest('Runtime do host não configurado.')
-        python = Path(json.loads(config.read_text())['host_python'])
+        python = Path(override or json.loads(config.read_text())['host_python'])
         if not python.is_file() or not HOST.is_dir():
             self.skipTest('Runtime/gravador real indisponível.')
         bootstrap = ('import sys,runpy;sys.path.insert(0,sys.argv.pop(1));'
@@ -196,16 +198,19 @@ class StudyExportTests(unittest.TestCase):
             internal = Path(result['artifacts'][-1]['path'])
             self.assertEqual(internal.read_bytes(), published.read_bytes())
 
-    def test_small_nonempty_roi_marks_incomplete_without_publication(self):
+    def test_single_voxel_is_published_with_other_model_results(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
             job = Path(tmp)
             self.prepare(job, tiny=True)
-            self.assertNotEqual(self.run_export(job).returncode, 0)
+            run = self.run_export(job, capture_writer=True)
+            self.assertEqual(run.returncode, 0, run.stderr.decode(errors='replace')[-1500:])
             manifest = json.loads((job / 'study-manifest.json').read_text())
-            self.assertEqual(manifest['export_status'], 'incomplete')
-            self.assertFalse(list((job / 'original').glob('RS_NeuroRT_*.dcm')))
-            self.assertTrue((job / 'masks/model1.nii.gz').exists())
-            self.assertTrue(manifest['export_receipt']['omitted_rois'])
+            self.assertEqual(manifest['export_status'], 'completed')
+            self.assertEqual(manifest['export_receipt']['omitted_rois'], [])
+            from neuro_rt.roi_registry import make_roi_identity
+            name = make_roi_identity('MRI_Meningioma', 'tumor', 1).roi_name
+            restored = np.load(job / ('roundtrip_' + name + '.npy'))
+            self.assertEqual(np.argwhere(restored).tolist(), [[2, 2, 2]])
 
     def test_voxel_focus_sop_plane_and_planarity_remain_strict(self):
         for fault in ('focus', 'plane', 'sop'):

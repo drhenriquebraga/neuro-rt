@@ -12,13 +12,13 @@ from pathlib import Path
 import stat
 import tempfile
 
-VERSION = '1.1'
+VERSION = '1.2'
+# 1.2 only removes the test-participation clause. Existing receipts still
+# acknowledge all terms in force, including licence and review obligations.
+PREVIOUS_TERMS = ('1.1', '65a214a9a3bd2a02e3014020792f671b2d6d7b45825c0ab80704bafec91308d0')
 STAGES = ('installation', 'first_use')
 CLAUSES = (
-    ('scope', 'NEURO RT é um plugin de estudo e pesquisa da Local Suite. Nesta entrega, '
-     'Nidus, Glioma, Metastasis, Meningioma e Anatomia estão em fase de testes. '
-     'As ferramentas ainda estão sendo moldadas; a participação é voluntária e '
-     'cada entrada solicita a confirmação desta fase.'),
+    ('scope', 'NEURO RT é um plugin de estudo e pesquisa da Local Suite.'),
     ('nidus', 'Nidus RT realiza construção geométrica a partir das entradas escolhidas '
      'pelo usuário. Não detecta lesões. O consenso ajustável entre união e interseção '
      'das projeções é uma sugestão geométrica; sua exportação para RTSTRUCT exige '
@@ -79,8 +79,10 @@ def accepted(config_dir, stage):
         value = json.loads(path.read_text(encoding='utf-8'))
         current = policy()
         return (isinstance(value, dict) and value.get('schema') == 'neuro-rt/consent-receipt/1'
+                and value.get('plugin_id') == 'neuro-rt'
                 and value.get('accepted') is True and value.get('stage') == stage
-                and value.get('version') == current['version'] and value.get('digest') == current['digest']
+                and (value.get('version'), value.get('digest')) in
+                    ((current['version'], current['digest']), PREVIOUS_TERMS)
                 and isinstance(value.get('accepted_at'), str) and bool(value['accepted_at']))
     except (OSError, ValueError, UnicodeError):
         return False

@@ -64,12 +64,10 @@ def montar(app, module_root, *, host_services=None):
             raise HTTPException(400, 'Pedido JSON inválido.')
 
     def studies():
-        if service.studies is None:
+        backend = service.studies
+        if backend is None:
             raise HTTPException(409, 'Este fluxo requer integração com o Local Suite.')
-        return service.studies
-
-    def require_testing_models(request, model_ids):
-        service.testing_access.require_models(request, model_ids, studies().catalog)
+        return backend
 
     def fail(exc):
         if isinstance(exc, (KeyError, FileNotFoundError)):
@@ -94,10 +92,8 @@ def montar(app, module_root, *, host_services=None):
         category = body.get('category')
         if category not in ('glioma', 'metastasis', 'meningioma', 'anatomia'):
             raise HTTPException(400, 'Escolha uma ferramenta de segmentação.')
-        if not service.testing_access.allowed(request, category):
-            raise HTTPException(428, 'Confirme a fase de testes da ferramenta antes de carregar séries.')
         try:
-            value = await run_in_threadpool(studies().selection, body.get('tickets'), body.get('category'))
+            value = await run_in_threadpool(lambda: studies().selection(body.get('tickets'), category))
             return JSONResponse(value, headers={'Cache-Control': 'no-store'})
         except (KeyError, ValueError, RuntimeError, TypeError) as exc:
             raise fail(exc)
@@ -105,12 +101,8 @@ def montar(app, module_root, *, host_services=None):
     @router.post('/api/studies', status_code=202)
     async def submit_study(request: Request):
         body = await action(request)
-        items = body.get('studies', [])
-        model_ids = [mid for item in items if isinstance(item, dict) and isinstance(item.get('model_ids'), list)
-                     for mid in item.get('model_ids', []) if isinstance(mid, str)] if isinstance(items, list) else []
-        require_testing_models(request, model_ids)
         try:
-            value = await run_in_threadpool(studies().submit, body)
+            value = await run_in_threadpool(lambda: studies().submit(body))
             return JSONResponse(value, status_code=202, headers={'Cache-Control': 'no-store'})
         except (KeyError, ValueError, RuntimeError, TypeError) as exc:
             raise fail(exc)
@@ -131,21 +123,17 @@ def montar(app, module_root, *, host_services=None):
     async def retry_study(request: Request, study_id: str):
         body = await action(request, 4096)
         try:
-            model_ids = studies().job(study_id).get('model_ids', [])
-            if 'nidus_consensus' in model_ids:
-                if not service.testing_access.allowed(request, 'nidus'):
-                    raise HTTPException(428, 'Confirme a fase de testes do Nidus RT.')
-            else:
-                require_testing_models(request, model_ids)
-            result = await run_in_threadpool(studies().retry, study_id,
-                explicit_request=body.get('explicit_request'), export_partial=body.get('export_partial') is True)
+            result = await run_in_threadpool(lambda: studies().retry(study_id,
+                explicit_request=body.get('explicit_request'), export_partial=body.get('export_partial') is True))
             return JSONResponse(result, status_code=202, headers={'Cache-Control': 'no-store'})
         except (KeyError, ValueError, RuntimeError, FileNotFoundError) as exc: raise fail(exc)
 
     @router.post('/api/studies/{study_id}/cancel')
     async def cancel_study(request: Request, study_id: str):
         await action(request, 4096)
-        try: return JSONResponse(studies().cancel(study_id), headers={'Cache-Control': 'no-store'})
+        try:
+            result = await run_in_threadpool(lambda: studies().cancel(study_id))
+            return JSONResponse(result, headers={'Cache-Control': 'no-store'})
         except KeyError as exc: raise fail(exc)
 
     @router.get('/api/studies/{study_id}/artifacts/{artifact_id}')
@@ -203,9 +191,6 @@ def montar(app, module_root, *, host_services=None):
             raise HTTPException(400, 'Pedido JSON inválido.')
         try:
             payload = await request.json()
-            from neuro_rt.model_registry import load_catalog
-            service.testing_access.require_models(request, [payload['model']] if isinstance(payload, dict) and isinstance(payload.get('model'), str) else [],
-                {m['id']: m for m in load_catalog()})
             return await run_in_threadpool(service.submit, payload)
         except (ValueError, RuntimeError, TypeError) as exc:
             raise fail(exc)

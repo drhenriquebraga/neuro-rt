@@ -1,6 +1,6 @@
 # NEURO RT
 
-Plugin opcional de estudo e pesquisa da Local Suite. A versão 1.3.6 inclui Nidus RT, Glioma RT, Metastasis RT, Meningioma RT e AutoContorno Neuro. Requer a Local Suite 8.22 ou posterior, com o bootstrap compatível com esta release.
+Plugin opcional de estudo e pesquisa da Local Suite. A versão 1.3.13 inclui Nidus RT, Glioma RT, Metastasis RT, Meningioma RT e AutoContorno Neuro. O código acompanha a Local Suite 8.26. O acabamento subpixel é aplicado aos contornos de segmentação exportados, mantendo a correspondência com a máscara em cada corte.
 
 O NIDUS inclui [CINE de angiografia temporal e preparo das vistas](docs/NIDUS_TEMPORAL.md), sem pesos adicionais. TOF estática permanece distinta de fases temporais adquiridas. O instalador principal da Local Suite atualiza todo o código; os assistentes dos plugins preparam os pesos opcionais.
 

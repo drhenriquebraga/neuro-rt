@@ -92,17 +92,16 @@ def attach_consensus_api(app, sessions, resolve_source):
         except OSError:
             raise HTTPException(409, 'Não foi possível gravar o resultado; o contorno anterior foi preservado.') from None
 
-    def require_nidus_studies(request, service):
-        if not service.testing_access.allowed(request, 'nidus'):
-            raise HTTPException(428, 'Confirme a fase de testes do Nidus RT antes de processar.')
-        if service.studies is None:
+    def require_nidus_studies(service):
+        backend = service.studies
+        if backend is None:
             raise HTTPException(409, 'A entrega conjunta requer integração com a fila da suíte.')
-        return service.studies
+        return backend
 
     @app.post('/api/nidus/consenso/anatomia')
     async def anatomy(request: Request):
         data, service = await body(request, ('s', 'bilhetes'))
-        studies = require_nidus_studies(request, service)
+        studies = await run_in_threadpool(require_nidus_studies, service)
         value = session(data['s'])
         tickets = data['bilhetes']
         if (not isinstance(tickets, list) or len(tickets) > 119
@@ -136,7 +135,7 @@ def attach_consensus_api(app, sessions, resolve_source):
     @app.post('/api/nidus/consenso/exportar-com-anatomia')
     async def export_with_anatomy(request: Request):
         data, service = await body(request, ('s', 'temperatura', 'editado', 'selection', 'modelos'))
-        studies = require_nidus_studies(request, service)
+        studies = await run_in_threadpool(require_nidus_studies, service)
         value = session(data['s'])
         models = data['modelos']
         if (type(data['editado']) is not bool or not isinstance(data['selection'], str)

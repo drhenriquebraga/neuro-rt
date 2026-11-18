@@ -6,6 +6,7 @@ No dependency resolution, download, Python environment or model staging occurs.
 import argparse
 import hashlib
 import io
+import json
 import os
 from pathlib import Path
 import sys
@@ -25,6 +26,7 @@ MAX_SETUP_SIZE = 3 * 1024 * 1024
 _PRIVATE = {part.casefold() for part in PRIVATE_PARTS} | {
     'runtime', 'runtimes', 'models', 'python', 'site-packages', 'venv', 'host_updates'}
 _ASSET_MANIFEST = 'code/catalog/model_assets_v1_manifest.json'
+_LF_PATHS = set(json.loads((ROOT / 'scripts/setup_lf_paths.json').read_text(encoding='utf8')))
 
 
 def _source_bytes(root, name, source, *, asset_fallback=False):
@@ -54,7 +56,10 @@ def _source_bytes(root, name, source, *, asset_fallback=False):
     if raw.startswith((b'MZ', b'PK\x03\x04', b'\x7fELF')):
         raise ValueError('Payload binário não é permitido no setup.')
     install_state._verify_host_source(io.BytesIO(raw))
-    return raw
+    # The accepted code inventory signs exact bytes. Apply the released text
+    # convention independently of platform and Git's autocrlf setting.
+    normalized = raw.replace(b'\r\n', b'\n')
+    return normalized if relative in _LF_PATHS else normalized.replace(b'\n', b'\r\n')
 
 
 def build_web_setup(output_dir, *, root=ROOT) -> dict:
