@@ -7,14 +7,15 @@ class AttentionUNetAdapter(ScientificAdapter):
     classes = ('tumor_core', 'whole_tumor', 'enhancing_tumor')
 
     @staticmethod
-    def infer_regions(model, tensor):
+    def infer_regions(model, tensor, indices=None):
         import torch
         from monai.inferers import sliding_window_inference
         with torch.inference_mode():
             output = sliding_window_inference(tensor, (128, 128, 128), 1, model, overlap=.5)
             if not torch.isfinite(output).all():
                 raise ValueError('Predição Attention U-Net não finita.')
-            return (torch.sigmoid(output[0]) >= .5).cpu().numpy()
+            channels = output[0] if indices is None else output[0,indices]
+            return (torch.sigmoid(channels) >= .5).cpu().numpy()
 
     def predict(self, prepared, context):
         import monai
@@ -42,9 +43,11 @@ class AttentionUNetAdapter(ScientificAdapter):
         state = torch.load(folder / 'best_model.pth', map_location='cpu', weights_only=True)
         model.load_state_dict(state['model_state_dict'], strict=True)
         model.eval().to(context.device)
-        masks = self.infer_regions(model, data.unsqueeze(0).to(context.device))
+        classes = context.model_spec.get('study_classes', self.classes)
+        masks = self.infer_regions(model, data.unsqueeze(0).to(context.device),
+                                   [self.classes.index(key) for key in classes])
         affine = np.asarray(data.affine)
-        artifacts = binary_masks(masks, affine, self.classes, context)
+        artifacts = binary_masks(masks, affine, classes, context)
         context.checkpoint('running', 1.)
         return ScientificPrediction(prepared, artifacts, [{
             'operation': 'monai_RAS_spacing_1mm_nonzero_channel_normalization',

@@ -23,7 +23,10 @@ and lexical identity. Call once per host-selected group to keep its choice.
 from collections import defaultdict
 from dataclasses import dataclass, field, replace
 import copy
+import itertools
+import math
 import re
+import unicodedata
 
 from .study_types import ContractMessage, ContractRecord, InputBinding, SeriesDescriptor
 
@@ -61,11 +64,15 @@ def _classify(metadata, modality):
         return []
     signals = defaultdict(list)
     agent = metadata.get('ContrastBolusAgent')
-    agent_present = isinstance(agent, str) and bool(agent.strip())
+    agent_present = isinstance(agent, str) and agent.strip().upper() not in (
+        '', '0', 'NO', 'NONE', 'N/A', 'SEM CONTRASTE', 'NO CONTRAST')
     contrast = agent_present
-    texts = [(name, str(metadata.get(name, '')).upper())
+    def normalized(name):
+        source = str(metadata.get(name, '')).upper().replace('_', ' ')
+        return ''.join(c for c in unicodedata.normalize('NFKD', source) if not unicodedata.combining(c))
+    texts = [(name, normalized(name))
              for name in ('SeriesDescription', 'ProtocolName')]
-    contrast = contrast or any(re.search(r'\b(GAD|GADO|CE|T1C|T1CE)\b|T1\s*\+', text)
+    contrast = contrast or any(re.search(r'\b(GD|GAD|GADO|GADOLINIUM|GADOLINIO|CE|T1C|T1CE)\b|T1\s*\+|\b(?:POST|POS)[ -]?(?:CONTRASTE?|GAD)\b', text)
                                for _, text in texts)
     precontrast = any(re.search(r'\b(PRECONTRAST|NONCONTRAST|NATIVE)\b|SEM\s+CONTRASTE', text)
                       for _, text in texts)
@@ -80,7 +87,7 @@ def _classify(metadata, modality):
         # FLAIR often includes T2 in its protocol name; that is not a conflict.
         elif re.search(r'\bT2(?:W)?\b', text):
             signals['T2'].append({'field': name, 'signal': 'T2'})
-        if re.search(r'\bT1(?:W|C|CE)?\b', text):
+        if re.search(r'\b(?:T1(?:W|C|CE)?|MP[ -]?RAGE|BRAVO|SPGR)\b', text):
             for role in t1_roles:
                 signals[role].append({'field': name, 'signal': 'T1-weighting'})
                 if not contrast and not precontrast:
@@ -212,6 +219,91 @@ def suggest_bindings(series_list, model_spec) -> list[InputBinding]:
     return bindings
 
 
+def _covers_reference(item, ref):
+    """Conservative default before rigid registration; manual channel choice is separate."""
+    if not item.frame_of_reference_uid or item.frame_of_reference_uid != ref.frame_of_reference_uid:
+        return False
+    def grid(series):
+        g = series.geometry
+        if g.get('valid') is False or g.get('errors') or g.get('readable') is False:
+            raise ValueError()
+        origin, pitch, size = g['origin_lps_mm'], g['spacing_xyz_mm'], g['size_xyz']
+        d = g['direction_lps']
+        if (not all(len(v) == 3 for v in (origin,pitch,size)) or len(d) != 9 or
+                min(pitch) <= 0 or min(size) < 2 or not all(map(math.isfinite, (*origin,*pitch,*size,*d)))):
+            raise ValueError()
+        axes = [d[i::3] for i in range(3)]
+        if any(abs(sum(a*b for a,b in zip(axes[i],axes[j])) - (i==j)) > 1e-4
+               for i in range(3) for j in range(3)):
+            raise ValueError()
+        return origin, pitch, size, axes
+    try:
+        origin, pitch, size, axes = grid(item)
+        ro, rp, rs, ra = grid(ref)
+        # Corners of the reference must fit the candidate FOV within one sample.
+        # This also handles differently sampled or rotated acquisitions.
+        for corner in itertools.product(*[(0,n-1) for n in rs]):
+            delta = [ro[i]-origin[i] + sum(corner[j]*rp[j]*ra[j][i] for j in range(3))
+                     for i in range(3)]
+            for j in range(3):
+                index = sum(a*b for a,b in zip(delta,axes[j])) / pitch[j]
+                if not -1.0001 <= index <= size[j]+.0001:
+                    return False
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return False
+    return True
+
+
+def atlas_binding_allowed(spec, item, reference):
+    from .study_protocols import accepts_channel
+    if not accepts_channel(spec, item, 'T1'):
+        return False
+    if item.ticket == reference.ticket:
+        return True
+    return (item.subject_key == reference.subject_key and item.study_key == reference.study_key
+            and item.modality == reference.modality and _identity(item) != _identity(reference)
+            and _covers_reference(item, reference))
+
+
+def suggest_protocol_bindings(items, spec, reference):
+    """Bind the primary channel to this series and fill companions within its acquisition."""
+    from .study_protocols import CEREBRA, accepts_channel
+    roles = _roles(spec)
+    atlas = spec['id'] == CEREBRA
+    primary = spec['reference_role']
+    inventory = []
+    for item in items:
+        if (item.subject_key, item.study_key, item.modality) != (
+                reference.subject_key, reference.study_key, reference.modality):
+            continue
+        anchor = item.ticket == reference.ticket
+        if not anchor and _identity(item) == _identity(reference):
+            continue
+        if atlas and not atlas_binding_allowed(spec, item, reference):
+            continue
+        known = {c['role']: c for c in item.sequence_candidates}
+        candidates = []
+        for role in roles:
+            if not atlas and (role == primary) != anchor:
+                continue
+            if accepts_channel(spec, item, role):
+                candidate = known.get(role) or (known.get('T1c') if role == 'T1' else None)
+                candidates.append(dict(candidate or {'certainty': 'unknown'}, role=role))
+        if candidates:
+            inventory.append(replace(item, sequence_candidates=candidates))
+    if atlas and inventory:
+        def preference(entry):
+            original = next(item for item in items if item.ticket == entry.ticket)
+            known = {candidate['role']: candidate for candidate in original.sequence_candidates}
+            if 'T1' in known:
+                rank = 0 if known['T1'].get('certainty') == 'certain' else 1
+            else:
+                rank = 2 if 'T1c' in known else 3
+            return rank, entry.ticket != reference.ticket, entry.ticket
+        inventory = [min(inventory, key=preference)]
+    return suggest_bindings(inventory, spec)
+
+
 def evaluate_eligibility(model_spec, bindings, capabilities) -> Eligibility:
     """Return the shared decision; warnings alone never disable a present input."""
     roles, by_role, tickets, warnings, reasons = _roles(model_spec), {}, set(), [], []
@@ -272,5 +364,8 @@ def evaluate_eligibility(model_spec, bindings, capabilities) -> Eligibility:
     if distributed and runtime.get('available') is not True:
         technical('runtime_unavailable', runtime.get('reason') or
                   'Runtime do modelo indisponível nesta instalação.')
+    device = capabilities.get('device')
+    if device in ('cpu', 'cuda') and device not in model_spec.get('supported_devices', ('cpu', 'cuda')):
+        technical('unsupported_device', 'O modelo não suporta o dispositivo escolhido nas configurações.')
     missing = [role for role in roles if role not in by_role]
     return Eligibility(not missing and not reasons, missing, warnings, reasons)

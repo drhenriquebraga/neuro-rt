@@ -160,7 +160,8 @@
     "Intervalo entre cortes": "Intervalo entre cortes",
     "Aquisição RM": "Aquisição RM",
     "Flip angle": "Ângulo de inclinação",
-    "Contraste": "Contraste"
+    "Contraste": "Contraste",
+    "O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência.": "O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência."
   },
   "en": {
     "Estruturas anatômicas": "Anatomical structures",
@@ -323,7 +324,8 @@
     "Intervalo entre cortes": "Slice spacing",
     "Aquisição RM": "MR acquisition",
     "Flip angle": "Flip angle",
-    "Contraste": "Contrast agent"
+    "Contraste": "Contrast agent",
+    "O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência.": "Registration of the suggested T1 failed. CerebrA used the reference T1 series."
   },
   "es": {
     "Estruturas anatômicas": "Estructuras anatómicas",
@@ -486,7 +488,8 @@
     "Intervalo entre cortes": "Distancia entre cortes",
     "Aquisição RM": "Adquisición de RM",
     "Flip angle": "Ángulo de excitación",
-    "Contraste": "Medio de contraste"
+    "Contraste": "Medio de contraste",
+    "O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência.": "Falló el registro de la T1 sugerida. CerebrA utilizó la serie T1 de referencia."
   },
   "de": {
     "Estruturas anatômicas": "Anatomische Strukturen",
@@ -649,7 +652,8 @@
     "Intervalo entre cortes": "Schichtabstand",
     "Aquisição RM": "MR-Erfassung",
     "Flip angle": "Flipwinkel",
-    "Contraste": "Kontrastmittel"
+    "Contraste": "Kontrastmittel",
+    "O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência.": "Die Registrierung der vorgeschlagenen T1-Serie ist fehlgeschlagen. CerebrA verwendete die T1-Referenzserie."
   },
   "fr": {
     "Estruturas anatômicas": "Structures anatomiques",
@@ -812,7 +816,8 @@
     "Intervalo entre cortes": "Espacement des coupes",
     "Aquisição RM": "Acquisition IRM",
     "Flip angle": "Angle de bascule",
-    "Contraste": "Agent de contraste"
+    "Contraste": "Agent de contraste",
+    "O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência.": "Le recalage de la série T1 proposée a échoué. CerebrA a utilisé la série T1 de référence."
   },
   "it": {
     "Estruturas anatômicas": "Strutture anatomiche",
@@ -975,7 +980,8 @@
     "Intervalo entre cortes": "Distanza tra le sezioni",
     "Aquisição RM": "Acquisizione RM",
     "Flip angle": "Angolo di flip",
-    "Contraste": "Mezzo di contrasto"
+    "Contraste": "Mezzo di contrasto",
+    "O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência.": "La registrazione della T1 suggerita è fallita. CerebrA ha usato la serie T1 di riferimento."
   },
   "pl": {
     "Estruturas anatômicas": "Struktury anatomiczne",
@@ -1138,7 +1144,8 @@
     "Intervalo entre cortes": "Odstęp między warstwami",
     "Aquisição RM": "Akwizycja MR",
     "Flip angle": "Kąt odchylenia",
-    "Contraste": "Środek kontrastowy"
+    "Contraste": "Środek kontrastowy",
+    "O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência.": "Rejestracja proponowanej serii T1 nie powiodła się. CerebrA użył referencyjnej serii T1."
   },
   "ar": {
     "Estruturas anatômicas": "البنى التشريحية",
@@ -1301,7 +1308,8 @@
     "Intervalo entre cortes": "التباعد بين المقاطع",
     "Aquisição RM": "اكتساب الرنين المغناطيسي",
     "Flip angle": "زاوية القلب",
-    "Contraste": "مادة التباين"
+    "Contraste": "مادة التباين",
+    "O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência.": "تعذّرت محاذاة سلسلة T1 المقترحة. استخدم CerebrA سلسلة T1 المرجعية."
   },
   "bn": {
     "Estruturas anatômicas": "শারীরস্থানিক গঠন",
@@ -1464,7 +1472,8 @@
     "Intervalo entre cortes": "স্লাইসের ব্যবধান",
     "Aquisição RM": "এমআর অধিগ্রহণ",
     "Flip angle": "ফ্লিপ কোণ",
-    "Contraste": "কনট্রাস্ট এজেন্ট"
+    "Contraste": "কনট্রাস্ট এজেন্ট",
+    "O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência.": "প্রস্তাবিত T1 সিরিজের রেজিস্ট্রেশন ব্যর্থ হয়েছে। CerebrA রেফারেন্স T1 সিরিজ ব্যবহার করেছে।"
   },
   "ko": {
     "Estruturas anatômicas": "해부학적 구조",
@@ -1627,7 +1636,8 @@
     "Intervalo entre cortes": "슬라이스 간격",
     "Aquisição RM": "MR 획득",
     "Flip angle": "뒤집기 각",
-    "Contraste": "조영제"
+    "Contraste": "조영제",
+    "O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência.": "제안된 T1 영상의 정합에 실패하여 CerebrA가 기준 T1 시리즈를 사용했습니다."
   },
   "zh-CN": {
     "Estruturas anatômicas": "解剖结构",
@@ -1790,7 +1800,8 @@
     "Intervalo entre cortes": "层间距",
     "Aquisição RM": "磁共振采集",
     "Flip angle": "翻转角",
-    "Contraste": "对比剂"
+    "Contraste": "对比剂",
+    "O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência.": "建议的 T1 序列配准失败。CerebrA 使用了参考 T1 序列。"
   },
   "ja": {
     "Estruturas anatômicas": "解剖構造",
@@ -1953,6 +1964,7 @@
     "Intervalo entre cortes": "スライス間隔",
     "Aquisição RM": "MR撮像",
     "Flip angle": "フリップ角",
-    "Contraste": "造影剤"
+    "Contraste": "造影剤",
+    "O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência.": "推奨されたT1の位置合わせに失敗しました。CerebrAは参照T1シリーズを使用しました。"
   }
 }

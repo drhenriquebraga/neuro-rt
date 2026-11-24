@@ -65,6 +65,8 @@ class StudyItem(ContractRecord):
     # Only the explicit v1 adapter populates this; v2 clients cannot supply paths.
     legacy_input_path: Union[str, None] = None
     export_classes: dict[str, list[ClassId]] = field(default_factory=dict)
+    protocol_id: Union[str, None] = None
+    plan: Union[dict, None] = None
 
 
 @dataclass(frozen=True)

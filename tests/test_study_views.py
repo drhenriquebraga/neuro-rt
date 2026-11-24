@@ -15,6 +15,9 @@ from neuro_rt.roi_registry import make_roi_identity
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = json.loads((ROOT/'neuro_rt.local.json').read_text()) if (ROOT/'neuro_rt.local.json').is_file() else {}
+for key in ('host_python', 'host_app'):
+    if value := os.environ.get('NEURO_TEST_' + key.upper()):
+        CONFIG[key] = value
 TEMP_ROOT = ROOT / 'runtime' / 'test-tmp'
 TEMP_ROOT.mkdir(parents=True,exist_ok=True)
 
@@ -31,11 +34,12 @@ class StudyViewsTests(unittest.TestCase):
             image.SetDirection((np.cos(angle),-np.sin(angle),0.,np.sin(angle),np.cos(angle),0.,0.,0.,1.))
             sitk.WriteImage(image,str(job/'inputs/reference.nii.gz'))
             masks = []
-            for index, model in enumerate(('MRI_GBM','MRI_Metastasis')):
+            for index, (model, class_id) in enumerate((('MRI_GBM','tumor'),('anatomy_synthseg','oar_Hippocampus_L'))):
                 bits = np.zeros_like(array,dtype=np.uint8); bits[2:7,3:8,3+index:8+index] = 1
                 mask = sitk.GetImageFromArray(bits); mask.CopyInformation(image)
                 path = job/'masks'/('mask%d.nii.gz'%index); sitk.WriteImage(mask,str(path))
-                masks.append({'model_id':model,'status':'completed','masks':[{'model_id':model,'class_id':'tumor','path':str(path),'space':'reference'}]})
+                masks.append({'model_id':model,'status':'completed','masks':[{'model_id':model,'class_id':class_id,
+                    'path':str(path),'space':'reference','provenance':{'protocol_id':'snc_rm_simples'} if index else {}}]})
             manifest = {'schema':'neuro-rt/result/2','revision':1,'results':masks,'artifacts':[]}
             (job/'study-manifest.json').write_text(json.dumps(manifest))
             command = [CONFIG['host_python'],str(ROOT/'neuro_rt/build_study_views.py'),'--job-dir',str(job),'--host-app',CONFIG['host_app']]
@@ -45,6 +49,7 @@ class StudyViewsTests(unittest.TestCase):
             self.assertEqual(scene['orientation'],'LPS')
             self.assertEqual(len(scene['rois']),2)
             self.assertEqual(scene['rois'][0]['color'],list(make_roi_identity('MRI_GBM','tumor',1).color))
+            self.assertEqual(scene['rois'][1]['roi_name'], 'Hippocampus_L_ai')
             self.assertNotEqual(scene['rois'][0]['mesh'],scene['rois'][1]['mesh'])
             for index, roi in enumerate(scene['rois']):
                 payload = (job/'views'/roi['mesh']).read_bytes()

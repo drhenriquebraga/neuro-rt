@@ -64,11 +64,13 @@ class ScientificAdapter:
         import numpy as np
         import SimpleITK as sitk
         context.checkpoint('restoring', 0.)
-        result = ModelResult(context.model_spec['id'], 'completed', raw.masks,
+        selected = context.model_spec.get('study_classes')
+        outputs = raw.masks if selected is None else [m for m in raw.masks if m.class_id in selected]
+        result = ModelResult(context.model_spec['id'], 'completed', outputs,
                              transformations=raw.prepared.transform_chain + raw.transformations,
                              versions=raw.versions, hashes=raw.hashes)
         before = {m.class_id: int(np.count_nonzero(sitk.GetArrayFromImage(read_image(m.path))))
-                  for m in raw.masks}
+                  for m in outputs}
         restored = restore_masks(result, raw.prepared, context.reference)
         masks, warnings, counts = [], [], []
         for mask in restored:
@@ -120,5 +122,13 @@ def label_masks(labels, affine, context):
     table = asset_spec(context.model_spec['id'])['contract']['classes']
     if not np.isfinite(labels).all() or not np.isin(labels, [0, *[c['value'] for c in table]]).all():
         raise ValueError('Atlas/segmentação contém labels inválidos ou não finitos.')
+    from ..study_protocols import SIMPLE, SYNTHSEG, OARS
+    selected = context.model_spec.get('study_classes')
+    if context.model_spec['id'] == SYNTHSEG and context.model_spec.get('protocol_id') == SIMPLE:
+        groups = [('oar_' + n, v) for n,v in OARS.items() if selected is None or 'oar_' + n in selected]
+        return binary_masks((np.isin(labels, values) for _,values in groups), affine,
+                            [key for key,_ in groups], context)
+    if selected is not None:
+        table = [row for row in table if row['class_id'] in selected]
     return binary_masks((labels == c['value'] for c in table), affine,
                         [c['class_id'] for c in table], context)

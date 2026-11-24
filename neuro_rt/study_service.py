@@ -60,6 +60,9 @@ class StudyService:
         self.settings, self.host = settings, host_services
         self.catalog = catalog if catalog is not None else {m['id']: m for m in load_catalog()}
         self._lock = threading.RLock()
+        self._selection_lock, self._selection_snapshot = threading.Lock(), None
+        from .protocol_presets import ProtocolPresets
+        self.presets = ProtocolPresets(self.catalog, self.settings.data_dir, getattr(self.host, 'protocol_storage', None))
         self._jobs, self._requests = {}, {}
         self._closed = False
         from .result_store import ResultStore
@@ -147,12 +150,13 @@ class StudyService:
         with self._lock:
             return [self._public(job) for job in self._jobs.values()]
 
-    def capabilities(self):
+    def capabilities(self, model_ids=None):
+        specs = self.catalog if model_ids is None else {mid: self.catalog[mid] for mid in model_ids}
         models = {mid: verify_artifacts(spec, self.settings.plugin_paths or self.settings.models_dir)
-                  for mid, spec in self.catalog.items()}
+                  for mid, spec in specs.items() if mid != 'cranio_buti'}
         runtimes = {}
-        for spec in self.catalog.values():
-            if spec.get('catalog_state') in ('manual', 'candidate'): continue
+        for spec in specs.values():
+            if spec['id'] == 'cranio_buti' or spec.get('catalog_state') in ('manual', 'candidate'): continue
             ident = spec.get('runtime_id')
             python = self.settings.runtime_python(ident)
             runtimes[ident] = {'available': python is not None and Path(python).is_file(),
@@ -161,7 +165,7 @@ class StudyService:
             if not status['available']:
                 models[spec['id']].update(status='missing')
                 models[spec['id']]['errors'].append(status['reason'])
-        if 'cranio_buti' in self.catalog:
+        if 'cranio_buti' in specs:
             from integration.buti_host import capabilities as host_capabilities
             info = host_capabilities(self.settings.host_app, self.settings.host_python)['cranio_buti']
             models['cranio_buti'] = {'model_id': 'cranio_buti',
@@ -170,22 +174,27 @@ class StudyService:
             runtimes['host-nnunet'] = {'available': info['available'], 'reason': info['reason']}
         return {'models': models, 'runtimes': runtimes}
 
-    def selection(self, tickets, category=None, *, identify_only=False):
+    def selection(self, tickets, category=None, *, identify_only=False, reference=None):
         if not isinstance(tickets, list) or len(tickets) > 120 or not all(isinstance(x, str) for x in tickets):
             raise ValueError('Lista de séries inválida.')
         descriptors, unreadable, labels = [], [], {}
+        picker_resolver = getattr(self.host,'resolve_picker_ticket', None) if category == 'unified' else None
         for ticket in dict.fromkeys(tickets):
             try:
-                resolved = self.host.resolve_series_ticket(ticket)
+                resolved = (picker_resolver or self.host.resolve_series_ticket)(ticket)
                 descriptors.append(describe_resolved_series(ticket, resolved))
                 # Display labels are returned only to the local picker, never stored in the study descriptor.
-                if not identify_only and isinstance(resolved, dict):
+                if (not identify_only or category == 'unified') and isinstance(resolved, dict):
                     metadata = resolved.get('metadata') or {}
                     labels[ticket] = {key: str(metadata[tag])[:128] for key, tag in (
                         ('description', 'SeriesDescription'), ('series_number', 'SeriesNumber'))
                         if metadata.get(tag) is not None and str(metadata[tag]).strip()}
                     if resolved.get('preview_header'):
                         labels[ticket]['preview_header'] = resolved['preview_header']
+                    if category == 'unified':
+                        display = resolved.get('picker_identity', {})
+                        labels[ticket].update({key:str(display[key])[:128] for key in
+                            ('patient_name','patient_id','study_date') if display.get(key)})
             except (KeyError, ValueError, OSError):
                 if not identify_only:
                     raise
@@ -197,13 +206,38 @@ class StudyService:
                    **labels.get(d.ticket, {})} for d in descriptors]
         if identify_only:
             return {'series': series, 'unreadable': unreadable}
-        capabilities = self.capabilities()
+        from .study_protocols import CEREBRA, SYNTHSEG, BUTI, protocols_for, plan_outputs
+        from .series_selection import atlas_binding_allowed, suggest_protocol_bindings
+        anchor = None
+        if category == 'unified':
+            anchor = next((d for d in descriptors if d.ticket == reference), None)
+            if not anchor:
+                raise ValueError('A série de referência precisa estar entre as séries selecionadas.')
+            protocols = protocols_for(anchor.modality, self.catalog)
+            model_ids = {row['model_id'] for row in protocols}
+            if anchor.modality == 'MR':
+                model_ids.add(CEREBRA)
+        if anchor:
+            # Several series cards can expand together. Hash model weights once
+            # for the picker; submitting a study always rechecks its own models.
+            with self._selection_lock:
+                if self._selection_snapshot is None or time.monotonic() > self._selection_snapshot[0]:
+                    snapshot = self.capabilities()
+                    self._selection_snapshot = (time.monotonic() + 30, snapshot)
+                capabilities = dict(self._selection_snapshot[1])
+            capabilities['device'] = self.host.device_preference()
+        else:
+            capabilities = self.capabilities()
         capabilities['series'] = {d.ticket: d for d in descriptors}
         models = []
         for spec in self.catalog.values():
             if 'auxiliary' in spec['groups']: continue
-            if category and category not in spec['groups'] and 'anatomia' not in spec['groups']: continue
-            bindings = suggest_bindings(descriptors, spec)
+            if anchor:
+                if spec['id'] not in model_ids: continue
+                bindings = suggest_protocol_bindings(descriptors, spec, anchor)
+            else:
+                if category and category not in spec['groups'] and 'anatomia' not in spec['groups']: continue
+                bindings = suggest_bindings(descriptors, spec)
             # suggest_bindings returns a binding list; it never invents a channel.
             eligibility = evaluate_eligibility(spec, bindings, capabilities)
             models.append({'id': spec['id'], 'label': spec['label'], 'groups': spec['groups'],
@@ -214,14 +248,28 @@ class StudyService:
                 'validated_devices': spec.get('validated_devices', ['cpu']),
                 'help': spec.get('help', {}), 'bindings': [b.to_dict() for b in bindings],
                 'eligibility': eligibility.to_dict()})
-        return {'series': series, 'models': models}
+            if anchor and spec['id'] == CEREBRA:
+                models[-1]['binding_options'] = {'T1': [d.ticket for d in descriptors
+                    if atlas_binding_allowed(spec, d, anchor)]}
+        response = {'series': series, 'models': models}
+        if anchor:
+            anatomy = [p for p in protocols if p['model_id'] in (SYNTHSEG,BUTI)]
+            if anchor.modality == 'MR' and CEREBRA in self.catalog:
+                anatomy.append({'id':CEREBRA, 'label':'Estudo neuroanatômico completo', 'model_id':CEREBRA})
+            response.update(protocols=anatomy, outputs=plan_outputs(anchor.modality,self.catalog),
+                            saved_protocols=self.presets.list(anchor.modality))
+        return response
 
     def check_capabilities(self, study):
-        capabilities = self.capabilities()
+        capabilities = self.capabilities(study.model_ids)
+        if study.protocol_id or study.plan:
+            capabilities['device'] = self.host.device_preference()
         for mid in study.model_ids:
             decision = evaluate_eligibility(self.catalog[mid], study.bindings_by_model[mid], capabilities)
             if not decision.selectable:
-                raise ValueError('Modelo indisponível: entradas ou ambiente necessários não estão preparados.')
+                detail = [r.message for r in decision.technical_reasons]
+                detail.extend(decision.missing_roles)
+                raise ValueError(self.catalog[mid].get('label', mid) + ' · ' + ' '.join(detail))
 
     def submit(self, payload, *, nidus_snapshot=None):
         if not isinstance(payload, dict) or payload.get('explicit_request') is not True:
@@ -407,8 +455,24 @@ class StudyService:
                 {t: Path(p) for t, p in prepared['source_to_reference'].items()})
 
     def run_model(self, spec, context, event):
+        from .study_protocols import CEREBRA
+        from .series_selection import atlas_binding_allowed
+        from .study_types import ContractMessage, InputBinding
         context.job_dir.mkdir(parents=True, exist_ok=True)
-        data = {'model_spec': spec, 'bindings': [b.to_dict() for b in context.bindings],
+        bindings = context.bindings
+        fallback = False
+        if spec['id'] == CEREBRA and spec.get('protocol_id'):
+            source = bindings[0]
+            if source.series_ticket != context.reference.ticket and (
+                    source.series_ticket not in context.authorized_inputs or
+                    source.series_ticket not in context.source_to_reference or
+                    not atlas_binding_allowed(spec, context.series_index[source.series_ticket], context.reference)):
+                reference_is_t1 = any(c.get('role') in ('T1','T1c') for c in context.reference.sequence_candidates)
+                if source.association_source == 'manual' or not reference_is_t1:
+                    raise ValueError('Não foi possível registrar o T1 do atlas na referência.')
+                fallback = True
+                bindings = [InputBinding('T1',context.reference.ticket,association_source='suggested')]
+        data = {'model_spec': spec, 'bindings': [b.to_dict() for b in bindings],
             'reference': context.reference.to_dict(),
             'series_index': {t: d.to_dict() for t, d in context.series_index.items()},
             'authorized_inputs': {t: str(p) for t, p in context.authorized_inputs.items()},
@@ -424,7 +488,11 @@ class StudyService:
         command = self.settings.worker_command('study', ['--task', 'model', '--job-dir', str(context.job_dir)],
                                                runtime_id=spec['runtime_id'])
         self._execute(command, context.job_dir, 'model.log', event, ident, on_progress=context.progress)
-        return validate_model_result(json.loads((context.job_dir / 'model-result.json').read_text(encoding='utf-8')), spec)
+        result = validate_model_result(json.loads((context.job_dir / 'model-result.json').read_text(encoding='utf-8')), spec)
+        if fallback:
+            result = replace(result, warnings=[*result.warnings, ContractMessage('atlas_reference_fallback',
+                'O T1 sugerido não pôde ser registrado. O atlas utilizou o T1 da própria referência.')])
+        return result
 
     def _run(self, request, item, sources):
         ident = item.study_id
@@ -527,9 +595,18 @@ class StudyService:
                 atomic_json(directory / 'study-manifest.json', data)
             outcome = data['status']
             self.publish(ident, data)
+            partial = 'Resultado parcial disponível para revisão.'
+            if outcome == 'partial':
+                failed = [self.catalog[r['model_id']].get('label', r['model_id']) for r in data['results']
+                          if r['status'] in ('failed', 'interrupted', 'partial') and r['model_id'] in self.catalog]
+                if failed:
+                    partial += ' Modelos com falha: ' + ', '.join(failed) + '.'
+                if request.export_rtstruct:
+                    partial += (' RTSTRUCT gravado.' if data.get('export_status') == 'completed' else
+                                ' O RTSTRUCT não foi publicado.')
             self._update(ident, message={
                 'empty': 'O modelo não produziu contornos; isso não indica ausência de doença.',
-                'partial': 'Resultado parcial disponível para revisão.',
+                'partial': partial,
                 'cancelled': 'Processamento cancelado; resultados anteriores preservados.',
                 'failed': 'Os modelos falharam. Consulte os registros locais.'
             }.get(outcome, 'Resultado disponível para revisão.'))
@@ -584,6 +661,10 @@ class StudyService:
                 'bindings': [b.to_dict() for b in item.bindings_by_model[mid]],
                 'inputs': {t: inputs_hash.get(t) for t in sorted(tickets)},
                 'transforms': {t: transforms_hash[t] for t in sorted(tickets) if t in transforms_hash}}
+            if item.protocol_id:
+                identity['protocol_id'] = item.protocol_id
+            if item.plan:
+                identity.update(anatomy=item.plan['anatomy'], study_classes=item.plan['rois'][mid])
             keys[mid] = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
         return keys
 

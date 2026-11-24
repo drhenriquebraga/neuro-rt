@@ -154,13 +154,15 @@ def export_study(job_dir, host_app, *, catalog=None):
         masks, descriptions, identities, expected = {}, {}, {}, {}
         request_path = job / 'request.json'
         requested = {}
+        planned = False
         if request_path.is_file():
             request = json.loads(request_path.read_text(encoding='utf-8'))
             item = next((row for row in request['studies'] if row['study_id'] == manifest.study_id), {})
-            requested = item.get('export_classes', {})
+            planned = bool(item.get('plan'))
+            requested = item['plan']['rois'] if planned else item.get('export_classes', {})
         remaining_ram = MASK_HEAP_BUDGET
         for identity, artifact in collect_reference_masks(manifest, catalog=catalog):
-            if artifact.model_id in requested and artifact.class_id not in requested[artifact.model_id]:
+            if (planned or artifact.model_id in requested) and artifact.class_id not in requested.get(artifact.model_id, ()):
                 continue
             image = read_image(str(_mask_path(job, artifact.path)))
             metrics = validate_mask(image, reference_image)
@@ -209,11 +211,14 @@ def export_study(job_dir, host_app, *, catalog=None):
         exports.mkdir(exist_ok=True)
         filename = f'RS_NeuroRT_{uuid.uuid4().hex}.dcm'
         internal = exports / filename
+        names = ({'nomes_por_roi': {v.writer_key: v.roi_name for v in identities.values()}}
+                 if any(m.provenance.get('protocol_id') for result in manifest.results for m in result.masks)
+                 else {})
         built = engine.build_rtstruct(str(source_dir), masks, cru=True,
                     descontar=False, suavizar_mm=0., modalidade=manifest.reference.modality,
                     rotulo='RadAI_NEURO', origem={key: 'neuro-rt' for key in masks},
                     observacoes=descriptions, decimar_mm=0., contornos_subpixel=True,
-                    cores_por_roi={v.writer_key: v.color for v in identities.values()})
+                    cores_por_roi={v.writer_key: v.color for v in identities.values()}, **names)
         with temporary_writer_result(built) as (path, _):
             shutil.copyfile(path, internal)
         ds, delivered, omitted = _check_written(internal, source, expected, source_dir, subpixel=True)

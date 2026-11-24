@@ -10,6 +10,41 @@ import unittest
                      (importlib.util.find_spec('httpx') or importlib.util.find_spec('httpx2')),
                      'Use o Python do host com FastAPI e seu cliente HTTP de testes.')
 class PluginAccessTests(unittest.TestCase):
+    def test_integrated_preset_endpoints_require_local_consent_and_round_trip(self):
+        from unittest.mock import patch
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+        from integration.radai_neuro import montar
+        from neuro_rt.service import Settings
+        from neuro_rt.study_protocols import BUTI
+
+        root = Path(__file__).resolve().parents[1]
+        isolated = Path(self.tmp.name) / 'suite'
+        settings = Settings(isolated)
+        with patch('neuro_rt.service.Settings', return_value=settings), patch('integration.nidus_bridge.montar'):
+            app = FastAPI()
+            service = montar(app, root, host_services=SimpleNamespace(host_info={'suite_root': str(isolated)}))
+        self.addCleanup(service.close)
+        with TestClient(app) as client:
+            path = '/neuro/api/protocols'
+            headers = {'X-Neuro-Token': service.token}
+            self.assertEqual(client.get(path).status_code, 428)
+            self.assertEqual(client.post('/neuro/api/consent', headers=headers, json=self.payload).status_code, 200)
+            preset = {'name': 'Fantoma', 'modality': 'CT', 'plan': {
+                'anatomy': BUTI, 'findings': [], 'rois': {BUTI: ['Chiasm']}}}
+            self.assertEqual(client.post(path, json=preset).status_code, 403)
+            self.assertEqual(client.post(path, json=preset, headers=dict(headers, Origin='https://invalid.example')).status_code, 403)
+            self.assertEqual(client.post(path, json=dict(preset, patient_id='synthetic'), headers=headers).status_code, 400)
+            response = client.post(path, headers=headers, json=preset)
+            self.assertEqual(response.status_code, 200, response.text)
+            self.assertEqual(response.headers['cache-control'], 'no-store')
+            saved, = response.json()['protocols']
+            self.assertEqual(saved['plan'], preset['plan'])
+            self.assertEqual(client.get(path).json()['protocols'], [saved])
+            deleted = client.post(f"{path}/{saved['id']}/delete", headers=headers, json={})
+            self.assertEqual(deleted.status_code, 200)
+            self.assertEqual(deleted.json()['protocols'], [])
+
     def setUp(self):
         from fastapi import FastAPI, HTTPException, Request
         from fastapi.testclient import TestClient
@@ -46,6 +81,9 @@ class PluginAccessTests(unittest.TestCase):
         @app.get('/neuro/')
         def landing():
             return {'landing': True}
+        @app.get('/neuro/resultados')
+        def results():
+            return {'results': True}
         @app.get('/nidus/projecao')
         def nidus():
             return {'nidus': True}
@@ -64,6 +102,7 @@ class PluginAccessTests(unittest.TestCase):
         self.payload['accepted'] = True
 
     def test_first_use_blocks_direct_nidus_and_api_until_explicit_acceptance(self):
+        self.assertEqual(self.client.get('/neuro/resultados', follow_redirects=False).status_code, 303)
         self.assertEqual(self.client.get('/nidus/projecao', follow_redirects=False).status_code, 303)
         self.assertEqual(self.client.post('/api/nidus/abrir', json={}).status_code, 428)
         page = self.client.get('/neuro/onboarding')
@@ -74,8 +113,7 @@ class PluginAccessTests(unittest.TestCase):
         headers = {'X-Neuro-Token': 'synthetic-token'}
         response = self.client.post('/neuro/api/consent', json=self.payload, headers=headers)
         self.assertEqual(response.status_code, 200)
-        phase = self.client.get('/neuro/api/testing/nidus').json()['policy']
-        self.assertEqual(self.client.post('/neuro/api/testing/nidus', json=dict(phase,accepted=True), headers=headers).status_code,200)
+        self.assertEqual(self.client.get('/neuro/resultados').json(), {'results': True})
         self.assertEqual(self.client.get('/nidus/projecao').json(), {'nidus': True})
         self.assertEqual(self.client.post('/api/nidus/abrir', json={}).status_code, 200)
 

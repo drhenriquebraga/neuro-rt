@@ -67,3 +67,5 @@ class AttentionAdapterTests(unittest.TestCase):
         data[0,1]=data[0,0]; data[0,2,-1,3,5]=10
         actual=AttentionUNetAdapter.infer_regions(lambda x:x[:,:3],data)
         np.testing.assert_array_equal(actual,(data[0,:3].numpy()>=0))
+        selected=AttentionUNetAdapter.infer_regions(lambda x:x[:,:3],data,[2,0])
+        np.testing.assert_array_equal(selected,actual[[2,0]])

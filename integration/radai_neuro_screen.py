@@ -11,17 +11,25 @@ def _pagina_ferramentas(renderer, availability=None):
     tools = {tool.card_id: tool for tool in TOOLS}
     readiness = {tool['id']: tool for tool in availability or ()}
     cards = renderer.FERRAMENTAS.get('neuro', ())
-    if len(cards) != len(tools) or {card[0] for card in cards} != set(tools):
+    ids = {card[0] for card in cards}
+    if not {'nidus', 'neuro_anatomia'} <= ids or not ids <= tools.keys():
         raise RuntimeError('O contrato de ferramentas NEURO RT do host não corresponde ao plugin.')
     page = renderer.pagina_completa('neuro')
     color = renderer.CORES.get('neuro', ('--accent', '--accent-fraco'))[0]
     for card in cards:
+        # Older hosts also list each tumour as a tool. Keep their URLs as aliases.
+        if card[0] in ('neuro_glioma', 'neuro_metastasis', 'neuro_meningioma'):
+            page = page.replace(renderer._cartao(card, color), '', 1)
+            continue
         tool = tools[card[0]]
         entry = list(card)
         while len(entry) < 6:
             entry.append('')
         entry[2] = tool.display_title
         status = readiness.get(tool.id, {'enabled': tool.enabled, 'label': tool.label})
+        if tool.id == 'anatomia' and not status['enabled']:
+            if any(t['enabled'] for t in readiness.values() if t['id'] != 'nidus'):
+                status = {'enabled': True, 'label': ''}
         entry[3] = tool.route if status['enabled'] else ''
         entry[5] = status['label']
         original = renderer._cartao(card, color)
@@ -132,4 +140,25 @@ def pagina_estudo(category, host_services):
     page = render_series_picker(page)
     page = radai_menu.aplicar(radai_ui.aplicar(page), 'neuro_' + category)
     page = radai_todo.aplicar(page, tela='neuro_' + category)
+    return with_catalog(page, 'study', study=True)
+
+
+def pagina_resultados():
+    import radai_menu
+    import radai_recon3d_screen
+    import radai_todo
+    import radai_ui
+    import radai_viewer
+
+    template = (Path(__file__).resolve().parents[1] / 'web/study.html').read_text(encoding='utf-8')
+    prefix, _, _, results, suffix = template.split('<!--NEURO_STEP-->')
+    page = (prefix + results + suffix).replace('__NEURO_TITLE__', 'NeuroAnatomia 3D').replace(
+        '__NEURO_CATEGORY__', 'resultados')
+    header = radai_ui.cabeca_de_funcao('neuro_anatomia', 'NeuroAnatomia 3D',
+        'Revise as segmentações do NEURO RT nos três planos e em 3D.', chave_modulo='recon3d')
+    page = page.replace('<!--NEURO_STUDY_HEADER-->', header)
+    renderer = radai_viewer.JS_3D + '\n' + radai_recon3d_screen.JS_MALHA
+    page = page.replace('<!--NEURO_HOST_RENDERER-->', '<script>' + renderer + '</script>')
+    page = radai_menu.aplicar(radai_ui.aplicar(page), 'recon_neuro')
+    page = radai_todo.aplicar(page, tela='recon_neuro')
     return with_catalog(page, 'study', study=True)

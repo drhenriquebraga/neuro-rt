@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AutoContorno Neuro</title>
+  <link rel="stylesheet" href="/neuro/study.css"><link rel="stylesheet" href="/neuro/process.css">
+</head>
+<body>
+<main class="nr-wrap nr-process">
+<!--HEADER-->
+<!--STEP-->
+<div class="nr-pickers"><!--PICKERS--></div>
+<p id="scan-status" role="status" aria-live="polite"></p>
+<ul id="series-list" aria-label="Séries do exame"></ul>
+<!--STEP-->
+<p id="nr-empty" data-radai-frase>Selecione as miniaturas das séries que deseja processar.</p>
+<div class="nr-table-wrap" id="nr-table-wrap" hidden>
+  <table class="nr-table" aria-label="Séries selecionadas">
+    <thead><tr>
+      <th scope="col" data-radai-frase>Paciente</th><th scope="col" data-radai-frase>Data</th>
+      <th scope="col" data-radai-frase>Modalidade</th><th scope="col" data-radai-frase>Cortes</th>
+      <th scope="col" data-radai-frase>Espessura (mm)</th><th scope="col" data-radai-frase>Descrição</th>
+      <th scope="col" data-radai-frase>Série</th><th scope="col" data-radai-frase>Situação</th>
+      <th scope="col" data-radai-frase>Ações</th><th scope="col" data-radai-frase>Modo</th>
+    </tr></thead><tbody id="nr-plans"></tbody>
+  </table>
+</div>
+<button class="ui-bt pri" id="start" type="button" disabled data-radai-frase>Iniciar segmentação</button>
+<p id="selection-status" role="status" aria-live="polite"></p>
+<!--STEP-->
+</main>
+<!--DIALOGS-->
+<script src="/neuro/process.js" defer></script></body></html>

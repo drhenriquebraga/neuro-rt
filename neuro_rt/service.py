@@ -75,15 +75,14 @@ class Settings:
             return False
 
     def runtime_python(self, runtime_id):
+        if runtime_id == 'host-nnunet':
+            return self.host_python if self.host_python and Path(self.host_python).is_file() else None
         if self.plugin_paths is not None and self.plugin_paths.execution_mode == 'host':
             adapters = {'raidionics-onnx': ('raidionics', 'raidionics_postop'),
-                        'neuro-scientific-cpu': ('attention_unet', 'synthseg', 'cerebra_ants'),
-                        'host-nnunet': ('buti_host',)}
+                        'neuro-scientific-cpu': ('attention_unet', 'synthseg', 'cerebra_ants')}
             capabilities = (self.resources or {}).get('capabilities', {})
             ready = any(capabilities.get(name, {}).get('available') is True for name in adapters.get(runtime_id, ()))
             return self.host_python if ready and Path(self.host_python).is_file() else None
-        if runtime_id == 'host-nnunet':
-            return self.host_python if Path(self.host_python).is_file() else None
         if self.plugin_paths is None:
             if runtime_id == 'raidionics-onnx':
                 return self.python
@@ -105,6 +104,9 @@ class Settings:
         return str(candidate) if candidate.is_file() else None
 
     def model_runtime_status(self, spec):
+        if spec.get('id') == 'cranio_buti':
+            from integration.buti_host import IDENT, capabilities
+            return capabilities(self.host_app, self.host_python)[IDENT]
         if self.plugin_paths is not None and self.plugin_paths.execution_mode == 'host':
             status = (self.resources or {}).get('capabilities', {}).get(spec.get('adapter_id'))
             if not status or status.get('available') is not True:
@@ -125,7 +127,7 @@ class Settings:
         entry = ('import sys,runpy;sys.path.insert(0,sys.argv.pop(1));'
                  'runpy.run_module("neuro_rt.worker_bootstrap",run_name="__main__")')
         command = [str(python), '-I', '-B', '-c', entry, str(self.root), '--module', module]
-        if not preparation and self.resources:
+        if not preparation and self.resources and runtime_id != 'host-nnunet':
             command += ['--plugin-root', str(self.plugin_paths.plugin_root), '--resources', json.dumps(dict(self.resources))]
         return command + ['--', *map(str, arguments)]
 

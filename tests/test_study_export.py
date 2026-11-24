@@ -123,6 +123,38 @@ class StudyExportTests(unittest.TestCase):
                                '--job-dir', str(job), '--host-app', str(HOST)],
                               cwd=ROOT, capture_output=True, timeout=120)
 
+    def test_simple_oars_and_optional_atlas_have_distinct_anatomical_names_in_rtstruct(self):
+        from neuro_rt.study_protocols import CEREBRA, SIMPLE, SYNTHSEG
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+            job = Path(tmp)
+            self.prepare(job, model_ids=(SYNTHSEG, CEREBRA))
+            manifest = json.loads((job / 'study-manifest.json').read_text())
+            for result, class_id in zip(manifest['results'], ('oar_Hippocampus_L', 'left_hippocampus')):
+                result['masks'][0].update(class_id=class_id, provenance={'protocol_id': SIMPLE})
+            (job / 'study-manifest.json').write_text(json.dumps(manifest))
+            run = self.run_export(job)
+            self.assertEqual(run.returncode, 0, run.stderr.decode(errors='replace')[-1800:])
+            ds = pydicom.dcmread(next((job / 'original').glob('RS_NeuroRT_*.dcm')))
+            self.assertEqual({r.ROIName for r in ds.StructureSetROISequence},
+                             {'Hippocampus_L_ai', 'CHippocamp_L_ai'})
+
+    def test_explicit_study_tags_exclude_old_masks_when_writing_dicom(self):
+        from neuro_rt.study_protocols import SIMPLE,SYNTHSEG
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+            job=Path(tmp)
+            self.prepare(job,model_ids=(SYNTHSEG,'MRI_GBM'))
+            manifest=json.loads((job/'study-manifest.json').read_text())
+            source=manifest['results'][0]['masks'][0]
+            source.update(class_id='oar_Brainstem',provenance={'protocol_id':SIMPLE})
+            manifest['results'][0]['masks'].append(dict(source,class_id='oar_Cerebellum'))
+            (job/'study-manifest.json').write_text(json.dumps(manifest))
+            (job/'request.json').write_text(json.dumps({'studies':[{'study_id':'study','plan':{
+                'anatomy':SIMPLE,'findings':[],'rois':{SYNTHSEG:['oar_Brainstem']}}}]}))
+            run=self.run_export(job)
+            self.assertEqual(run.returncode,0,run.stderr.decode(errors='replace')[-1800:])
+            delivered=pydicom.dcmread(next((job/'original').glob('RS_NeuroRT_*.dcm')))
+            self.assertEqual([r.ROIName for r in delivered.StructureSetROISequence], ['Brainstem_ai'])
+
     def test_same_class_two_models_one_file_all_foci_overlaps_and_retry(self):
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
             job = Path(tmp)

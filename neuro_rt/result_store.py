@@ -16,6 +16,7 @@ import uuid
 
 from .contracts import _series, validate_identifier, validate_model_result
 from .model_registry import load_catalog
+from .study_protocols import result_classes
 from .integrity import sha256_file
 from .study_types import (ContractMessage, ContractRecord, EXECUTION_STATUSES,
                           EXPORT_STATUSES, ExportReceipt, StudyManifest)
@@ -173,11 +174,13 @@ def public_view(manifest, catalog=None):
                  if all(k in a for k in ('artifact_id', 'kind', 'media_type'))]
     def safe_warnings(result):
         # Explicit projection: never publish free text, paths or arbitrary details.
-        known = {c['class_id'] for c in catalog[result.model_id]['classes']} if catalog else {
-            c['class_id'] for m in load_catalog() if m['id'] == result.model_id for c in m['classes']}
+        known = {c['class_id'] for c in result_classes(catalog[result.model_id])} if catalog else {
+            c['class_id'] for m in load_catalog() if m['id'] == result.model_id for c in result_classes(m)}
         warnings = []
         for warning in result.warnings:
             details = warning.details
+            if warning.code == 'atlas_reference_fallback' and result.model_id == 'anatomy_cerebra_ants':
+                warnings.append({'code': warning.code, 'model_id': result.model_id})
             if (warning.code == 'class_lost_on_reference_grid' and isinstance(details, dict)
                     and details.get('class_id') in known
                     and type(details.get('working_voxels')) is int and details['working_voxels'] > 0
@@ -358,10 +361,9 @@ class ResultStore:
     def public_view(self, manifest):
         return public_view(manifest, self.catalog)
 
-    def list_results(self, reference_ticket=None, *, all_revisions=False):
+    def iter_manifests(self, reference_ticket=None, *, all_revisions=False):
         if reference_ticket is not None:
             _id(reference_ticket)
-        results = []
         for directory in sorted(self.root.iterdir()):
             if not directory.is_dir():
                 continue
@@ -372,8 +374,11 @@ class ResultStore:
                 continue
             for manifest in manifests:
                 if reference_ticket is None or manifest.reference.ticket == reference_ticket:
-                    results.append(self.public_view(manifest).to_dict())
-        return results
+                    yield manifest
+
+    def list_results(self, reference_ticket=None, *, all_revisions=False):
+        return [self.public_view(m).to_dict()
+                for m in self.iter_manifests(reference_ticket, all_revisions=all_revisions)]
 
     def resolve_artifact(self, study_id, artifact_id):
         return self.resolve_artifacts(study_id, [artifact_id])[artifact_id]

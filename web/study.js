@@ -101,7 +101,7 @@
       '"><span id="nr-remove-' + index + '" data-radai-frase>Remover</span></button></li>';
   }
   const gallery = el('series-list');
-  gallery.addEventListener('error', event => {
+  gallery?.addEventListener('error', event => {
     const image = event.target;
     if (!image.matches?.('.nr-thumb img')) return;
     image.hidden = true;
@@ -172,7 +172,7 @@
       if (request === previewRequest && button.isConnected) el('scan-status').textContent = error.message;
     }
   }
-  gallery.addEventListener('click', event => {
+  gallery?.addEventListener('click', event => {
     const button = event.target.closest('button[data-preview]');
     if (button) openSeriesPreview(button);
   });
@@ -510,7 +510,17 @@
     el('export-partial').hidden = status !== 'partial' || view.export_status !== 'pending';
     const downloads = (view.artifacts || []).filter(a => a.kind === 'derived_ct' || a.kind === 'rtstruct');
     el('downloads').innerHTML = downloads.map(a => '<a class="ui-bt" href="' + esc(artifactURL(a)) + '" download>' + (a.kind === 'derived_ct' ? 'Baixar série DICOM (ZIP)' : 'Baixar RTSTRUCT não aprovado') + '</a>').join('');
-    el('result-warnings').innerHTML = (view.models || []).flatMap(model => (model.warnings || []).filter(w => w.code === 'class_lost_on_reference_grid').map(w => '<p class="nr-warning">' + esc(model.model_id + ' · ' + w.class_id) + ': Classe não vazia ficou vazia ao retornar à grade de referência. ' + esc(w.working_voxels + ' → ' + w.reference_voxels) + ' voxels. Interpolação: vizinho mais próximo.</p>')).join('');
+    const warnings = (view.models || []).flatMap(model => (model.warnings || []).flatMap(warning => {
+      if (warning.code === 'atlas_reference_fallback') {
+        return ['O registro do T1 sugerido falhou. O CerebrA usou o T1 da série de referência.'];
+      }
+      if (warning.code === 'class_lost_on_reference_grid') {
+        return [model.model_id + ' · ' + warning.class_id + ': Classe não vazia ficou vazia ao retornar à grade de referência. ' +
+          warning.working_voxels + ' → ' + warning.reference_voxels + ' voxels. Interpolação: vizinho mais próximo.'];
+      }
+      return [];
+    }));
+    el('result-warnings').innerHTML = warnings.map(text => '<p class="nr-warning">' + esc(text) + '</p>').join('');
   }
   async function pollJob(generation) {
     if (generation !== state.generation || !state.job) return;
@@ -609,47 +619,49 @@
     if (!el('model-help').hidden) {if(event.key==='Escape')closeHelp();else if(event.key==='Tab'&&window.uiPrenderFoco)uiPrenderFoco(el('model-help'),event);return;}
     if(expandedPlane){if(event.key==='Escape')closeExpandedPlane();else if(event.key==='Tab'&&window.uiPrenderFoco)uiPrenderFoco(expandedPlane,event);}
   });
-  el('anatomy-option').hidden = state.category === 'anatomia';
-  el('include-anatomy').addEventListener('change', event => {
-    if (!event.target.checked) for (const model of state.models) if (model.groups.includes('anatomia')) state.selected.delete(model.id);
-    renderModelSelection(el('models'));
-  });
-  el('models').addEventListener('change',event => {
-    const target=event.target;
-    if (target.dataset.model) {
-      if (target.checked) state.selected.add(target.dataset.model); else state.selected.delete(target.dataset.model);
-      const classes = target.closest('.nr-model').querySelector('.nr-class-options');
-      if (classes) classes.hidden = !target.checked;
-      updateStart();
-    }
-    if (target.dataset.classModel) {
-      const model = state.models.find(item => item.id === target.dataset.classModel);
-      const classId = model.classes[Number(target.dataset.classIndex)].class_id;
-      const classes = classSelections.get(model.id) || new Set(model.classes.map(item => item.class_id));
-      if (target.checked) classes.add(classId); else classes.delete(classId);
-      classSelections.set(model.id, classes);
-      el('selection-status').textContent = classes.size ? '' : 'Escolha ao menos uma estrutura para a entrega deste modelo.';
-      updateStart();
-    }
-    if (target.dataset.bindingModel) {
-      const id=target.dataset.bindingModel, role=target.dataset.role;
-      state.bindings[id]=(state.bindings[id]||[]).filter(b => b.role !== role);
-      if (target.value) state.bindings[id].push({role,series_ticket:target.value,certainty:'certain',association_source:'manual',warnings:[]});
+  if (state.category !== 'resultados') {
+    el('anatomy-option').hidden = state.category === 'anatomia';
+    el('include-anatomy').addEventListener('change', event => {
+      if (!event.target.checked) for (const model of state.models) if (model.groups.includes('anatomia')) state.selected.delete(model.id);
       renderModelSelection(el('models'));
-    }
-  });
-  el('reference').addEventListener('change',() => {state.reference=el('reference').value;renderModelSelection(el('models'));});
-  el('start').addEventListener('click',() => {
-    try {
-      const request=collectStudyRequest();
-      if(typeof window.radaiRevAbrir !== 'function' || !el('radai_rev_corpo')) throw Error('A conferência comum não está disponível. Reabra a tela pelo Local Suite.');
-      // Freeze at the explicit action, before opening the host's review dialog.
-      const submit=async () => { try {el('start').disabled=true;const data=await api('studies',request);el('selection-status').textContent='Pedido enviado para a fila comum.';const created=data.studies||[];state.jobs=state.jobs.concat(created);renderJobs();if(created.length)await selectResultSeries(jobKey(created[0]));}catch(e){el('selection-status').textContent=e.message;}finally{updateStart();} };
-      radaiRevAbrir(null,submit);
-      el('radai_rev_sub').textContent='Uma série de referência selecionada. Nada começou ainda.';
-      el('radai_rev_corpo').innerHTML='<h4>Modelos escolhidos</h4><ul>'+request.studies[0].model_ids.map(id=>'<li>'+esc((state.models.find(m=>m.id===id)||{}).label||id)+'</li>').join('')+'</ul><p>O resultado será devolvido à referência escolhida, com ROIs independentes por modelo e classe.</p>';
-    } catch(e) {el('selection-status').textContent=e.message;}
-  });
+    });
+    el('models').addEventListener('change',event => {
+      const target=event.target;
+      if (target.dataset.model) {
+        if (target.checked) state.selected.add(target.dataset.model); else state.selected.delete(target.dataset.model);
+        const classes = target.closest('.nr-model').querySelector('.nr-class-options');
+        if (classes) classes.hidden = !target.checked;
+        updateStart();
+      }
+      if (target.dataset.classModel) {
+        const model = state.models.find(item => item.id === target.dataset.classModel);
+        const classId = model.classes[Number(target.dataset.classIndex)].class_id;
+        const classes = classSelections.get(model.id) || new Set(model.classes.map(item => item.class_id));
+        if (target.checked) classes.add(classId); else classes.delete(classId);
+        classSelections.set(model.id, classes);
+        el('selection-status').textContent = classes.size ? '' : 'Escolha ao menos uma estrutura para a entrega deste modelo.';
+        updateStart();
+      }
+      if (target.dataset.bindingModel) {
+        const id=target.dataset.bindingModel, role=target.dataset.role;
+        state.bindings[id]=(state.bindings[id]||[]).filter(b => b.role !== role);
+        if (target.value) state.bindings[id].push({role,series_ticket:target.value,certainty:'certain',association_source:'manual',warnings:[]});
+        renderModelSelection(el('models'));
+      }
+    });
+    el('reference').addEventListener('change',() => {state.reference=el('reference').value;renderModelSelection(el('models'));});
+    el('start').addEventListener('click',() => {
+      try {
+        const request=collectStudyRequest();
+        if(typeof window.radaiRevAbrir !== 'function' || !el('radai_rev_corpo')) throw Error('A conferência comum não está disponível. Reabra a tela pelo Local Suite.');
+        // Freeze at the explicit action, before opening the host's review dialog.
+        const submit=async () => { try {el('start').disabled=true;const data=await api('studies',request);el('selection-status').textContent='Pedido enviado para a fila comum.';const created=data.studies||[];state.jobs=state.jobs.concat(created);renderJobs();if(created.length)await selectResultSeries(jobKey(created[0]));}catch(e){el('selection-status').textContent=e.message;}finally{updateStart();} };
+        radaiRevAbrir(null,submit);
+        el('radai_rev_sub').textContent='Uma série de referência selecionada. Nada começou ainda.';
+        el('radai_rev_corpo').innerHTML='<h4>Modelos escolhidos</h4><ul>'+request.studies[0].model_ids.map(id=>'<li>'+esc((state.models.find(m=>m.id===id)||{}).label||id)+'</li>').join('')+'</ul><p>O resultado será devolvido à referência escolhida, com ROIs independentes por modelo e classe.</p>';
+      } catch(e) {el('selection-status').textContent=e.message;}
+    });
+  }
   el('refresh').addEventListener('click',async () => {const previous=state.job,selected=previous&&jobKey(previous),generation=state.generation;try{await refreshJobs();if(selected&&generation===state.generation){if(!state.jobs.some(job=>jobKey(job)===selected))state.jobs.push(previous);await selectResultSeries(selected);}}catch(e){if(generation===state.generation)el('job-status').textContent=e.message;}});
   el('result-series').addEventListener('change',() => selectResultSeries(el('result-series').value));
   el('cancel').addEventListener('click',async () => {if(!state.job)return;try {await api('studies/'+encodeURIComponent(jobId(state.job))+'/cancel',{});el('job-status').textContent='Cancelamento solicitado.';}catch(e){el('job-status').textContent=e.message;}});
@@ -715,7 +727,7 @@
   api('status').then(data => {
     state.token = data.token || data.csrf_token || '';
     if (!state.token) throw Error(pickerUnavailable);
-    setupSeriesPicker();
-  }).catch(error => { el('scan-status').textContent = error.message; })
+    if (state.category !== 'resultados') setupSeriesPicker();
+  }).catch(error => { (el('scan-status') || el('job-status')).textContent = error.message; })
     .then(refreshJobs).catch(error => { el('job-status').textContent = error.message; });
 }());

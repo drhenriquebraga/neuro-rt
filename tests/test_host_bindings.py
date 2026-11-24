@@ -34,6 +34,11 @@ class HostBindingsTests(unittest.TestCase):
             self.assertEqual(len(value['source']['dicom_files']), 8)
             self.assertNotIn('SYNTHETIC', value['subject_key'])
             self.assertEqual(value['subject_key'], bindings['resolve_series_ticket'](ticket)['subject_key'])
+            self.assertNotIn('picker_identity',value)
+            display = bindings['resolve_picker_ticket'](ticket)['picker_identity']
+            self.assertTrue(display['patient_id'])
+            self.assertTrue(display['patient_name'])
+            self.assertEqual(set(display),{'patient_name','patient_id','study_date'})
             with self.assertRaises(ValueError): bindings['resolve_series_ticket']('../private')
 
     @unittest.skipUnless(HOST_APP and Path(HOST_APP).is_dir(), 'Host Local Suite indisponível.')

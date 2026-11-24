@@ -81,6 +81,8 @@ class ButiCTAdapter(ScientificAdapter):
             raise ValueError('Buti retornou rótulos inválidos ou não finitos.')
         masks = []
         for index, name in LABELS.items():
+            if 'study_classes' in context.model_spec and name not in context.model_spec['study_classes']:
+                continue
             mask = sitk.GetImageFromArray((labels == index).astype(np.uint8))
             mask.CopyInformation(image)
             path = directory / (name + '.nii.gz'); write_image(mask, str(path))

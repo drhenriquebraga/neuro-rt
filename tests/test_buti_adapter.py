@@ -104,6 +104,12 @@ def _principal():
         self.assertEqual(brain[4, 4, 9], 1)
         self.assertFalse(self.context.models_dir.exists())
 
+    def test_only_checked_buti_mask_is_written_and_restored(self):
+        self.context.model_spec['study_classes'] = ['Chiasm']
+        result = self.run_adapter()
+        self.assertEqual([m.class_id for m in result.masks],['Chiasm'])
+        self.assertFalse(list(self.context.job_dir.rglob('Brainstem.nii.gz')))
+
     def test_rejects_gpu_without_cuda_instead_of_falling_back(self):
         self.context.device = 'cuda'
         with self.assertRaisesRegex(RuntimeError, 'CUDA'):

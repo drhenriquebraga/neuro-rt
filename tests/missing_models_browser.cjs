@@ -14,7 +14,7 @@ const {chromium} = require(process.env.NEURO_PLAYWRIGHT_MODULE);
     const nidus = page.locator('a[href="/neuro/nidus"]');
     if (await nidus.count() !== 1) throw Error('Nidus is not available');
     const cards = page.locator('[data-neuro-models-missing]');
-    if (await cards.count() !== 4) throw Error('Missing model cards are incorrect');
+    if (await cards.count() !== 1) throw Error('Missing model cards are incorrect');
     await cards.first().click();
     if (!await page.evaluate(() => window.missingPopup?.corpo.includes('modelos adicionais'))) throw Error('Popup absent');
     if (!page.url().endsWith('/neuro/')) throw Error('Navigated before confirmation');

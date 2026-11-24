@@ -90,15 +90,41 @@ def montar(app, module_root, *, host_services=None):
     async def selection(request: Request):
         body = await action(request)
         category = body.get('category')
-        if category not in ('glioma', 'metastasis', 'meningioma', 'anatomia'):
+        if category not in ('glioma', 'metastasis', 'meningioma', 'anatomia', 'unified'):
             raise HTTPException(400, 'Escolha uma ferramenta de segmentação.')
         try:
             if body.get('identify_only') is True:
                 value = await run_in_threadpool(studies().selection, body.get('tickets'), category, identify_only=True)
+            elif category == 'unified':
+                value = await run_in_threadpool(studies().selection, body.get('tickets'), category,
+                                                reference=body.get('reference'))
             else:
                 value = await run_in_threadpool(studies().selection, body.get('tickets'), category)
             return JSONResponse(value, headers={'Cache-Control': 'no-store'})
         except (KeyError, ValueError, RuntimeError, TypeError) as exc:
+            raise fail(exc)
+
+    @router.get('/api/protocols')
+    def protocols(request: Request):
+        local(request)
+        return JSONResponse({'protocols': studies().presets.list()}, headers={'Cache-Control': 'no-store'})
+
+    @router.post('/api/protocols')
+    async def save_protocol(request: Request):
+        payload = await action(request, 65536)
+        try:
+            await run_in_threadpool(studies().presets.save, payload)
+            return await run_in_threadpool(protocols, request)
+        except (KeyError, ValueError, RuntimeError) as exc:
+            raise fail(exc)
+
+    @router.post('/api/protocols/{ident}/delete')
+    async def delete_protocol(request: Request, ident: str):
+        await action(request, 4096)
+        try:
+            await run_in_threadpool(studies().presets.delete, ident)
+            return await run_in_threadpool(protocols, request)
+        except (KeyError, ValueError, RuntimeError) as exc:
             raise fail(exc)
 
     @router.post('/api/studies', status_code=202)
@@ -152,14 +178,26 @@ def montar(app, module_root, *, host_services=None):
         @router.get('/')
         def integrated_page(request: Request, category: str = ''):
             local(request)
-            from integration.radai_neuro_screen import pagina_neuro, pagina_estudo
-            try:
-                if category and not service.tool_available(category):
-                    return RedirectResponse('/neuro/', status_code=303)
-                page = (pagina_estudo(category, host_services) if category else
-                        pagina_neuro(host_services, {'state': 'ready', 'tools': service.tools()}))
-                return HTMLResponse(page, headers={'Cache-Control': 'no-store'})
-            except ValueError as exc: raise fail(exc)
+            from integration.radai_neuro_screen import pagina_neuro
+            if category in ('anatomia', 'glioma', 'metastasis', 'meningioma'):
+                from integration.neuro_process_screen import pagina_processo
+                page = pagina_processo(host_services)
+            elif category:
+                return RedirectResponse('/neuro/', status_code=303)
+            else:
+                page = pagina_neuro(host_services, {'state': 'ready', 'tools': service.tools()})
+            return HTMLResponse(page, headers={'Cache-Control': 'no-store'})
+
+        @router.get('/resultados')
+        def results_page(request: Request):
+            local(request)
+            from importlib.util import find_spec
+            if find_spec('radai_recon3d_planos') is not None:
+                return RedirectResponse('/recon3d/anatomia?modo=neuro', status_code=303)
+            from integration.radai_neuro_screen import pagina_resultados
+            return HTMLResponse(pagina_resultados(), headers={'Cache-Control': 'no-store'})
+
+        service.has_results_page = True
 
     @router.get('/api/series')
     def series(request: Request, path: str):
@@ -227,6 +265,13 @@ def montar(app, module_root, *, host_services=None):
                       if host_services is not None else settings.data_dir / 'plugin-consent')
     protect_routes = attach(app, router, service, consent_config, local, action,
                             integrated=host_services is not None)
+    if host_services is not None:
+        from integration.plugin_access import _consent_accepted
+        from integration.neuro_native_review import NeuroReview
+        def allow_review(request):
+            local(request)
+            return _consent_accepted(consent_config)
+        app.state.neuro_native_review = NeuroReview(service, allow_review)
     # Publish the denial-only guard before any callable endpoints are exposed.
     # Nidus imports can take time during the host's background lazy mount.
     protect_routes()

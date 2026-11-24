@@ -49,7 +49,9 @@ class ToolAvailabilityTests(unittest.TestCase):
         before = repr(renderer.FERRAMENTAS)
         page = radai_neuro_screen._pagina_ferramentas(renderer)
         self.assertEqual(repr(renderer.FERRAMENTAS), before)
-        for category in ('nidus', 'glioma', 'metastasis', 'meningioma', 'anatomia'):
+        for category in ('glioma', 'metastasis', 'meningioma'):
+            self.assertNotIn('href="/neuro/' + category + '"', page)
+        for category in ('nidus', 'anatomia'):
             self.assertIn('href="/neuro/' + category + '"', page)
         self.assertNotIn('[fase de testes]', page)
         self.assertNotIn('class="md-fer obra" aria-disabled="true"', page)
@@ -66,7 +68,7 @@ class ToolAvailabilityTests(unittest.TestCase):
         from neuro_rt.tool_availability import available_tools
         page = radai_neuro_screen._pagina_ferramentas(host_renderer(), available_tools({'nidus'}))
         self.assertIn('href="/neuro/nidus"', page)
-        self.assertEqual(page.count('href="/config#ps_neuro" data-neuro-models-missing'), 4)
+        self.assertEqual(page.count('href="/config#ps_neuro" data-neuro-models-missing'), 1)
         self.assertNotIn('href="/neuro/glioma"', page)
         self.assertIn('window.uiConfirmar', page)
         self.assertIn("location.assign('/config#ps_neuro')", page)

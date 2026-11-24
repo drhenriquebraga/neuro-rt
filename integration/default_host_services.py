@@ -3,6 +3,30 @@ import hashlib
 import hmac
 import os
 from pathlib import Path
+import math
+
+
+def _picker_geometry(header, files):
+    """Physical grid from the host's already indexed, sorted DICOM slices."""
+    if len(files) < 2:
+        return {}
+    try:
+        axes = [float(x) for x in header.ImageOrientationPatient]
+        row, col = axes[:3], axes[3:]
+        dy, dx = map(float, header.PixelSpacing)
+        first = [float(x) for x in files[0]['ipp']]
+        last = [float(x) for x in files[-1]['ipp']]
+        step = [(b-a)/(len(files)-1) for a,b in zip(first,last,strict=True)]
+        dz = math.hypot(*step)
+        if min(dx, dy, dz) <= 0 or len(step) != 3 or len(axes) != 6:
+            return {}
+        direction = [v for axis in zip(row, col, [x/dz for x in step]) for v in axis]
+        if not all(map(math.isfinite, [*direction,*first,dx,dy,dz])):
+            return {}
+        return {'size_xyz':[int(header.Columns), int(header.Rows), len(files)],
+                'spacing_xyz_mm':[dx,dy,dz], 'origin_lps_mm':first, 'direction_lps':direction}
+    except (AttributeError, IndexError, KeyError, TypeError, ValueError, ZeroDivisionError):
+        return {}
 
 
 def _preview_header(ds):
@@ -62,7 +86,7 @@ def bindings_for_host(host_info, cfg=None):
     def identity(value):
         return hmac.new(secret, str(value).encode('utf-8'), hashlib.sha256).hexdigest()
 
-    def resolve_series_ticket(ticket):
+    def resolve_series_ticket(ticket, *, picker=False):
         import radai_thumbnail
         import pydicom
         folder, uid = radai_thumbnail.resolver(ticket)
@@ -85,9 +109,13 @@ def bindings_for_host(host_info, cfg=None):
         if not subject.strip('\0'): subject = 'study:' + study
         metadata = {name: str(ds.get(name, '')) for name in ('SeriesDescription', 'SeriesNumber', 'ProtocolName',
             'ContrastBolusAgent', 'RepetitionTime', 'EchoTime')}
-        return {'ticket': ticket, 'series_uid': str(uid), 'subject_key': identity(subject),
+        display = ({'picker_identity': {key:str(ds.get(tag, '')).strip()[:128] for key, tag in (
+            ('patient_name','PatientName'),('patient_id','PatientID'),('study_date','StudyDate'))}}
+            if picker else {})
+        return {'ticket': ticket, 'series_uid': str(uid), 'subject_key': identity(subject), **display,
             'study_key': identity(study), 'modality': modality, 'source_format': 'dicom',
-            'geometry': {}, 'metadata': metadata, 'preview_header': _preview_header(ds),
+            'geometry': _picker_geometry(ds, series['arquivos']), 'metadata': metadata,
+            'preview_header': _preview_header(ds),
             'frame_of_reference_uid': str(ds.get('FrameOfReferenceUID', '')),
             'sop_instance_uids': [str(f.get('sop') or '') for f in series['arquivos']],
             'source': {'kind': 'dicom', 'input_path': str(folder), 'dicom_files': files,
@@ -122,7 +150,17 @@ def bindings_for_host(host_info, cfg=None):
         from neuro_rt.export_study import export_study
         return export_study(*args, **kwargs)
 
+    from contextlib import contextmanager
+    @contextmanager
+    def protocol_storage():
+        import radai_config
+        config_path = cfg.get('caminho') or radai_config.caminho_padrao()
+        with radai_config._editar_personalizadas(config_path):
+            yield Path(config_path).with_name('protocolos_neuro.json')
+
     return {'resolve_series_ticket': resolve_series_ticket, 'device_preference': preference,
+        'resolve_picker_ticket': lambda ticket: resolve_series_ticket(ticket, picker=True),
+        'protocol_storage': protocol_storage,
         'register_result': register_result, 'export_rtstruct': export_rtstruct,
         'viewer_routes': {'series': '/neuro/api/studies/{study_id}',
                           'artifact': '/neuro/api/studies/{study_id}/artifacts/{artifact_id}'}}

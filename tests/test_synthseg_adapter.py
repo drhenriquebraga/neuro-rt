@@ -31,9 +31,35 @@ class SynthSegAdapterTests(unittest.TestCase):
             np.testing.assert_array_equal(nib.load(by_id[key].path).get_fdata(), labels == label)
             self.assertTrue(verify_reference_geometry(by_id[key].path, self.ctx.reference).valid)
 
+    def test_unchecked_merged_or_native_atlas_masks_are_never_written(self):
+        from neuro_rt.study_protocols import SIMPLE,ADVANCED
+        labels = np.zeros((8,8,8),np.uint8); labels[2,2,2] = 16; labels[2,2,3] = 17
+        for profile,roi in ((SIMPLE,'oar_Brainstem'),(ADVANCED,'left_hippocampus')):
+            self.ctx.model_spec.update(protocol_id=profile,study_classes=[roi])
+            masks = label_masks(labels,np.eye(4),self.ctx)
+            self.assertEqual([m.class_id for m in masks],[roi])
+            self.assertEqual(len(list((self.ctx.job_dir / 'scientific_masks').glob('*.nii.gz'))),1)
+
     def test_strict_cuda_not_silently_cpu(self):
         self.ctx.device='cuda'
         with self.assertRaisesRegex(ValueError, 'CPU'): SynthSegAdapter().prepare(self.ctx)
+
+    def test_simple_delivers_only_ten_unions_on_reference_grid(self):
+        import nibabel as nib
+        from neuro_rt.study_protocols import OARS, SIMPLE
+        self.ctx.model_spec = dict(self.ctx.model_spec, protocol_id=SIMPLE)
+        adapter = SynthSegAdapter()
+        prepared = adapter.prepare(self.ctx)
+        image = nib.load(prepared.channel_paths[0])
+        labels = np.zeros(image.shape, np.int16)
+        values = [entry['value'] for entry in self.ctx.model_spec['classes']]
+        labels[2:10, 3:7, 8] = np.asarray(values).reshape(8, 4)
+        masks = label_masks(labels, image.affine, self.ctx)
+        result = adapter.normalize_result(ScientificPrediction(prepared, masks, [], {}, {}), self.ctx)
+        self.assertEqual({m.class_id for m in result.masks}, {'oar_' + name for name in OARS})
+        for mask in result.masks:
+            np.testing.assert_array_equal(nib.load(mask.path).get_fdata(),
+                                          np.isin(labels, OARS[mask.class_id[4:]]))
 
     def test_unknown_label_and_nan_fail_before_publication(self):
         for value in (999, np.nan):

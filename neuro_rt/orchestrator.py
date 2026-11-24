@@ -1,6 +1,6 @@
 """Sequential study execution; the caller owns the host lease and worker process."""
 import copy
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable
 
@@ -53,7 +53,13 @@ def build_study_plan(study, catalog) -> ExecutionPlan:
             raise ValueError('Modelo indisponível para execução nesta release.')
         if model_id not in study.bindings_by_model:
             raise ValueError('Modelo sem associação de entradas.')
-        steps.append(copy.deepcopy(spec))
+        step = copy.deepcopy(spec)
+        if study.protocol_id:
+            step['protocol_id'] = study.protocol_id
+        if study.plan:
+            step['protocol_id'] = study.plan['anatomy'] or 'personalizado'
+            step['study_classes'] = study.plan['rois'][model_id]
+        steps.append(step)
     return ExecutionPlan(study.study_id, study.reference, tuple(steps),
                          tuple(study.model_ids), copy.deepcopy(study.bindings_by_model))
 
@@ -111,6 +117,14 @@ def run_study(plan, context, runner) -> StudyManifest:
             else:
                 result = runner(spec, model_context)
             result = validate_model_result(result, spec)
+            if 'study_classes' in spec:
+                keep = set(spec['study_classes'])
+                masks = [m for m in result.masks if m.class_id in keep]
+                result = replace(result,masks=masks,
+                                 status='empty' if result.status == 'completed' and not masks else result.status)
+            if spec.get('protocol_id'):
+                result = replace(result, masks=[replace(m, provenance={**m.provenance,
+                    'protocol_id': spec['protocol_id']}) for m in result.masks])
             if result.status not in ('completed', 'empty', 'partial', 'failed', 'interrupted', 'cancelled'):
                 raise ValueError('O motor não entregou um estado terminal.')
             if result.status == 'cancelled':

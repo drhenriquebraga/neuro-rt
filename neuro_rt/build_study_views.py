@@ -31,7 +31,8 @@ def build_study_views(job_dir, host_app):
     from neuro_rt.segmentation_views import StudyViews, mask_region, native_surface
     from neuro_rt.result_store import atomic_json
     from neuro_rt.roi_registry import make_roi_identity
-    from neuro_rt.model_registry import get_model_spec
+    from neuro_rt.model_registry import load_catalog
+    from neuro_rt.study_protocols import result_classes
 
     job = Path(job_dir).resolve()
     manifest_path = job / 'study-manifest.json'
@@ -40,17 +41,19 @@ def build_study_views(job_dir, host_app):
         raise ValueError('A visualização exige manifesto de estudo v2.')
     image = read_image(str(_inside(job, job / 'inputs' / 'reference.nii.gz')))
     source_rois = []
+    catalog = {spec['id']: spec for spec in load_catalog()}
     for result in manifest.get('results', []):
+        spec = catalog[result['model_id']]
+        labels = {c['class_id']: c.get('label', str(c['class_id'])) for c in result_classes(spec)}
         for mask in result.get('masks', []):
             source = Path(mask['path'])
             if not source.is_absolute():
                 raise ValueError('Máscara deve apontar para um caminho privado absoluto.')
             source = _inside(job, source)
             identity = 'roi_%03d' % len(source_rois)
-            roi_identity = make_roi_identity(result['model_id'], mask['class_id'], manifest['revision'])
-            spec = get_model_spec(result['model_id'])
-            class_label = next(c.get('label',str(c['class_id'])) for c in spec['classes']
-                               if c['class_id'] == mask['class_id'])
+            roi_identity = make_roi_identity(result['model_id'], mask['class_id'], manifest['revision'],
+                                             catalog=catalog, protocol=mask.get('provenance', {}).get('protocol_id'))
+            class_label = labels[mask['class_id']]
             source_rois.append(({
                 'id': identity, 'model_id': result['model_id'], 'class_id': mask['class_id'],
                 'label': spec['label'] + ' / ' + class_label,

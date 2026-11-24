@@ -64,6 +64,15 @@ class HostWorkerResourcesTests(unittest.TestCase):
         self.assertFalse(status['available'])
         self.assertTrue(status['reason'])
 
+    def test_buti_uses_verified_suite_runtime_even_with_no_plugin_extra_for_buti(self):
+        settings = self.settings(dict(self.resources, capabilities={}))
+        spec = {'id': 'cranio_buti', 'adapter_id': 'buti_host', 'runtime_id': 'host-nnunet'}
+        with patch('integration.buti_host.capabilities', return_value={'cranio_buti': {'available':True}}):
+            self.assertTrue(settings.model_runtime_status(spec)['available'])
+        command = settings.worker_command('study', ['--task', 'model'], runtime_id='host-nnunet')
+        self.assertEqual(command[0], str(Path(sys.executable)))
+        self.assertNotIn('--resources', command)
+
     def test_worker_command_explicitly_loads_code_with_host_interpreter(self):
         settings = self.settings()
         self.assertTrue(hasattr(settings, 'worker_command'))

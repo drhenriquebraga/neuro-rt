@@ -83,9 +83,14 @@ class PluginAccessGate(BaseRoute):
             self.require_legacy_origin(Request(scope))
         if path.rstrip('/') in ('/nidus', '/nidus/projecao') or nidus_api:
             tool = next(t for t in TOOLS if t.id == 'nidus')
-        if tool and not self.available(tool.id):
+        # The unified form evaluates eligibility per protocol after series selection.
+        # The results viewer may open saved studies when model weights are absent.
+        processing = tool is not None and tool.id != 'nidus'
+        if tool and not self.available(tool.id) and not (processing and any(
+                self.available(t.id) for t in TOOLS if t.id not in ('nidus', tool.id))):
             return Match.FULL, {'neuro_access_denial': ('resources', tool.id)}
-        protected = tool is not None or execution
+        protected = (tool is not None or execution or path.rstrip('/') in ('/neuro/resultados','/neuro/api/protocols')
+                     or path.startswith('/neuro/api/protocols/'))
         if protected and not _consent_accepted(self.config_dir):
             return Match.FULL, {'neuro_access_denial': ('consent', '')}
         return Match.NONE, {}

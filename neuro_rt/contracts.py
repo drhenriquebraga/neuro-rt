@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 from .catalog import get_model
+from .study_protocols import result_classes, validate_delivery_plan, validate_protocol
 from .study_types import (ContractMessage, EXECUTION_STATUSES, InputBinding,
                           MaskArtifact, ModelResult, SeriesDescriptor, StudyItem,
                           StudyRequest)
@@ -217,7 +218,7 @@ def validate_study_request(payload, catalog, series_index) -> StudyRequest:
     for item in studies:
         _object(item, 'studies')
         _fields(item, ('study_id', 'reference', 'model_ids', 'bindings_by_model',
-                       'legacy_input_path', 'export_classes'), 'studies')
+                       'legacy_input_path', 'export_classes', 'protocol_id', 'plan'), 'studies')
         if item.get('legacy_input_path') is not None:
             _fail('legacy_only', 'legacy_input_path', 'Caminhos são restritos ao adaptador v1.')
         study_id = validate_identifier(item.get('study_id'), 'study_id')
@@ -243,7 +244,7 @@ def validate_study_request(payload, catalog, series_index) -> StudyRequest:
             _fail('unexpected_bindings', 'bindings_by_model', 'Bindings para modelo não solicitado.')
         if set(model_ids) - set(supplied):
             _fail('missing_bindings', 'bindings_by_model', 'Faltam bindings de um modelo solicitado.')
-        bindings = {}
+        bindings, bound_series = {}, {}
         for model_id in model_ids:
             roles, by_role, input_ids = _roles(specs[model_id]), {}, set()
             for raw in _array(supplied[model_id], 'bindings_by_model'):
@@ -256,6 +257,7 @@ def validate_study_request(payload, catalog, series_index) -> StudyRequest:
                 if role not in roles:
                     _fail('unexpected_role', 'binding.role', 'Papel não faz parte dos canais do modelo.')
                 descriptor = _series(raw.get('series_ticket'), series_index)
+                bound_series[descriptor.ticket] = descriptor
                 if descriptor.subject_key != reference.subject_key:
                     _fail('inconsistent_subject', 'binding.series_ticket', 'Entradas pertencem a sujeitos diferentes.')
                 if descriptor.study_key != reference.study_key:
@@ -285,8 +287,20 @@ def validate_study_request(payload, catalog, series_index) -> StudyRequest:
             keys = [_class_key(value) for value in _array(selection, 'export_classes')]
             if not keys or len(set(keys)) != len(keys) or not set(keys).issubset(_classes(specs[mid])):
                 _fail('unknown_class', 'export_classes', 'Selecione classes distintas do modelo.')
+        protocol = item.get('protocol_id')
+        plan = item.get('plan')
+        if plan is not None:
+            if protocol is not None or chosen_classes:
+                _fail('ambiguous_plan','plan','O plano já determina os modelos e as estruturas da entrega.')
+            plan = validate_delivery_plan(plan, reference.modality, catalog)
+            if set(model_ids) != {mid for mid, rois in plan['rois'].items() if rois}:
+                _fail('inconsistent_plan','model_ids','Execute apenas as tarefas com estruturas escolhidas no plano.')
+            validate_protocol('personalizado',catalog,reference,model_ids,bindings,bound_series,{})
+        if protocol is not None:
+            _text(protocol, 'protocol_id')
+            validate_protocol(protocol, catalog, reference, model_ids, bindings, bound_series, chosen_classes)
         items.append(StudyItem(study_id, reference.ticket, list(model_ids), bindings,
-                               export_classes=chosen_classes))
+                               export_classes=chosen_classes, protocol_id=protocol, plan=plan))
     return StudyRequest(request_id, True, items, device, export)
 
 
@@ -299,9 +313,10 @@ def _class_key(class_id):
     _fail('unknown_class', 'class_id', 'Identificador de classe inválido.')
 
 
-def _classes(spec):
+def _classes(spec, *, derived=False):
     classes = {}
-    for entry in _array(spec.get('classes'), 'catalog.classes'):
+    native = _array(spec.get('classes'), 'catalog.classes')
+    for entry in (result_classes(spec) if derived else native):
         _object(entry, 'catalog.classes')
         key = _class_key(entry.get('class_id'))
         if key in classes:
@@ -337,7 +352,7 @@ def validate_model_result(result, model_spec) -> ModelResult:
     model_id = _text(result.get('model_id'), 'result.model_id')
     if model_id != model_spec.get('id'):
         _fail('model_mismatch', 'result.model_id', 'O resultado não pertence ao modelo esperado.')
-    allowed = _classes(model_spec)
+    allowed = _classes(model_spec, derived=True)
     status = result.get('status')
     if not isinstance(status, str) or status not in EXECUTION_STATUSES:
         _fail('invalid_status', 'result.status', 'Estado de execução não reconhecido.')

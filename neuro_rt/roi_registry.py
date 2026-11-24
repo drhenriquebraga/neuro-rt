@@ -3,7 +3,8 @@ from dataclasses import dataclass, replace
 import hashlib
 import json
 
-from .model_registry import get_model_spec
+from .model_registry import get_model_spec, load_catalog
+from .study_protocols import anatomical_tps_name, result_classes
 
 
 @dataclass(frozen=True)
@@ -19,18 +20,20 @@ class RoiIdentity:
         return self.roi_name[:-3]
 
 
-def make_roi_identity(model_id, class_id, revision, *, catalog=None):
+def make_roi_identity(model_id, class_id, revision, *, catalog=None, protocol=None):
     spec = get_model_spec(model_id) if catalog is None else catalog[model_id]
     if spec.get('id') != model_id:
         raise ValueError('Identidade de modelo divergente do catálogo autorizado.')
     if not any(type(c['class_id']) is type(class_id) and c['class_id'] == class_id
-               for c in spec['classes']):
+               for c in result_classes(spec)):
         raise ValueError('Classe fora do catálogo verificado.')
     if spec['catalog_state'] not in ('distributed', 'verified', 'manual'):
         raise ValueError('Modelo candidato não permite publicar contornos.')
     key = json.dumps([model_id, class_id], ensure_ascii=True, separators=(',', ':'))
     digest = hashlib.sha256(key.encode()).hexdigest()
     short = 'NidusGeo' if model_id == 'nidus_consensus' else 'N' + digest[:12]
+    if protocol:
+        short = anatomical_tps_name(model_id, class_id) or short
     description = (f'Sugestao nao aprovada. NeuroRT / modelo {model_id} / classe {class_id} '
                    f'/ revisao {revision} / artefato {spec["revision"]}. '
                    'Mascara na referencia original; sem CTV automatico ou registro RM-TC.')
@@ -40,6 +43,8 @@ def make_roi_identity(model_id, class_id, revision, *, catalog=None):
 
 def collect_reference_masks(manifest, *, catalog=None):
     collection, seen = [], set()
+    if catalog is None:
+        catalog = {spec['id']: spec for spec in load_catalog()}
     for result in manifest.results:
         if result.status not in ('completed', 'partial'):
             continue
@@ -47,7 +52,7 @@ def collect_reference_masks(manifest, *, catalog=None):
             if mask.space != 'reference':
                 raise ValueError('A exportação exige máscara restaurada à referência.')
             identity = make_roi_identity(result.model_id, mask.class_id, manifest.revision,
-                                         catalog=catalog)
+                                         catalog=catalog, protocol=mask.provenance.get('protocol_id'))
             provenance = json.dumps({'versions': result.versions, 'hashes': result.hashes},
                                     sort_keys=True, ensure_ascii=True)
             identity = replace(identity, description=identity.description + ' ' + provenance)

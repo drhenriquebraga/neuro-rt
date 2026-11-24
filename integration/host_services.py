@@ -23,6 +23,8 @@ class HostServices:
     export_rtstruct: object
     viewer_routes: object
     missing_dependencies: tuple = field(default_factory=tuple)
+    resolve_picker_ticket: object = None
+    protocol_storage: object = None
 
     def require(self, *names):
         missing = [name for name in names if name in self.missing_dependencies]
@@ -66,4 +68,6 @@ def build_host_services(host_info, bindings=None, *, queue_bridge_factory=None):
         viewers = MappingProxyType({})
     return HostServices(MappingProxyType(dict(host_info)), queue_bridge=queue,
                         device_preference=device_preference, viewer_routes=viewers,
+                        resolve_picker_ticket=bindings.get('resolve_picker_ticket'),
+                        protocol_storage=bindings.get('protocol_storage'),
                         missing_dependencies=tuple(missing), **callbacks)
