@@ -11,7 +11,7 @@ const {chromium} = require(process.env.NEURO_PLAYWRIGHT_MODULE);
       body: fs.readFileSync(process.env.NEURO_MISSING_FIXTURE, 'utf8')}));
     await page.goto('http://127.0.0.1:18799/neuro/');
     await page.evaluate(() => {window.uiConfirmar = options => {window.missingPopup = options;};});
-    const nidus = page.locator('a[href="/neuro/testing/nidus"]');
+    const nidus = page.locator('a[href="/neuro/nidus"]');
     if (await nidus.count() !== 1) throw Error('Nidus is not available');
     const cards = page.locator('[data-neuro-models-missing]');
     if (await cards.count() !== 4) throw Error('Missing model cards are incorrect');

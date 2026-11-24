@@ -204,16 +204,37 @@ class Service:
         from .tool_availability import available_tools
 
         paths = self.settings.plugin_paths
-        if paths is None or (self.settings.resources is not None and self.weights_status()['state'] == 'ready'):
+        if paths is None:
+            return available_tools()
+        weights = self.weights_status() if self.settings.resources is not None else {}
+        if weights.get('state') == 'ready':
             return available_tools()
         ready = {'nidus'}
+        anatomy = []
+        from .model_registry import load_catalog
+        catalog = load_catalog()
+        missing = set(weights.get('missing_components', []))
+        if weights.get('state') == 'partial' and 'extras' not in missing:
+            for spec in catalog:
+                model = spec['id']
+                if (model == 'cranio_buti' or spec.get('catalog_state') not in ('distributed', 'verified')
+                        or model in missing or any(dep['id'] in missing for dep in spec.get('dependencies', []))
+                        or not self.settings.model_runtime_status(spec)['available']):
+                    continue
+                ready.update(spec['groups'])
+                if 'anatomia' in spec['groups']:
+                    anatomy.append(spec['label'])
         if self.host_services is not None:
-            from .model_registry import load_catalog
             from integration.buti_host import IDENT, capabilities
-            if (any(spec['id'] == IDENT for spec in load_catalog())
+            if (any(spec['id'] == IDENT for spec in catalog)
                     and capabilities(self.settings.host_app, self.settings.host_python)[IDENT]['available']):
                 ready.add('anatomia')
-        return available_tools(ready)
+                anatomy.append('Buti')
+        cards = available_tools(ready)
+        for tool in cards:
+            if tool['id'] == 'anatomia' and anatomy:
+                tool.update(state='partial', label=' · '.join(anatomy))
+        return cards
 
     def tool_available(self, tool_id):
         if tool_id == 'nidus':

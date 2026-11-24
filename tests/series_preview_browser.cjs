@@ -14,7 +14,8 @@ function mockSelection(tickets, category) {
     const row = rows.find(r => r.bilhete === ticket);
     assert(row, 'Selection must contain tickets returned by the scan');
     return {ticket, modality:row.modalidade, group_key:'phantom', source_format:'dicom',
-      slice_count:row.cortes, description:row.desc, sequence_candidates:[{role:row.role, certainty:'certain'}]};
+      slice_count:row.cortes, description:row.desc, preview_header:row.preview_header,
+      sequence_candidates:[{role:row.role, certainty:'certain'}]};
   });
   const models = ['alpha', 'beta'].map(id => ({
     id, label:'Modelo ' + id, groups:[category], channels:[{role:'T1'}],
@@ -143,6 +144,9 @@ async function check(browser, category) {
     await viewer.waitFor();
     const image = viewer.locator('.ui-visor-img img');
     await image.evaluate(img=>img.decode());
+    const metadata = await viewer.locator('dl').innerText();
+    for (const expected of ['Protocolo fantoma', '224 × 224', '1 × 1 mm', '2 mm', '3 T', '12 ms'])
+      assert(metadata.includes(expected), 'Missing acquisition header ' + expected);
     assert.equal(Number(await viewer.locator('input[type=range]').inputValue()), 3);
     await page.keyboard.press('End');
     await page.waitForFunction(()=>document.querySelector('.ui-visor-rol').value === '6');

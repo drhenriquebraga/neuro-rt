@@ -19,14 +19,14 @@ TEMP_ROOT.mkdir(parents=True,exist_ok=True)
 
 class NativeStudyScreenTests(unittest.TestCase):
     def test_anatomy_display_name_preserves_existing_consent(self):
-        from integration.testing_access import policy
+        from neuro_rt.plugin_consent import policy
         from neuro_rt.tool_availability import available_tools
 
         tool = next(tool for tool in available_tools() if tool['id'] == 'anatomia')
         self.assertEqual(tool['title'], 'AutoContorno Neuro')
         self.assertEqual(tool['route'], '/neuro/anatomia')
-        self.assertEqual(policy('anatomia')['digest'],
-                         '9a2d82994506236f426b94ab0ec8ff432850eb81774923cec7e2fb79856d16f0')
+        self.assertEqual(policy()['version'], '1.2')
+        self.assertEqual(policy()['plugin_id'], 'neuro-rt')
 
     def test_update_translations_cover_all_host_page_languages(self):
         catalog = json.loads((ROOT/'web/plugin-update-i18n.json').read_text(encoding='utf-8'))

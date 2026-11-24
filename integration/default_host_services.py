@@ -5,6 +5,57 @@ import os
 from pathlib import Path
 
 
+def _preview_header(ds):
+    """Technical display values for the local viewer, including enhanced MR/CT."""
+    fields = []
+    groups = getattr(ds, 'SharedFunctionalGroupsSequence', [])[:1] + getattr(ds, 'PerFrameFunctionalGroupsSequence', [])[:1]
+    def tag(name, sequence=None, alternate=None):
+        value = ds.get(name)
+        if value is None and sequence:
+            for group in groups:
+                items = group.get(sequence)
+                if items:
+                    value = items[0].get(alternate or name)
+                    if value is not None:
+                        break
+        return value
+    def add(label, value, unit=''):
+        if value is not None and str(value).strip():
+            fields.append([label, str(value).strip()[:128] + unit])
+    add('Série', tag('SeriesNumber'))
+    add('Descrição', tag('SeriesDescription'))
+    add('Protocolo', tag('ProtocolName'))
+    if ds.get('Rows') and ds.get('Columns'):
+        add('Matriz', f'{ds.Rows} × {ds.Columns}')
+    def number(value):
+        try:
+            return format(float(value), '.8g')
+        except (ValueError, TypeError, OverflowError):
+            return None
+    spacing = tag('PixelSpacing', 'PixelMeasuresSequence')
+    if spacing is not None and not isinstance(spacing, str):
+        try:
+            values = [number(n) for n in spacing]
+            if len(values) == 2 and all(values):
+                add('Espaçamento no plano', ' × '.join(values), ' mm')
+        except TypeError:
+            pass
+    add('Espessura', number(tag('SliceThickness', 'PixelMeasuresSequence')), ' mm')
+    add('Intervalo entre cortes', number(tag('SpacingBetweenSlices', 'PixelMeasuresSequence')), ' mm')
+    if ds.get('Modality') == 'MR':
+        add('Aquisição RM', tag('MRAcquisitionType'))
+        add('B₀', number(tag('MagneticFieldStrength')), ' T')
+        add('TR', number(tag('RepetitionTime', 'MRTimingAndRelatedParametersSequence')), ' ms')
+        add('TE', number(tag('EchoTime', 'MREchoSequence', 'EffectiveEchoTime')), ' ms')
+        add('TI', number(tag('InversionTime')), ' ms')
+        add('Flip angle', number(tag('FlipAngle', 'MRTimingAndRelatedParametersSequence')), '°')
+        add('Contraste', tag('ContrastBolusAgent'))
+    if ds.get('Modality') == 'CT':
+        add('kVp', number(tag('KVP')))
+        add('Kernel', tag('ConvolutionKernel'))
+    return fields
+
+
 def bindings_for_host(host_info, cfg=None):
     cfg = dict(cfg or {})
     secret = os.urandom(32)
@@ -36,7 +87,7 @@ def bindings_for_host(host_info, cfg=None):
             'ContrastBolusAgent', 'RepetitionTime', 'EchoTime')}
         return {'ticket': ticket, 'series_uid': str(uid), 'subject_key': identity(subject),
             'study_key': identity(study), 'modality': modality, 'source_format': 'dicom',
-            'geometry': {}, 'metadata': metadata,
+            'geometry': {}, 'metadata': metadata, 'preview_header': _preview_header(ds),
             'frame_of_reference_uid': str(ds.get('FrameOfReferenceUID', '')),
             'sop_instance_uids': [str(f.get('sop') or '') for f in series['arquivos']],
             'source': {'kind': 'dicom', 'input_path': str(folder), 'dicom_files': files,

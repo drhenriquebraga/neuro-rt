@@ -116,11 +116,13 @@ class CodeOnlyTests(unittest.TestCase):
                                    host_app=self.host, host_python=sys.executable)
         service = Service.__new__(Service)
         service.settings = settings
-        service.studies = SimpleNamespace(catalog={'cranio_buti': {}})
+        service.host_services = object()
         with patch('integration.buti_host.capabilities',
                    return_value={'cranio_buti': {'available': True}}):
             self.assertEqual({tool['id'] for tool in service.tools() if tool['enabled']},
                              {'nidus', 'anatomia'})
+            anatomy = next(tool for tool in service.tools() if tool['id'] == 'anatomia')
+            self.assertEqual((anatomy['state'], anatomy['label']), ('partial', 'Buti'))
 
     def test_minipage_opens_before_consent_and_nidus_requires_use_consent(self):
         from fastapi import FastAPI, APIRouter

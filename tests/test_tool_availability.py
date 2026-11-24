@@ -1,4 +1,4 @@
-"""Five test-phase tools reuse the host's interactive cards."""
+"""Five resource-aware tools reuse the host's interactive cards."""
 import importlib.util
 import json
 import os
@@ -30,30 +30,29 @@ def host_renderer():
 
 
 class ToolAvailabilityTests(unittest.TestCase):
-    def test_all_tools_are_in_testing_and_returned_values_are_isolated(self):
+    def test_all_prepared_tools_are_ready_and_returned_values_are_isolated(self):
         from neuro_rt.tool_availability import available_tools, require_tool, ToolUnavailable
         tools = available_tools()
         self.assertEqual(len(tools), 5)
         self.assertEqual([tool['id'] for tool in tools if tool['enabled']], ['nidus','glioma','metastasis','meningioma','anatomia'])
         for tool in tools:
-            self.assertEqual(tool['label'], '[fase de testes]')
-            self.assertEqual(tool['state'], 'testing')
+            self.assertEqual(tool['label'], '')
+            self.assertEqual(tool['state'], 'ready')
             require_tool(tool['id'])
         tools[0]['enabled'] = False
         self.assertTrue(available_tools()[0]['enabled'])
         with self.assertRaises(ValueError):
             require_tool('unknown')
 
-    def test_shared_host_cards_link_to_acknowledgement_without_mutating_host(self):
+    def test_shared_host_cards_link_to_tools_without_mutating_host(self):
         renderer = host_renderer()
         before = repr(renderer.FERRAMENTAS)
         page = radai_neuro_screen._pagina_ferramentas(renderer)
         self.assertEqual(repr(renderer.FERRAMENTAS), before)
         for category in ('nidus', 'glioma', 'metastasis', 'meningioma', 'anatomia'):
-            self.assertIn('href="/neuro/testing/' + category + '"', page)
-        self.assertEqual(page.count('[fase de testes]'), 5)
+            self.assertIn('href="/neuro/' + category + '"', page)
+        self.assertNotIn('[fase de testes]', page)
         self.assertNotIn('class="md-fer obra" aria-disabled="true"', page)
-        self.assertIn('.md-fer.obra{opacity:.62', page)
 
     def test_unrecognized_host_cards_fail_closed(self):
         renderer = host_renderer()
@@ -66,9 +65,9 @@ class ToolAvailabilityTests(unittest.TestCase):
     def test_missing_models_keep_nidus_open_and_offer_weight_settings(self):
         from neuro_rt.tool_availability import available_tools
         page = radai_neuro_screen._pagina_ferramentas(host_renderer(), available_tools({'nidus'}))
-        self.assertIn('href="/neuro/testing/nidus"', page)
+        self.assertIn('href="/neuro/nidus"', page)
         self.assertEqual(page.count('href="/config#ps_neuro" data-neuro-models-missing'), 4)
-        self.assertNotIn('href="/neuro/testing/glioma"', page)
+        self.assertNotIn('href="/neuro/glioma"', page)
         self.assertIn('window.uiConfirmar', page)
         self.assertIn("location.assign('/config#ps_neuro')", page)
 
@@ -87,24 +86,30 @@ class ToolAvailabilityTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertIn('PASS: Nidus open', result.stdout)
 
-    @unittest.skipUnless(shutil.which('node'), 'Node requerido para verificar navegador.')
-    def test_active_cards_and_explicit_test_modal_in_real_browser(self):
-        from integration.testing_access import page, policy
-        playwright = os.environ.get('NEURO_PLAYWRIGHT_MODULE', 'playwright')
-        chrome = os.environ.get('NEURO_BROWSER_EXECUTABLE', 'C:/Program Files/Google/Chrome/Application/chrome.exe')
-        if not Path(playwright).is_dir() or not Path(chrome).is_file():
-            self.skipTest('Chrome/Playwright indisponíveis; executar a prova local do navegador antes da entrega.')
-        tools = ('nidus','glioma','metastasis','meningioma','anatomia')
-        base = ROOT/'runtime/test-tmp';base.mkdir(parents=True,exist_ok=True)
-        with tempfile.TemporaryDirectory(dir=base) as tmp:
-            fixture = Path(tmp)/'testing-fixture.json'
-            fixture.write_text(json.dumps({'landing':radai_neuro_screen._pagina_ferramentas(host_renderer()),
-                'pages':{t:page(t,False) for t in tools},'policies':{t:policy(t) for t in tools}}),encoding='utf-8')
-            env=dict(os.environ,NEURO_TESTING_FIXTURE=str(fixture))
-            run=subprocess.run([shutil.which('node'),str(ROOT/'tests/testing_access_ui_browser.cjs')],env=env,capture_output=True,timeout=90)
-            self.assertEqual(run.returncode,0,run.stderr.decode(errors='replace')[-3000:])
-            self.assertIn('PASS:',run.stdout.decode(errors='replace'))
-            print(run.stdout.decode(errors='replace').strip())
+    def test_partial_anatomy_card_exposes_which_model_is_available(self):
+        from neuro_rt.tool_availability import available_tools
+        tools = available_tools({'nidus', 'anatomia'})
+        anatomy = next(t for t in tools if t['id'] == 'anatomia')
+        anatomy.update(state='partial', label='Buti')
+        page = radai_neuro_screen._pagina_ferramentas(host_renderer(), tools)
+        from html.parser import HTMLParser
+        class Card(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.in_card = False
+                self.text = []
+            def handle_starttag(self, tag, attrs):
+                if tag == 'a':
+                    self.in_card = dict(attrs).get('href') == '/neuro/anatomia'
+            def handle_endtag(self, tag):
+                if tag == 'a':
+                    self.in_card = False
+            def handle_data(self, text):
+                if self.in_card:
+                    self.text.append(text)
+        card = Card()
+        card.feed(page)
+        self.assertIn('Buti', card.text)
 
 
 if __name__ == '__main__':

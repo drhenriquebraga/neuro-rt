@@ -147,7 +147,8 @@
         [{chave:'mediastino', rotulo:'mediastino'}, {chave:'pulmao', rotulo:'pulmão'}, {chave:'osso', rotulo:'osso'}];
       const viewer = window.uiVisor({
         titulo:seriesLabel(series, index), origem:button, total, janelas:windows, cranial:series.cranial,
-        cabecalho:[['Modalidade', series.modality], ['Cortes', String(total)]],
+        cabecalho:[['Modalidade', series.modality], ['Cortes', String(total)],
+          ...(series.preview_header || [['Descrição', series.description], ['Série', series.series_number]].filter(row => row[1]))],
         src:(slice, windowKey) => '/api/lote/corte?b=' + ticket + '&corte=' + slice + '&janela=' + encodeURIComponent(windowKey),
         aoFechar:() => {
           document.removeEventListener('error', viewerImageStatus, true);

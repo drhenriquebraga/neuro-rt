@@ -153,7 +153,14 @@
     "Confira as entradas dos modelos escolhidos.": "Confira as entradas dos modelos escolhidos.",
     "série(s) carregada(s). Confira os papéis sugeridos.": "série(s) carregada(s). Confira os papéis sugeridos.",
     "Escolha ao menos uma estrutura para a entrega deste modelo.": "Escolha ao menos uma estrutura para a entrega deste modelo.",
-    "Cancelamento solicitado.": "Cancelamento solicitado."
+    "Cancelamento solicitado.": "Cancelamento solicitado.",
+    "Protocolo": "Protocolo",
+    "Matriz": "Matriz",
+    "Espaçamento no plano": "Espaçamento no plano",
+    "Intervalo entre cortes": "Intervalo entre cortes",
+    "Aquisição RM": "Aquisição RM",
+    "Flip angle": "Ângulo de inclinação",
+    "Contraste": "Contraste"
   },
   "en": {
     "Estruturas anatômicas": "Anatomical structures",
@@ -309,7 +316,14 @@
     "Confira as entradas dos modelos escolhidos.": "Check the inputs for the selected models.",
     "série(s) carregada(s). Confira os papéis sugeridos.": "series loaded. Check the suggested roles.",
     "Escolha ao menos uma estrutura para a entrega deste modelo.": "Select at least one structure for this model’s output.",
-    "Cancelamento solicitado.": "Cancellation requested."
+    "Cancelamento solicitado.": "Cancellation requested.",
+    "Protocolo": "Protocol",
+    "Matriz": "Matrix",
+    "Espaçamento no plano": "In-plane spacing",
+    "Intervalo entre cortes": "Slice spacing",
+    "Aquisição RM": "MR acquisition",
+    "Flip angle": "Flip angle",
+    "Contraste": "Contrast agent"
   },
   "es": {
     "Estruturas anatômicas": "Estructuras anatómicas",
@@ -465,7 +479,14 @@
     "Confira as entradas dos modelos escolhidos.": "Revise las entradas de los modelos seleccionados.",
     "série(s) carregada(s). Confira os papéis sugeridos.": "serie(s) cargada(s). Revise las funciones sugeridas.",
     "Escolha ao menos uma estrutura para a entrega deste modelo.": "Seleccione al menos una estructura para la entrega de este modelo.",
-    "Cancelamento solicitado.": "Cancelación solicitada."
+    "Cancelamento solicitado.": "Cancelación solicitada.",
+    "Protocolo": "Protocolo",
+    "Matriz": "Matriz",
+    "Espaçamento no plano": "Espaciado en el plano",
+    "Intervalo entre cortes": "Distancia entre cortes",
+    "Aquisição RM": "Adquisición de RM",
+    "Flip angle": "Ángulo de excitación",
+    "Contraste": "Medio de contraste"
   },
   "de": {
     "Estruturas anatômicas": "Anatomische Strukturen",
@@ -621,7 +642,14 @@
     "Confira as entradas dos modelos escolhidos.": "Prüfen Sie die Eingaben der ausgewählten Modelle.",
     "série(s) carregada(s). Confira os papéis sugeridos.": "Serie(n) geladen. Prüfen Sie die vorgeschlagenen Rollen.",
     "Escolha ao menos uma estrutura para a entrega deste modelo.": "Wählen Sie mindestens eine Struktur für die Ausgabe dieses Modells.",
-    "Cancelamento solicitado.": "Abbruch angefordert."
+    "Cancelamento solicitado.": "Abbruch angefordert.",
+    "Protocolo": "Protokoll",
+    "Matriz": "Matrix",
+    "Espaçamento no plano": "Pixelabstand in der Ebene",
+    "Intervalo entre cortes": "Schichtabstand",
+    "Aquisição RM": "MR-Erfassung",
+    "Flip angle": "Flipwinkel",
+    "Contraste": "Kontrastmittel"
   },
   "fr": {
     "Estruturas anatômicas": "Structures anatomiques",
@@ -777,7 +805,14 @@
     "Confira as entradas dos modelos escolhidos.": "Vérifiez les entrées des modèles sélectionnés.",
     "série(s) carregada(s). Confira os papéis sugeridos.": "série(s) chargée(s). Vérifiez les rôles proposés.",
     "Escolha ao menos uma estrutura para a entrega deste modelo.": "Sélectionnez au moins une structure pour la sortie de ce modèle.",
-    "Cancelamento solicitado.": "Annulation demandée."
+    "Cancelamento solicitado.": "Annulation demandée.",
+    "Protocolo": "Protocole",
+    "Matriz": "Matrice",
+    "Espaçamento no plano": "Espacement dans le plan",
+    "Intervalo entre cortes": "Espacement des coupes",
+    "Aquisição RM": "Acquisition IRM",
+    "Flip angle": "Angle de bascule",
+    "Contraste": "Agent de contraste"
   },
   "it": {
     "Estruturas anatômicas": "Strutture anatomiche",
@@ -933,7 +968,14 @@
     "Confira as entradas dos modelos escolhidos.": "Verifica gli input dei modelli selezionati.",
     "série(s) carregada(s). Confira os papéis sugeridos.": "serie caricate. Verifica i ruoli suggeriti.",
     "Escolha ao menos uma estrutura para a entrega deste modelo.": "Seleziona almeno una struttura per l’output di questo modello.",
-    "Cancelamento solicitado.": "Annullamento richiesto."
+    "Cancelamento solicitado.": "Annullamento richiesto.",
+    "Protocolo": "Protocollo",
+    "Matriz": "Matrice",
+    "Espaçamento no plano": "Spaziatura nel piano",
+    "Intervalo entre cortes": "Distanza tra le sezioni",
+    "Aquisição RM": "Acquisizione RM",
+    "Flip angle": "Angolo di flip",
+    "Contraste": "Mezzo di contrasto"
   },
   "pl": {
     "Estruturas anatômicas": "Struktury anatomiczne",
@@ -1089,7 +1131,14 @@
     "Confira as entradas dos modelos escolhidos.": "Sprawdź dane wejściowe wybranych modeli.",
     "série(s) carregada(s). Confira os papéis sugeridos.": "wczytanych serii. Sprawdź sugerowane role.",
     "Escolha ao menos uma estrutura para a entrega deste modelo.": "Wybierz co najmniej jedną strukturę dla wyniku tego modelu.",
-    "Cancelamento solicitado.": "Zgłoszono anulowanie."
+    "Cancelamento solicitado.": "Zgłoszono anulowanie.",
+    "Protocolo": "Protokół",
+    "Matriz": "Macierz",
+    "Espaçamento no plano": "Odstęp pikseli w płaszczyźnie",
+    "Intervalo entre cortes": "Odstęp między warstwami",
+    "Aquisição RM": "Akwizycja MR",
+    "Flip angle": "Kąt odchylenia",
+    "Contraste": "Środek kontrastowy"
   },
   "ar": {
     "Estruturas anatômicas": "البنى التشريحية",
@@ -1245,7 +1294,14 @@
     "Confira as entradas dos modelos escolhidos.": "تحقق من مدخلات النماذج المختارة.",
     "série(s) carregada(s). Confira os papéis sugeridos.": "من السلاسل محمّلة. تحقق من الأدوار المقترحة.",
     "Escolha ao menos uma estrutura para a entrega deste modelo.": "اختر بنية واحدة على الأقل لمخرجات هذا النموذج.",
-    "Cancelamento solicitado.": "طُلب الإلغاء."
+    "Cancelamento solicitado.": "طُلب الإلغاء.",
+    "Protocolo": "البروتوكول",
+    "Matriz": "المصفوفة",
+    "Espaçamento no plano": "تباعد البكسلات في المستوى",
+    "Intervalo entre cortes": "التباعد بين المقاطع",
+    "Aquisição RM": "اكتساب الرنين المغناطيسي",
+    "Flip angle": "زاوية القلب",
+    "Contraste": "مادة التباين"
   },
   "bn": {
     "Estruturas anatômicas": "শারীরস্থানিক গঠন",
@@ -1401,7 +1457,14 @@
     "Confira as entradas dos modelos escolhidos.": "নির্বাচিত মডেলের ইনপুট যাচাই করুন।",
     "série(s) carregada(s). Confira os papéis sugeridos.": "টি সিরিজ লোড হয়েছে। প্রস্তাবিত ভূমিকা যাচাই করুন।",
     "Escolha ao menos uma estrutura para a entrega deste modelo.": "এই মডেলের আউটপুটের জন্য অন্তত একটি গঠন নির্বাচন করুন।",
-    "Cancelamento solicitado.": "বাতিলের অনুরোধ করা হয়েছে।"
+    "Cancelamento solicitado.": "বাতিলের অনুরোধ করা হয়েছে।",
+    "Protocolo": "প্রোটোকল",
+    "Matriz": "ম্যাট্রিক্স",
+    "Espaçamento no plano": "সমতলে পিক্সেলের ব্যবধান",
+    "Intervalo entre cortes": "স্লাইসের ব্যবধান",
+    "Aquisição RM": "এমআর অধিগ্রহণ",
+    "Flip angle": "ফ্লিপ কোণ",
+    "Contraste": "কনট্রাস্ট এজেন্ট"
   },
   "ko": {
     "Estruturas anatômicas": "해부학적 구조",
@@ -1557,7 +1620,14 @@
     "Confira as entradas dos modelos escolhidos.": "선택한 모델의 입력을 확인하세요.",
     "série(s) carregada(s). Confira os papéis sugeridos.": "개 시리즈를 불러왔습니다. 제안된 역할을 확인하세요.",
     "Escolha ao menos uma estrutura para a entrega deste modelo.": "이 모델의 출력에 포함할 구조를 하나 이상 선택하세요.",
-    "Cancelamento solicitado.": "취소가 요청되었습니다."
+    "Cancelamento solicitado.": "취소가 요청되었습니다.",
+    "Protocolo": "프로토콜",
+    "Matriz": "행렬",
+    "Espaçamento no plano": "평면 내 픽셀 간격",
+    "Intervalo entre cortes": "슬라이스 간격",
+    "Aquisição RM": "MR 획득",
+    "Flip angle": "뒤집기 각",
+    "Contraste": "조영제"
   },
   "zh-CN": {
     "Estruturas anatômicas": "解剖结构",
@@ -1713,7 +1783,14 @@
     "Confira as entradas dos modelos escolhidos.": "请检查所选模型的输入。",
     "série(s) carregada(s). Confira os papéis sugeridos.": "个序列已加载。请检查建议的角色。",
     "Escolha ao menos uma estrutura para a entrega deste modelo.": "请至少选择一个结构作为此模型的输出。",
-    "Cancelamento solicitado.": "已请求取消。"
+    "Cancelamento solicitado.": "已请求取消。",
+    "Protocolo": "协议",
+    "Matriz": "矩阵",
+    "Espaçamento no plano": "平面内像素间距",
+    "Intervalo entre cortes": "层间距",
+    "Aquisição RM": "磁共振采集",
+    "Flip angle": "翻转角",
+    "Contraste": "对比剂"
   },
   "ja": {
     "Estruturas anatômicas": "解剖構造",
@@ -1869,6 +1946,13 @@
     "Confira as entradas dos modelos escolhidos.": "選択したモデルの入力を確認してください。",
     "série(s) carregada(s). Confira os papéis sugeridos.": "件のシリーズを読み込みました。候補の役割を確認してください。",
     "Escolha ao menos uma estrutura para a entrega deste modelo.": "このモデルの出力に含める構造を1つ以上選択してください。",
-    "Cancelamento solicitado.": "キャンセルを要求しました。"
+    "Cancelamento solicitado.": "キャンセルを要求しました。",
+    "Protocolo": "プロトコル",
+    "Matriz": "マトリクス",
+    "Espaçamento no plano": "面内画素間隔",
+    "Intervalo entre cortes": "スライス間隔",
+    "Aquisição RM": "MR撮像",
+    "Flip angle": "フリップ角",
+    "Contraste": "造影剤"
   }
 }

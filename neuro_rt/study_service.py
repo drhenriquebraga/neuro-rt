@@ -184,6 +184,8 @@ class StudyService:
                     labels[ticket] = {key: str(metadata[tag])[:128] for key, tag in (
                         ('description', 'SeriesDescription'), ('series_number', 'SeriesNumber'))
                         if metadata.get(tag) is not None and str(metadata[tag]).strip()}
+                    if resolved.get('preview_header'):
+                        labels[ticket]['preview_header'] = resolved['preview_header']
             except (KeyError, ValueError, OSError):
                 if not identify_only:
                     raise

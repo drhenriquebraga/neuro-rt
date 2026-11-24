@@ -38,6 +38,11 @@ def prepare(root, host, work):
             ds.SeriesDescription = 'Fantoma ' + role
             ds.SeriesNumber = sequence_index + 1
             ds.PixelSpacing = [1, 1]
+            ds.SliceThickness = 2
+            ds.ProtocolName = 'Protocolo fantoma'
+            if role != 'CT':
+                ds.MagneticFieldStrength = 3
+                ds.EchoTime = 12
             ds.Rows, ds.Columns = x.shape
             ds.WindowCenter, ds.WindowWidth = 600, 1200
             pixels = np.zeros(x.shape, dtype=np.uint16)
@@ -57,7 +62,9 @@ def prepare(root, host, work):
         ticket = tickets[s['uid']]
         role = descriptions[s['uid']]
         row = radai_varrer.linha_da_serie(str(source), s, ticket)
-        rows.append(dict(row, role=role))
+        from integration.default_host_services import bindings_for_host
+        resolved = bindings_for_host({})['resolve_series_ticket'](ticket)
+        rows.append(dict(row, role=role, preview_header=resolved['preview_header']))
         with patch.object(radai_thumbnail, '_pasta_cache', return_value=''):
             png, metadata = radai_thumbnail.png_central(ticket)
         assert png[:8] == b'\x89PNG\r\n\x1a\n' and metadata['cortes'] == 7
