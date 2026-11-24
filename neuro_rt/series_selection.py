@@ -113,7 +113,10 @@ def _classify(metadata, modality):
 
 def describe_series(series_ticket, host_services) -> SeriesDescriptor:
     """Describe only an authorized host ticket; resolver/geometry errors survive."""
-    resolved = host_services.resolve_series_ticket(series_ticket)
+    return describe_resolved_series(series_ticket, host_services.resolve_series_ticket(series_ticket))
+
+
+def describe_resolved_series(series_ticket, resolved) -> SeriesDescriptor:
     descriptor = _descriptor(resolved)
     if descriptor.ticket != series_ticket:
         raise ValueError('Descritor não corresponde ao ticket autorizado.')

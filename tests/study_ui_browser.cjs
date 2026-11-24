@@ -35,8 +35,9 @@ const browserPath=process.env.NEURO_BROWSER_EXECUTABLE||'C:/Program Files/Google
    if(p==='/api/varrer/estado')return route.fulfill({json:{v:'scan-to-cancel',fim:!!stoppedScans.length,final:!!stoppedScans.length,parado:!!stoppedScans.length,linhas:[]}});
    if(p==='/neuro/api/selection'){
     assert.equal(route.request().headers()['x-neuro-token'],'synthetic-token');
-    const {tickets,category}=route.request().postDataJSON();
+    const {tickets,category,identify_only}=route.request().postDataJSON();
     assert.equal(category,'glioma');
+    if (identify_only) return route.fulfill({json:{series:selection(tickets).series,unreadable:[]}});
     selections.push(tickets);
     const data=selection(tickets);data.models.push(...JSON.parse(fs.readFileSync(path.join(root,'catalog/models.json'),'utf8')).models.filter(m=>['anatomy_synthseg','anatomy_cerebra_ants','cranio_buti'].includes(m.id)).map(m=>({...m,bindings:[],eligibility:{selectable:false,technical_reasons:[{message:'Ambiente ausente.'}],warnings:[]}})));return route.fulfill({json:data});
    }
@@ -78,7 +79,7 @@ const browserPath=process.env.NEURO_BROWSER_EXECUTABLE||'C:/Program Files/Google
   await folder.fill('synthetic-cancel');
   await folder.press('Enter');
   await page.locator('#nr-series-picker_leitura .ui-ler-lista li').waitFor();
-  assert.equal(await page.locator('#nr-picker-results [data-b]').count(),0);
+  assert.equal(await page.locator('#nr-picker-results [data-exam]').count(),0);
   await page.locator('#nr-series-picker_parar').click();
   await folder.waitFor();
   assert.deepEqual(stoppedScans,['scan-to-cancel']);
@@ -86,20 +87,19 @@ const browserPath=process.env.NEURO_BROWSER_EXECUTABLE||'C:/Program Files/Google
   assert(await picker.isVisible());
   await folder.fill('synthetic-folder');
   await folder.press('Enter');
-  await page.locator('#nr-picker-results [data-b="ticket5"]').waitFor();
-  assert.deepEqual(selections,[['ticket1']],'Listing a folder must not choose a series');
+  const exams=page.locator('#nr-picker-results [data-exam]');
+  await exams.nth(1).waitFor();
+  assert.equal(await exams.count(),2,'Do not merge distinct exams');
+  assert.deepEqual(selections,[['ticket1']],'Listing a mixed folder must await an explicit exam');
   assert.equal(await page.getByRole('button',{name:'Synthetic partial row'}).count(),0);
-  const addFolderTicket=async ticket=>{
+  const chooseFolderExam=async index=>{
     if(await picker.isHidden()) await trigger.click();
-    await page.locator('#nr-picker-results [data-b="'+ticket+'"]').click();
+    await exams.nth(index).click();
     await picker.waitFor({state:'hidden'});
   };
-  await page.locator('#nr-picker-results [data-b="ticket5"]').click();
-  await page.locator('#nr-picker-status').waitFor({state:'visible'});
-  assert.deepEqual(await page.evaluate(()=>NeuroStudy.state.series.map(s=>s.ticket)),['ticket1']);
-  await page.locator('#nr-picker-results [data-b="ticket1"]').click();
-  assert.deepEqual(selections,[['ticket1'],['ticket1','ticket5']],'A duplicate ticket must not start another selection');
-  for(const ticket of ['ticket2','ticket3','ticket4']) await addFolderTicket(ticket);
+  await chooseFolderExam(1);
+  assert.deepEqual(await page.evaluate(()=>NeuroStudy.state.series.map(s=>s.ticket)),['ticket5']);
+  await chooseFolderExam(0);
   assert.deepEqual(selections.at(-1),['ticket1','ticket2','ticket3','ticket4']);
   assert.equal(await page.locator('#nr-picker-count').innerText(),'Séries selecionadas · 4');
   if(process.env.NEURO_STUDY_HTML){
@@ -127,7 +127,7 @@ const browserPath=process.env.NEURO_BROWSER_EXECUTABLE||'C:/Program Files/Google
   await page.locator('[data-remove="ticket4"]').click();await page.waitForFunction(()=>NeuroStudy.state.series.length===3);
   assert.equal(await page.locator('#nr-picker-count').innerText(),'Séries selecionadas · 3');
   assert.equal(await page.locator('[data-model="synthetic"]').isDisabled(),true);assert.equal(await page.locator('#start').isDisabled(),true);
-  await addFolderTicket('ticket4');await page.waitForFunction(()=>NeuroStudy.state.series.length===4);
+  await chooseFolderExam(0);await page.waitForFunction(()=>NeuroStudy.state.series.length===4);
   await page.locator('[data-binding-model="synthetic"][data-role="T1"]').selectOption('ticket1');assert.equal(await page.locator('[data-model="synthetic"]').isDisabled(),true,'Duplicate channels must disable the model');
   await page.locator('[data-binding-model="synthetic"][data-role="T1"]').selectOption('ticket2');await page.locator('[data-model="synthetic"]').check();
   await page.locator('#start').click();assert.equal(posted.length,0,'The shared review must precede inference');

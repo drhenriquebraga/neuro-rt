@@ -93,7 +93,10 @@ def montar(app, module_root, *, host_services=None):
         if category not in ('glioma', 'metastasis', 'meningioma', 'anatomia'):
             raise HTTPException(400, 'Escolha uma ferramenta de segmentação.')
         try:
-            value = await run_in_threadpool(lambda: studies().selection(body.get('tickets'), category))
+            if body.get('identify_only') is True:
+                value = await run_in_threadpool(studies().selection, body.get('tickets'), category, identify_only=True)
+            else:
+                value = await run_in_threadpool(studies().selection, body.get('tickets'), category)
             return JSONResponse(value, headers={'Cache-Control': 'no-store'})
         except (KeyError, ValueError, RuntimeError, TypeError) as exc:
             raise fail(exc)

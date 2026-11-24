@@ -18,7 +18,13 @@
     if (!response.ok) { let data = {}; try { data = await response.json(); } catch (_) {} throw Error(typeof data.detail === 'string' ? data.detail : 'Não foi possível concluir esta operação.'); }
     return response.json();
   }
-  const seriesLabel = (series, index) => series.label || series.description || series.series_description || ('Série ' + (index + 1) + ' · ' + (series.modality || 'RM') + ' · ' + (series.sequence_candidates || []).map(c => c.role || c.sequence || '').filter(Boolean).join(', '));
+  function seriesLabel(series, index) {
+    const description = series.description || series.label || series.series_description;
+    const number = series.series_number;
+    if (description) return number == null ? description : number + ' · ' + description;
+    const candidates = (series.sequence_candidates || []).map(c => c.role || c.sequence).filter(Boolean);
+    return ['Série ' + (number ?? index + 1), series.modality, ...candidates].filter(Boolean).join(' · ');
+  }
   function modelAvailability(model, selectionState) {
     const current=selectionState||state;
     const bindings = current.bindings[model.id] || [];
@@ -73,12 +79,102 @@
         const status = available.distribution || (available.incompatibilities.length ? available.incompatibilities.join(' ') : available.technical.length ? 'Instalação: ' + available.technical.join(' ') : available.missing.length ? 'Séries ausentes: ' + available.missing.join(', ') : available.duplicate ? 'Associe séries diferentes a cada canal.' : available.warnings.length ? 'Confira as associações sugeridas. ' + available.warnings.join(' ') : 'Disponível');
         return '<div class="nr-model' + (!available.selectable ? ' nr-unavailable' : '') + '"><div class="nr-model-main"><label class="nr-model-title nr-switch"><input type="checkbox" role="switch" data-model="' + esc(model.id) + '"' + (state.selected.has(model.id) ? ' checked' : '') + (!available.selectable ? ' disabled' : '') + '><span class="nr-switch-track" aria-hidden="true"></span><span class="nr-model-name">' + esc(model.label) + '<span class="nr-model-key"> (' + esc(model.id) + ')</span></span></label><p>' + esc('Entradas: ' + roles(model).join(', ')) + '</p><p' + (available.warnings.length ? ' class="nr-warning"' : '') + '>' + esc(status) + '</p><div class="nr-bindings">' + roles(model).map(role => {
           const binding = (state.bindings[model.id] || []).find(b => b.role === role);
-          return '<label>' + esc(role) + '<select data-binding-model="' + esc(model.id) + '" data-role="' + esc(role) + '"><option value="">Selecionar série</option>' + state.series.map((series, index) => series.modality === (role === 'CT' ? 'CT' : 'MR') ? '<option value="' + esc(series.ticket) + '"' + (binding && binding.series_ticket === series.ticket ? ' selected' : '') + '>' + esc(seriesLabel(series,index)) + '</option>' : '').join('') + '</select></label>';
-        }).join('') + '</div>' + classOptions(model) + '</div><button type="button" class="nr-help-trigger" data-help="' + esc(model.id) + '" aria-label="Ajuda sobre ' + esc(model.label) + '">?</button></div>';
+          return '<label>' + esc(role) + '<select data-binding-model="' + esc(model.id) + '" data-role="' + esc(role) + '"><option value="">Selecionar série</option>' + state.series.map((series, index) => series.modality === (role === 'CT' ? 'CT' : 'MR') ? '<option translate="no" value="' + esc(series.ticket) + '"' + (binding && binding.series_ticket === series.ticket ? ' selected' : '') + '>' + esc(seriesLabel(series,index)) + '</option>' : '').join('') + '</select></label>';
+        }).join('') + '</div>' + classOptions(model) + '</div><button type="button" class="ui-bt nr-help-trigger" data-help="' + esc(model.id) + '" aria-label="Ajuda sobre ' + esc(model.label) + '">?</button></div>';
       }).join('');
     }).join('');
     updateStart();
   }
+  function seriesCard(series, index) {
+    const ticket = esc(series.ticket);
+    const label = esc(seriesLabel(series, index));
+    const count = Number(series.slice_count);
+    const details = [esc(series.modality), count > 0 ? count + ' <span data-radai-frase>Cortes</span>' : ''].filter(Boolean);
+    return '<li class="nr-series"><button type="button" class="ui-cartao nr-preview" data-preview="' + ticket +
+      '" aria-haspopup="dialog" aria-labelledby="nr-action-' + index + ' nr-label-' + index + '">' +
+      '<span class="nr-thumb"><img alt="" loading="lazy" decoding="async" src="/api/lote/miniatura?b=' +
+      esc(encodeURIComponent(series.ticket)) + '"><span class="nr-thumb-error" hidden data-radai-frase>Prévia indisponível</span></span>' +
+      '<span class="nr-caption"><strong class="ui-cartao-tit" id="nr-label-' + index + '" translate="no">' + label +
+      '</strong><span class="nr-series-meta">' + details.join(' · ') + '</span><span class="nr-preview-action" id="nr-action-' + index +
+      '" data-radai-frase>Ampliar série</span></span></button>' +
+      '<button type="button" class="ui-bt nr-remove" data-remove="' + ticket + '" aria-labelledby="nr-remove-' + index + ' nr-label-' + index +
+      '"><span id="nr-remove-' + index + '" data-radai-frase>Remover</span></button></li>';
+  }
+  const gallery = el('series-list');
+  gallery.addEventListener('error', event => {
+    const image = event.target;
+    if (!image.matches?.('.nr-thumb img')) return;
+    image.hidden = true;
+    image.nextElementSibling.hidden = false;
+  }, true);
+  // The shared viewer delegates pixel loading to the host. Keep a failed slice
+  // navigable and clear its message as soon as another slice decodes.
+  function viewerImageStatus(event) {
+    const image = event.target;
+    if (!image.matches?.('.ui-visor-img > img')) return;
+    const frame = image.parentElement;
+    const message = frame.querySelector('.nr-viewer-error');
+    if (event.type === 'load') {
+      message?.remove();
+      return;
+    }
+    if (window.uiCarregando) window.uiCarregando(frame, false);
+    if (!message) {
+      const status = document.createElement('span');
+      status.className = 'nr-viewer-error';
+      status.setAttribute('role', 'status');
+      status.textContent = window.radaiFrase ? window.radaiFrase('Prévia indisponível') : 'Prévia indisponível';
+      frame.appendChild(status);
+    }
+  }
+  let previewRequest = 0;
+  async function openSeriesPreview(button) {
+    const request = ++previewRequest;
+    const index = state.series.findIndex(series => series.ticket === button.dataset.preview);
+    if (index < 0) return;
+    const series = state.series[index];
+    const ticket = encodeURIComponent(series.ticket);
+    let total = Number(series.slice_count);
+    try {
+      if (!window.uiVisor) throw Error(pickerUnavailable);
+      if (!(total > 0)) {
+        const info = await fetch('/api/lote/miniatura?b=' + ticket, {method: 'HEAD'});
+        total = Number(info.headers.get('X-RadAI-Cortes'));
+        if (!info.ok || !total) throw Error('Prévia indisponível');
+      }
+      if (request !== previewRequest || !button.isConnected) return;
+      const windows = series.modality === 'MR' ? [{chave:'auto', rotulo:'automática'}] :
+        [{chave:'mediastino', rotulo:'mediastino'}, {chave:'pulmao', rotulo:'pulmão'}, {chave:'osso', rotulo:'osso'}];
+      const viewer = window.uiVisor({
+        titulo:seriesLabel(series, index), origem:button, total, janelas:windows, cranial:series.cranial,
+        cabecalho:[['Modalidade', series.modality], ['Cortes', String(total)]],
+        src:(slice, windowKey) => '/api/lote/corte?b=' + ticket + '&corte=' + slice + '&janela=' + encodeURIComponent(windowKey),
+        aoFechar:() => {
+          document.removeEventListener('error', viewerImageStatus, true);
+          document.removeEventListener('load', viewerImageStatus, true);
+        },
+      });
+      document.addEventListener('error', viewerImageStatus, true);
+      document.addEventListener('load', viewerImageStatus, true);
+      viewer?.ajustar?.();
+      if (series.cranial == null && viewer?.definirSentido) {
+        fetch('/api/lote/sentido', {method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({b:series.ticket})})
+          .then(response => response.json()).then(({cranial}) => {
+            if (cranial === 1 || cranial === -1) {
+              series.cranial = cranial;
+              viewer.definirSentido(cranial);
+            }
+          }).catch(() => {});
+      }
+    } catch (error) {
+      if (request === previewRequest && button.isConnected) el('scan-status').textContent = error.message;
+    }
+  }
+  gallery.addEventListener('click', event => {
+    const button = event.target.closest('button[data-preview]');
+    if (button) openSeriesPreview(button);
+  });
   function renderSeries() {
     const count = state.series.length;
     window.uiCartaoRotulo('nr-picker-open', count ? String(count) : '');
@@ -88,15 +184,36 @@
       label.textContent = 'Séries selecionadas';
       el('nr-picker-count').prepend(label, ' · ');
     }
-    el('series-list').innerHTML = state.series.map((s,i) => '<div class="nr-series"><label>' + esc(seriesLabel(s,i)) + '</label><button type="button" data-remove="' + esc(s.ticket) + '" aria-label="Remover ' + esc(seriesLabel(s,i)) + '">Remover</button></div>').join('');
+    gallery.innerHTML = state.series.map(seriesCard).join('');
     el('reference').disabled = !state.series.length;
-    el('reference').innerHTML = state.series.map((s,i) => '<option value="' + esc(s.ticket) + '"' + (s.ticket === state.reference ? ' selected' : '') + '>' + esc(seriesLabel(s,i)) + '</option>').join('') || '<option value="">Carregue as séries</option>';
+    el('reference').innerHTML = state.series.map((s,i) => '<option translate="no" value="' + esc(s.ticket) + '"' + (s.ticket === state.reference ? ' selected' : '') + '>' + esc(seriesLabel(s,i)) + '</option>').join('') || '<option value="">Carregue as séries</option>';
   }
-  async function loadSelection(tickets) {
-    const data = await api('selection', {tickets, category:state.category});
-    const series = data.series || [];
+  const seriesDisplay = new Map();
+  function rememberSeries(row) {
+    if (!row.bilhete) return;
+    const display = seriesDisplay.get(row.bilhete) || {};
+    if (row.desc || row.descricao) display.description = row.desc || row.descricao;
+    if (Number(row.cortes) > 0) display.slice_count = Number(row.cortes);
+    if (row.numero != null && row.numero !== '') display.series_number = String(row.numero);
+    if (row.cranial === 1 || row.cranial === -1) display.cranial = row.cranial;
+    seriesDisplay.set(row.bilhete, display);
+  }
+  async function loadSelection(tickets, signal, replaceExam = false) {
+    const data = await api('selection', {tickets, category:state.category}, signal);
+    if (signal && signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+    const series = (data.series || []).map(s => {
+      const display = seriesDisplay.get(s.ticket) || {};
+      return {...s, ...display, slice_count: s.slice_count || display.slice_count};
+    });
     if (new Set(series.map(s => s.group_key).filter(Boolean)).size > 1) throw Error(differentExam);
-    const previous = state.bindings;
+    if (series.length !== new Set(tickets).size) throw Error('A pasta contém séries que não puderam ser identificadas.');
+    const resetChoices = replaceExam || (state.series.length > 0 && series.length === 0);
+    const previous = resetChoices ? {} : state.bindings;
+    if (resetChoices) {
+      state.reference = '';
+      state.selected.clear();
+      classSelections.clear();
+    }
     state.series = series; state.models = data.models || []; state.bindings = {};
     state.models.forEach(m => { const bindings = new Map((m.bindings || []).map(b=>[b.role,b])); (previous[m.id] || []).filter(b=>state.series.some(s=>s.ticket===b.series_ticket)).forEach(b=>bindings.set(b.role,b)); state.bindings[m.id] = Array.from(bindings.values()).filter(b=>state.series.some(s=>s.ticket===b.series_ticket)); });
     if (!state.series.some(s => s.ticket === state.reference)) {
@@ -107,7 +224,16 @@
     renderSeries(); renderModelSelection(el('models'));
     el('scan-status').textContent = state.series.length ? state.series.length + ' série(s) carregada(s). Confira os papéis sugeridos.' : 'Nenhuma série selecionada.';
   }
-  let seriesPopup, archive;
+  let seriesPopup, archive, folderRequest, selectingFolder;
+  function cancelFolderRequest() {
+    if (folderRequest) folderRequest.abort();
+    folderRequest = null;
+    if (selectingFolder) {
+      selectingFolder = null;
+      state.selecting = false;
+      updateStart();
+    }
+  }
   function pickerStatus(message) {
     const status = el('nr-picker-status');
     status.textContent = window.radaiFrase ? window.radaiFrase(message) : message;
@@ -117,6 +243,12 @@
     if (!state.token || state.selecting || !ticket) return;
     const current = state.series.map(s => s.ticket);
     if (adding === current.includes(ticket)) return;
+    const request = adding ? new AbortController() : null;
+    if (request) {
+      cancelFolderRequest();
+      folderRequest = request;
+      selectingFolder = request.signal;
+    }
     const anchor = el('nr-picker-open');
     const removals = Array.from(el('series-list').querySelectorAll('[data-remove]'));
     state.selecting = true;
@@ -126,13 +258,18 @@
     updateStart();
     let applied = false;
     try {
-      await loadSelection(adding ? [...current, ticket] : current.filter(b => b !== ticket));
+      await loadSelection(adding ? [...current, ticket] : current.filter(b => b !== ticket), request?.signal);
       applied = true;
     } catch (error) {
-      if (adding && seriesPopup.aberto()) pickerStatus(error.message);
-      else el('scan-status').textContent = error.message;
+      if (!request?.signal.aborted) {
+        if (adding && seriesPopup.aberto()) pickerStatus(error.message);
+        else el('scan-status').textContent = error.message;
+      }
     } finally {
-      state.selecting = false;
+      if (!request || selectingFolder === request.signal) {
+        selectingFolder = null;
+        state.selecting = false;
+      }
       anchor.disabled = false;
       removals.forEach(button => { button.disabled = false; });
       updateStart();
@@ -153,51 +290,163 @@
     const results = el('nr-picker-results');
     const scanOptions = {uso: 'series', chave: 'neuro-study', opcoes: {modalidades: allowedModalities}};
     const seriesDescription = row => [row.modalidade, row.desc || row.curto, row.espessura_mm == null ? '' : row.espessura_mm + ' mm'].filter(Boolean).join(' · ');
-    const resultButton = row => '<button type="button" class="ui-bt" translate="no" data-b="' + esc(row.bilhete) + '"' +
-      (!row.bilhete || row.carregando ? ' disabled' : '') + '>' + esc(seriesDescription(row)) + '</button>';
+    const resultButton = row => '<span translate="no">' + esc(seriesDescription(row)) + '</span>';
+    const selectionLimit = 'Escolha as séries individualmente. É possível selecionar até 120 séries por exame.';
+    let exams = [], individualExam, byTicket = new Map();
+    function startFolderScan() {
+      cancelFolderRequest();
+      exams = [];
+      individualExam = null;
+      byTicket = new Map();
+      const selectedTickets = new Set(state.series.map(s => s.ticket));
+      for (const ticket of seriesDisplay.keys()) if (!selectedTickets.has(ticket)) seriesDisplay.delete(ticket);
+      results.replaceChildren();
+      pickerStatus('');
+    }
+    const belongsTo = (series, exam) => series.group_key === exam.key;
+    async function chooseExam(exam, signal, singleTicket) {
+      if (!exam || state.selecting || signal.aborted) return;
+      const sameExam = state.series.filter(s => belongsTo(s, exam));
+      const tickets = [...new Set([...sameExam.map(s => s.ticket), ...(singleTicket ? [singleTicket] : exam.tickets)])];
+      if (tickets.length > 120) {
+        individualExam = exam;
+        if (!singleTicket) results.innerHTML = exam.tickets.map(ticket =>
+          '<button type="button" class="ui-bt" data-b="' + esc(ticket) + '">' + resultButton(byTicket.get(ticket)) + '</button>').join('');
+        pickerStatus(selectionLimit);
+        return;
+      }
+      const replaceExam = state.series.length !== sameExam.length;
+      selectingFolder = signal;
+      state.selecting = true;
+      updateStart();
+      let applied = false;
+      try {
+        await loadSelection(tickets, signal, replaceExam);
+        applied = true;
+      } catch (error) {
+        if (!signal.aborted) pickerStatus(error.message);
+      } finally {
+        if (selectingFolder === signal) {
+          selectingFolder = null;
+          state.selecting = false;
+          updateStart();
+        }
+      }
+      if (applied) {
+        seriesPopup.fechar();
+        anchor.focus();
+      }
+    }
+    async function folderScanned(rows, scan) {
+      startFolderScan();
+      for (const row of rows || []) {
+        if (row.bilhete && !row.carregando && allowedModalities.includes(row.modalidade)) {
+          rememberSeries(row);
+          byTicket.set(row.bilhete, row);
+        }
+      }
+      if (!byTicket.size) return;
+      folderRequest = new AbortController();
+      const {signal} = folderRequest;
+      const tickets = [...byTicket.keys()];
+      const groups = new Map();
+      let identified = 0;
+      pickerStatus('Identificando os exames…');
+      try {
+        for (let start = 0; start < tickets.length; start += 120) {
+          const data = await api('selection', {tickets:tickets.slice(start, start + 120),
+            category:state.category, identify_only:true}, signal);
+          if (signal.aborted) return;
+          for (const s of data.series || []) {
+            if (!s.group_key || !byTicket.has(s.ticket) || !allowedModalities.includes(s.modality)) continue;
+            if (!groups.has(s.group_key)) groups.set(s.group_key, {key:s.group_key, modalities:new Set(), tickets:[]});
+            const exam = groups.get(s.group_key);
+            exam.modalities.add(s.modality);
+            exam.tickets.push(s.ticket);
+            identified++;
+          }
+        }
+        exams = [...groups.values()];
+        const partial = identified !== tickets.length;
+        const incompleteScan = scan && (scan.parado || scan.erro || (scan.avisos || []).length);
+        if (exams.length === 1 && !partial && !incompleteScan && state.series.every(s => belongsTo(s, exams[0]))) {
+          await chooseExam(exams[0], signal);
+          return;
+        }
+        results.innerHTML = exams.map((exam, index) => {
+          const row = byTicket.get(exam.tickets[0]);
+          const date = String(row.date || row.data || '').replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3');
+          const details = [row.nome || row.pid, date, [...exam.modalities].sort().join(' / ')].filter(Boolean).join(' · ');
+          return '<button type="button" class="ui-bt" data-exam="' + index + '"><span data-radai-frase>Exame</span> ' +
+            (index + 1) + ' · <span translate="no">' + esc(details) + '</span></button>';
+        }).join('');
+        pickerStatus(partial ? 'A pasta contém séries que não puderam ser identificadas.' : 'Escolha um exame para carregar suas séries.');
+      } catch (error) {
+        if (!signal.aborted) pickerStatus(error.message);
+      }
+    }
     if (shared) {
+      const pickerRoot = el(popupId);
+      const folder = el(popupId + '_pasta');
+      pickerRoot.addEventListener('submit', startFolderScan, true);
+      folder.addEventListener('change', startFolderScan);
+      folder.addEventListener('keydown', e => { if (e.key === 'Enter') startFolderScan(); }, true);
+      el(popupId + '_dias')?.addEventListener('change', startFolderScan, true);
+      el(popupId + '_fora')?.addEventListener('click', startFolderScan, true);
       window.uiCarregarImagens(popupId, {...scanOptions,
-        linha: row => '<span translate="no">' + esc(seriesDescription(row)) + '</span>',
-        aoFim: rows => { results.innerHTML = rows.filter(row => row.bilhete).map(resultButton).join(''); },
-        aoErro: () => { results.replaceChildren(); },
+        linha: resultButton,
+        aoFim: folderScanned,
+        aoFechar: cancelFolderRequest,
+        aoErro: () => { startFolderScan(); },
       });
     } else {
-      setupLegacyFolderPicker(scanOptions, results, resultButton);
+      setupLegacyFolderPicker(scanOptions, results, resultButton, startFolderScan, folderScanned);
     }
     seriesPopup = window.uiPopupSerie(popupId, {aoAbrir: () => {
-      pickerStatus('');
+      const listed = exams.length && results.querySelector('button[data-exam], button[data-b]');
+      if (listed && !folderRequest) folderRequest = new AbortController();
+      pickerStatus(listed ? (individualExam ? selectionLimit : 'Escolha um exame para carregar suas séries.') : '');
       if (!archive) archive = window.uiTabelaAcervo('nr-picker-archive', {
         filtro: row => !row.modalidade || allowedModalities.includes(row.modalidade),
         aoAbrir: row => {
-          if (!row.modalidade || allowedModalities.includes(row.modalidade)) changeSeries(row.bilhete, true);
+          if (!row.modalidade || allowedModalities.includes(row.modalidade)) {
+            cancelFolderRequest();
+            rememberSeries(row);
+            changeSeries(row.bilhete, true);
+          }
         },
       });
     }});
     results.addEventListener('click', event => {
-      const button = event.target.closest('button[data-b]:not(:disabled)');
-      if (button) changeSeries(button.dataset.b, true);
+      const button = event.target.closest('button[data-exam], button[data-b]');
+      if (!button || !exams.length || !results.contains(button)) return;
+      if (!folderRequest) folderRequest = new AbortController();
+      if (button.hasAttribute('data-exam')) chooseExam(exams[Number(button.dataset.exam)], folderRequest.signal);
+      else if (individualExam?.tickets.includes(button.dataset.b)) chooseExam(individualExam, folderRequest.signal, button.dataset.b);
     });
     anchor.disabled = false;
     seriesPopup.abrir(anchor);
   }
-  function setupLegacyFolderPicker(scanOptions, results, resultButton) {
+  function setupLegacyFolderPicker(scanOptions, results, resultButton, startFolderScan, folderScanned) {
     const folder = el('nr-picker-folder');
     const browse = el('nr-picker-browse');
     let scan;
-    window.uiPopupSerie('nr-series-picker', {aoFechar: () => { if (scan) scan.parar(true); }});
+    window.uiPopupSerie('nr-series-picker', {aoFechar: () => { if (scan) scan.parar(true); cancelFolderRequest(); }});
     browse.addEventListener('click', () => window.uiExplorador({
       origem: browse, inicial: folder.value,
-      aoUsar: path => { folder.value = path; folder.focus(); },
+      aoUsar: path => { if (path) { folder.value = path; el('nr-picker-form').requestSubmit(); } },
     }));
     el('nr-picker-form').addEventListener('submit', event => {
       event.preventDefault();
       if (!folder.value.trim()) { folder.focus(); return; }
-      pickerStatus('');
+      startFolderScan();
       scan = window.uiVarrerLista({...scanOptions,
         alvo: results, estado: 'nr-picker-scan-status',
         pasta: folder.value.trim(), dias: 'nr-picker-days',
         vazio: 'Nenhuma série nesta pasta.',
         linha: resultButton,
+        aoFim: folderScanned,
+        aoErro: startFolderScan,
       });
     });
   }
@@ -259,7 +508,7 @@
     el('cancel').hidden = terminal(status); el('retry').hidden = !['failed','partial','interrupted','cancelled'].includes(status);
     el('export-partial').hidden = status !== 'partial' || view.export_status !== 'pending';
     const downloads = (view.artifacts || []).filter(a => a.kind === 'derived_ct' || a.kind === 'rtstruct');
-    el('downloads').innerHTML = downloads.map(a => '<a href="' + esc(artifactURL(a)) + '" download>' + (a.kind === 'derived_ct' ? 'Baixar série DICOM (ZIP)' : 'Baixar RTSTRUCT não aprovado') + '</a>').join('');
+    el('downloads').innerHTML = downloads.map(a => '<a class="ui-bt" href="' + esc(artifactURL(a)) + '" download>' + (a.kind === 'derived_ct' ? 'Baixar série DICOM (ZIP)' : 'Baixar RTSTRUCT não aprovado') + '</a>').join('');
     el('result-warnings').innerHTML = (view.models || []).flatMap(model => (model.warnings || []).filter(w => w.code === 'class_lost_on_reference_grid').map(w => '<p class="nr-warning">' + esc(model.model_id + ' · ' + w.class_id) + ': Classe não vazia ficou vazia ao retornar à grade de referência. ' + esc(w.working_voxels + ' → ' + w.reference_voxels) + ' voxels. Interpolação: vizinho mais próximo.</p>')).join('');
   }
   async function pollJob(generation) {

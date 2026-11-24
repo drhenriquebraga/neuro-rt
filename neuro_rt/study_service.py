@@ -18,7 +18,7 @@ from .contracts import (validate_identifier, validate_study_request, validate_mo
                         validate_worker_progress)
 from .model_registry import load_catalog, verify_artifacts
 from .orchestrator import StudyRunContext, build_study_plan, run_study
-from .series_selection import describe_series, suggest_bindings, evaluate_eligibility
+from .series_selection import describe_resolved_series, describe_series, suggest_bindings, evaluate_eligibility
 from .study_types import SeriesDescriptor
 from .integrity import sha256_file
 from .execution_errors import ProcessTreeUnconfirmed
@@ -170,10 +170,31 @@ class StudyService:
             runtimes['host-nnunet'] = {'available': info['available'], 'reason': info['reason']}
         return {'models': models, 'runtimes': runtimes}
 
-    def selection(self, tickets, category=None):
+    def selection(self, tickets, category=None, *, identify_only=False):
         if not isinstance(tickets, list) or len(tickets) > 120 or not all(isinstance(x, str) for x in tickets):
             raise ValueError('Lista de séries inválida.')
-        descriptors = [describe_series(ticket, self.host) for ticket in dict.fromkeys(tickets)]
+        descriptors, unreadable, labels = [], [], {}
+        for ticket in dict.fromkeys(tickets):
+            try:
+                resolved = self.host.resolve_series_ticket(ticket)
+                descriptors.append(describe_resolved_series(ticket, resolved))
+                # Display labels are returned only to the local picker, never stored in the study descriptor.
+                if not identify_only and isinstance(resolved, dict):
+                    metadata = resolved.get('metadata') or {}
+                    labels[ticket] = {key: str(metadata[tag])[:128] for key, tag in (
+                        ('description', 'SeriesDescription'), ('series_number', 'SeriesNumber'))
+                        if metadata.get(tag) is not None and str(metadata[tag]).strip()}
+            except (KeyError, ValueError, OSError):
+                if not identify_only:
+                    raise
+                unreadable.append(ticket)
+        series = [{'ticket': d.ticket, 'modality': d.modality,
+                   'group_key': hashlib.sha256((d.subject_key + '\0' + d.study_key).encode()).hexdigest(),
+                   'sequence_candidates': d.sequence_candidates, 'source_format': d.source_format,
+                   'slice_count': len(d.sop_instance_uids) or None,
+                   **labels.get(d.ticket, {})} for d in descriptors]
+        if identify_only:
+            return {'series': series, 'unreadable': unreadable}
         capabilities = self.capabilities()
         capabilities['series'] = {d.ticket: d for d in descriptors}
         models = []
@@ -191,10 +212,7 @@ class StudyService:
                 'validated_devices': spec.get('validated_devices', ['cpu']),
                 'help': spec.get('help', {}), 'bindings': [b.to_dict() for b in bindings],
                 'eligibility': eligibility.to_dict()})
-        return {'series': [{'ticket': d.ticket, 'modality': d.modality,
-                    'group_key': hashlib.sha256((d.subject_key + '\0' + d.study_key).encode()).hexdigest(),
-                    'sequence_candidates': d.sequence_candidates, 'source_format': d.source_format}
-                    for d in descriptors], 'models': models}
+        return {'series': series, 'models': models}
 
     def check_capabilities(self, study):
         capabilities = self.capabilities()

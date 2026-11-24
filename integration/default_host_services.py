@@ -20,14 +20,19 @@ def bindings_for_host(host_info, cfg=None):
             raise ValueError('Seleção de série expirada. Carregue novamente a pasta.')
         files = [str(f['caminho']) for f in series.get('arquivos', [])]
         if not files: raise ValueError('A série não possui cortes legíveis.')
-        ds = pydicom.dcmread(files[0], stop_before_pixels=True)
+        try:
+            ds = pydicom.dcmread(files[0], stop_before_pixels=True, force=True)
+        except (pydicom.errors.InvalidDicomError, OSError, ValueError, EOFError) as exc:
+            raise ValueError('A série não possui cortes legíveis.') from exc
         modality = str(ds.get('Modality', ''))
+        if str(ds.get('SeriesInstanceUID', '')) != str(uid):
+            raise ValueError('Seleção de série expirada. Carregue novamente a pasta.')
         if modality not in ('MR', 'CT'): raise ValueError('Selecione uma série de RM ou TC.')
         study = str(ds.get('StudyInstanceUID', ''))
         if not study: raise ValueError('A série não informa o estudo DICOM.')
         subject = str(ds.get('PatientID', '')) + '\0' + str(ds.get('IssuerOfPatientID', ''))
         if not subject.strip('\0'): subject = 'study:' + study
-        metadata = {name: str(ds.get(name, '')) for name in ('SeriesDescription', 'ProtocolName',
+        metadata = {name: str(ds.get(name, '')) for name in ('SeriesDescription', 'SeriesNumber', 'ProtocolName',
             'ContrastBolusAgent', 'RepetitionTime', 'EchoTime')}
         return {'ticket': ticket, 'series_uid': str(uid), 'subject_key': identity(subject),
             'study_key': identity(study), 'modality': modality, 'source_format': 'dicom',

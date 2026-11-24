@@ -96,4 +96,20 @@ class NativeStudyScreenTests(unittest.TestCase):
                 print(run.stdout.decode(errors='replace').strip())
 
 
+    @unittest.skipUnless(Path(STUDY_HOST_PYTHON).is_file() and HOST_APP and Path(HOST_APP).is_dir(),
+                         'Runtime do host indisponível.')
+    @unittest.skipUnless(shutil.which('node') and Path(PLAYWRIGHT).is_dir() and Path(CHROME).is_file(),
+                         'Chrome e Playwright necessários para verificar o visor real.')
+    def test_folder_previews_in_all_tools(self):
+        tests = ROOT / 'tests'
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as work:
+            fixture = subprocess.run([STUDY_HOST_PYTHON, '-B', str(tests / 'series_preview_phantom.py'),
+                                      str(ROOT), HOST_APP, work], capture_output=True, timeout=120)
+            self.assertEqual(fixture.returncode, 0, fixture.stderr.decode(errors='replace')[-2500:])
+            env = dict(os.environ, NEURO_PLAYWRIGHT_MODULE=PLAYWRIGHT, NEURO_BROWSER_EXECUTABLE=CHROME)
+            browser = subprocess.run([shutil.which('node'), str(tests / 'series_preview_browser.cjs'), work],
+                                     env=env, capture_output=True, timeout=120)
+            self.assertEqual(browser.returncode, 0, browser.stderr.decode(errors='replace')[-3000:])
+            self.assertEqual(browser.stdout.count(b'PASS:'), 4)
+
 if __name__ == '__main__': unittest.main()

@@ -396,6 +396,89 @@ class StudyServiceTests(unittest.TestCase):
             self.assertNotIn('private_visit', str(first))
             service.close()
 
+    def test_identification_groups_same_named_series_without_reading_models_or_leaking_identity(self):
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+            service, _ = self.make(Path(tmp))
+            self.addCleanup(service.close)
+            acquisitions = {
+                'a': ('private-subject', 'private-visit-one', 2),
+                'b': ('private-subject', 'private-visit-two', 3),
+                'c': ('private-subject', 'private-visit-one', 1),
+                'd': ('private-other-subject', 'private-visit-one', 4),
+            }
+
+            def resolve(ticket):
+                subject, study, slices = acquisitions[ticket]
+                return {
+                    'ticket': ticket, 'modality': 'MR', 'series_uid': 'private-series-' + ticket,
+                    'subject_key': subject, 'study_key': study, 'source_format': 'dicom',
+                    'metadata': {'SeriesDescription': 'T1 AX', 'SeriesNumber': slices,
+                                 'PatientName': 'private-name', 'PatientID': 'private-id',
+                                 'ProtocolName': 'T1 private-protocol'},
+                    'source': {'input_path': 'private-directory'},
+                    'frame_of_reference_uid': 'private-frame',
+                    'sop_instance_uids': ['private-instance-' + str(i) for i in range(slices)],
+                }
+
+            service.host.resolve_series_ticket = resolve
+            with patch.object(service, 'capabilities', side_effect=AssertionError('Unexpected model inspection')):
+                identified = service.selection(['a', 'b', 'a', 'c', 'd'], 'anatomia', identify_only=True)
+            self.assertEqual(set(identified), {'series', 'unreadable'})
+            self.assertEqual(identified['unreadable'], [])
+            self.assertEqual([s['ticket'] for s in identified['series']], ['a', 'b', 'c', 'd'])
+            self.assertEqual([s['slice_count'] for s in identified['series']], [2, 3, 1, 4])
+            groups = {s['ticket']: s['group_key'] for s in identified['series']}
+            self.assertEqual(groups['a'], groups['c'])
+            self.assertEqual(len({groups['a'], groups['b'], groups['d']}), 3)
+            self.assertNotIn('private-', json.dumps(identified))
+            self.assertNotIn('description', identified['series'][0])
+            service.catalog = {}
+            with patch.object(service, 'capabilities', return_value={'models': {}, 'runtimes': {}}):
+                selected = service.selection(['a', 'c'], 'anatomia')
+            self.assertEqual([(row['ticket'], row['description'], row['series_number']) for row in selected['series']],
+                             [('a', 'T1 AX', '2'), ('c', 'T1 AX', '1')])
+            self.assertTrue(all(row['group_key'] == groups['a'] for row in selected['series']))
+            self.assertNotIn('private-', json.dumps(selected))
+            self.assertEqual(service.list_jobs(), [])
+
+    def test_identification_keeps_readable_series_when_other_dicom_headers_are_unreadable(self):
+        import sys
+        from unittest.mock import patch
+        from integration.default_host_services import bindings_for_host
+        from synthetic_dicom import make_series
+
+        with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
+            folder = Path(tmp)
+            service, _ = self.make(folder)
+            self.addCleanup(service.close)
+            readable = folder / 'reader'
+            uid, _ = make_series(readable, slices=2)
+            valid = {'uid': uid, 'arquivos': [{'caminho': str(f)} for f in sorted(readable.glob('*.dcm'))]}
+            corrupted = folder / 'private-corrupted.dcm'
+            corrupted.write_bytes(b'This synthetic file does not contain a DICOM header.')
+            rows = {
+                'ok': valid,
+                'damaged': {'uid': '1.2.3', 'arquivos': [{'caminho': str(corrupted)}]},
+                'missing': {'uid': '1.2.4', 'arquivos': [{'caminho': str(folder / 'private-missing.dcm')}]},
+            }
+            thumbnail_owner = SimpleNamespace(
+                resolver=lambda ticket: (str(folder), rows[ticket]['uid']) if ticket in rows else (None, None),
+                serie_do_bilhete=rows.__getitem__,
+            )
+            service.host.resolve_series_ticket = bindings_for_host({})['resolve_series_ticket']
+            with patch.dict(sys.modules, {'radai_thumbnail': thumbnail_owner}), patch.object(
+                    service, 'capabilities', side_effect=AssertionError('Unexpected model inspection')):
+                result = service.selection(['damaged', 'ok', 'missing', 'expired', 'damaged'],
+                                           'glioma', identify_only=True)
+                self.assertEqual(result['unreadable'], ['damaged', 'missing', 'expired'])
+                self.assertEqual([(s['ticket'], s['slice_count']) for s in result['series']], [('ok', 2)])
+                self.assertNotIn('private-', json.dumps(result))
+                self.assertNotIn(str(folder), json.dumps(result))
+                with self.assertRaises(ValueError):
+                    service.selection(['ok', 'damaged'], 'glioma')
+
     def test_job_directory_failure_does_not_leave_accepted_queue_or_restart(self):
         from unittest.mock import patch
         with tempfile.TemporaryDirectory(dir=TEMP_ROOT) as tmp:
