@@ -43,3 +43,12 @@
   .nr-row-actions{flex-direction:row;flex-wrap:wrap}
 }
 @media(max-width:480px){.nr-pickers{grid-template-columns:1fr}}
+
+.nr-experimental{border-inline-start:4px solid #e39235;background:var(--panel-2);padding:10px 12px;color:var(--text);font-weight:650;line-height:1.45}
+.nr-findings .nr-switch input:checked + .nr-switch-track{background:#dc852f;border-color:#dc852f}
+.nr-switch-track{transition:background-color .18s,border-color .18s}.nr-switch-track::after{transition:transform .18s ease-out}
+#selection-status[data-state]::before{content:'';display:inline-block;vertical-align:middle;width:1em;height:1em;margin-inline-end:.5em}
+#selection-status[data-state=saving]::before{border:2px solid currentColor;border-inline-end-color:transparent;border-radius:50%;animation:nr-wait .8s linear infinite}
+#selection-status[data-state=saved]::before{width:.48em;height:.85em;border:solid var(--success,#6acf8c);border-width:0 2px 2px 0;transform:rotate(42deg)}
+@keyframes nr-wait{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){#selection-status[data-state=saving]::before{animation:none}.nr-switch-track,.nr-switch-track::after{transition:none}}
+@media(prefers-reduced-motion:no-preference){.nr-switch-track[data-slide=on]::after{animation:nr-switch-on .18s ease-out}.nr-switch-track[data-slide=off]::after{animation:nr-switch-off .18s ease-out}@keyframes nr-switch-on{from{transform:translateX(0)}to{transform:translateX(15px)}}@keyframes nr-switch-off{from{transform:translateX(15px)}to{transform:translateX(0)}}}

@@ -40,23 +40,55 @@ class NeuroReview:
     def store(self):
         return self.service.studies.store
 
+    def _source_header(self,item):
+        """Read local identity only from the private input copy of this reference."""
+        import pydicom
+        ref=item.reference
+        folder=(self.store.data_dir/'jobs'/item.study_id).resolve()
+        if not folder.is_relative_to((self.store.data_dir/'jobs').resolve()):
+            return {}
+        for job in [folder]+sorted((folder/'attempts').glob('[0-9]*')):
+            src=job/'dicom_source'/'000000.dcm'
+            if src.resolve()!=src or not src.is_file():continue
+            try:
+                tags=['SOPInstanceUID','SeriesInstanceUID','FrameOfReferenceUID','PatientName','PatientID','StudyDate','SliceThickness']
+                ds=pydicom.dcmread(src,specific_tags=tags,stop_before_pixels=True)
+                if (str(ds.get('SOPInstanceUID','')) not in ref.sop_instance_uids or
+                        str(ds.get('SeriesInstanceUID',''))!=ref.series_uid or
+                        str(ds.get('FrameOfReferenceUID',''))!=ref.frame_of_reference_uid):
+                    continue
+                return dict(nome=str(ds.get('PatientName','')).replace('^',' ').strip(),
+                            date=str(ds.get('StudyDate','')),pid=str(ds.get('PatientID','')),
+                            espessura_mm=float(ds.get('SliceThickness') or 0) or None)
+            except (OSError,ValueError,TypeError,pydicom.errors.InvalidDicomError):
+                continue
+        return {}
+
     def rows(self, limit, published=()):
         records = self.store.iter_manifests(all_revisions=True)
         rows = []
         for item in reversed(list(records)):
             if not any(a['kind'] in ('view', 'mask') for a in item.artifacts):
                 continue
+            meta=self._source_header(item)
+            models=_model_names(item.requested_model_ids)
+            details=dict(nome=meta.get('nome',''),modalidade=item.reference.modality,
+                         espessura_mm=meta.get('espessura_mm'),tasks=models.split(' + '),
+                         cortes=len(set(item.reference.sop_instance_uids)) or None)
             if item.export_receipt and item.export_receipt.published_file:
                 rt = Path(item.export_receipt.published_file)
                 if (rt.parent, item.reference.series_uid) in published and rt.is_file():
+                    if isinstance(published,dict):
+                        row=published[(rt.parent,item.reference.series_uid)]
+                        row['detalhes_locais']=details
+                        for key in ('pid','date'):
+                            row[key]=row.get(key) or meta.get(key,'')
                     continue
             ident, rev = item.study_id, item.revision
-            models = _model_names(item.requested_model_ids)
-            rows.append(dict(bilhete=f'neuro:{ident}:{rev}', uid8=f'{ident} · r{rev}', pid='',
+            rows.append(dict(bilhete=f'neuro:{ident}:{rev}', uid8=f'{ident} · r{rev}', pid=meta.get('pid',''),
                              revisao_neuro=True, desc=models, modalidade=item.reference.modality,
-                             detalhes_locais=dict(modalidade=item.reference.modality,
-                                 tasks=[f'{models} · {ident} · r{rev}'], cortes=len(item.reference.sop_instance_uids) or None),
-                             date='', estado='ok', estruturas=sum(len(m.masks) for m in item.results),
+                             detalhes_locais=details,
+                             date=meta.get('date',''), estado='ok', estruturas=sum(len(m.masks) for m in item.results),
                              quando='', secs=0))
             if len(rows) >= limit:
                 break

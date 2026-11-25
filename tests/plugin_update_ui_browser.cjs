@@ -19,6 +19,11 @@ const {chromium}=require(process.env.NEURO_PLAYWRIGHT_MODULE||'playwright');
    return route.fulfill({json:{}});
   });
   await page.goto('http://neuro.test/neuro/');await page.waitForLoadState('networkidle');
+  await page.waitForFunction(()=>window.NeuroPluginUpdate?.state.last?.mounted);
+  assert(await page.locator('#neuro-update').isHidden(),'A ready plugin leaves maintenance in Settings');
+  // A partial installation can still recover on the landing screen.
+  data.state='incompatible';data.mounted=false;
+  await page.evaluate(()=>NeuroPluginUpdate.read());
   await page.locator('[data-neuro-action="comecar"]').click();
   await page.locator('[data-neuro-action="esperar"]').waitFor();
   await page.locator('[data-neuro-action="esperar"]').click();

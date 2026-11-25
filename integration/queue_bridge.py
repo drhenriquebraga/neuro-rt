@@ -77,7 +77,11 @@ class QueueBridge:
             models = tuple(item.get('model_ids', ()))
             models = tuple(mid for mid in models if isinstance(mid, str)
                            and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,79}', mid))
-            if getattr(self.host, 'NEURO_QUEUE_MODELS_API', None) == 1:
+            if getattr(self.host, 'NEURO_QUEUE_MANUAL_START_API', None) == 1:
+                # NIDUS orchestration already owns its own start workflow.
+                manual = bool(models) and 'nidus_consensus' not in models
+                card = self.host.enqueue_neuro(key, fingerprint, model_ids=models, aguardar_inicio=manual)
+            elif getattr(self.host, 'NEURO_QUEUE_MODELS_API', None) == 1:
                 card = self.host.enqueue_neuro(key, fingerprint, model_ids=models)
             else:
                 card = self.host.enqueue_neuro(key, fingerprint)

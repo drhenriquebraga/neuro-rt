@@ -19,6 +19,8 @@
     glioma_attention_unet3d:'Glioma · Attention U-Net 3D', metastasis_qtim:'Metástases · QTIM',
   };
   const modelLabels = {anatomy_synthseg:'SynthSeg', [atlas]:'CerebrA / ANTs', cranio_buti:'Buti'};
+  const experimentalWarning = 'Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas.';
+  const metastasis = id => id==='metastasis_qtim' || id==='MRI_Metastasis';
   const exams = new Map();
   function label(s) {
     const exam = exams.size>1 ? [tr('Exame') + ' ' + exams.get(s.group_key), s.date].filter(Boolean).join(' · ') : '';
@@ -28,7 +30,7 @@
   const mname = m => modelLabels[m.id] || tr(protocolLabels[m.id] || m.label);
   const modalityLabel = code => tr(({CT:'TC',MR:'RM'})[code] || code);
   const roles = m => (m.channels || []).map(c=>typeof c === 'string' ? c : c.role);
-  function invalidate() { pending = null; $('selection-status').textContent = ''; }
+  function invalidate() { pending = null; if(!submitting){delete $('selection-status').dataset.state;$('selection-status').textContent='';} }
   async function api(path, body, signal) {
     const options = {headers:{'X-Neuro-Token':token}, signal};
     if (body !== undefined) Object.assign(options, {method:'POST', body:JSON.stringify(body), headers:{...options.headers,'Content-Type':'application/json'}});
@@ -198,7 +200,7 @@
     const inputs=activeOptions(p).filter(item=>item.kept.length).map(item=>p.models.find(m=>m.id===item.model)).filter(m=>m && (roles(m).length>1 || m.id===atlas)).map(m=>
       '<fieldset><legend>'+esc(mname(m))+'</legend><div class="nr-bindings">'+bindingChoices(p,m)+'</div></fieldset>').join('');
     body.innerHTML='<div class="nr-columns">'+column('Protocolos anatômicos','nr-anatomy',anatomy+savedBlock)+
-      column('Achados de lesões suspeitas','nr-findings',findings || '<p>'+esc(tr('Nenhum modelo de achados para esta modalidade.'))+'</p>')+
+      column('Achados de lesões suspeitas','nr-findings',(p.models.some(m=>metastasis(m.id) && m.eligibility?.selectable)?'<p class="nr-experimental">'+esc(tr(experimentalWarning))+'</p>':'') + (findings || '<p>'+esc(tr('Nenhum modelo de achados para esta modalidade.'))+'</p>'))+
       column('STUDY','nr-delivery',tags(p))+'</div>'+inputs;
   }
   async function refreshPlan(plan, first=false) {
@@ -377,7 +379,12 @@
       Object.assign(old,{series_ticket:t.value,association_source:'manual',certainty:'certain',warnings:[]});
     }
     const attr=['protocol','finding','saved','bindModel'].find(k=>t.dataset[k]);
-    redraw(p,()=>{if(attr)[...p.node.querySelectorAll('input,select')].find(n=>n.dataset[attr]===t.dataset[attr] && n.dataset.role===t.dataset.role)?.focus();});
+    redraw(p,()=>{
+      if(!attr)return;
+      const control=[...p.node.querySelectorAll('input,select')].find(n=>n.dataset[attr]===t.dataset[attr] && n.dataset.role===t.dataset.role);
+      if(control?.type==='checkbox')control.nextElementSibling.dataset.slide=control.checked?'on':'off';
+      control?.focus();
+    });
   });
   function displayDate(raw) {
     const match=/^(\d{4})(\d{2})(\d{2})$/.exec(raw || '');
@@ -447,13 +454,16 @@
     window.radaiRevAbrir(null,async()=>{
       if (submitting || pending!==request) return;
       submitting=true;syncStart();
+      const feedback=$('selection-status');feedback.dataset.state='saving';feedback.setAttribute('aria-busy','true');feedback.textContent=tr('Gravando o pedido na fila…');
       try {
-        await api('studies',request);
+        const receipt=await api('studies',request);
+        if(receipt.request_id!==request.request_id || receipt.studies?.length!==request.studies.length) throw Error(tr('Não foi possível concluir esta operação.'));
         for (const item of request.studies)deselect(item.reference);
         pending=null;drawGallery();
-        $('selection-status').textContent=tr('Pedido enviado para a fila comum.');
-      } catch(err) {$('selection-status').textContent=err.message;}
-      finally {submitting=false;syncStart();}
+        feedback.dataset.state='saved';feedback.textContent=tr('Pedido enviado para a fila comum.');
+        if(typeof window.radaiFilaCarregar==='function')window.radaiFilaCarregar();
+      } catch(err) {delete feedback.dataset.state;feedback.textContent=err.message;}
+      finally {feedback.removeAttribute('aria-busy');submitting=false;syncStart();}
     });
     $('radai_rev_sub').textContent=tr('Séries selecionadas')+' · '+request.studies.length;
     $('radai_rev_corpo').innerHTML=[...plans.values()].map(p=>'<h4 translate="no">'+esc(label(p.series))+'</h4><ul>'+

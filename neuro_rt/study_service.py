@@ -261,7 +261,12 @@ class StudyService:
         return response
 
     def check_capabilities(self, study):
-        capabilities = self.capabilities(study.model_ids)
+        with self._selection_lock:
+            cached = self._selection_snapshot
+        if cached and time.monotonic() < cached[0]:
+            capabilities = dict(cached[1])
+        else:
+            capabilities = self.capabilities(study.model_ids)
         if study.protocol_id or study.plan:
             capabilities['device'] = self.host.device_preference()
         for mid in study.model_ids:
@@ -307,7 +312,7 @@ class StudyService:
                 tickets.update(b.get('series_ticket') for b in bindings)
         if any(not isinstance(t, str) for t in tickets): raise ValueError('Ticket inválido.')
         sources = {t: self.host.resolve_series_ticket(t) for t in tickets}
-        index = {t: describe_series(t, self.host) for t in tickets}
+        index = {t: describe_resolved_series(t, source) for t, source in sources.items()}
         request = validate_study_request(payload, self.catalog, index)
         if snapshot is not None and (len(request.studies) != 1 or not request.export_rtstruct or any(
                 'anatomia' not in self.catalog[mid]['groups']

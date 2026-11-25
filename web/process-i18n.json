@@ -33,7 +33,10 @@
     "Tarefas": "Tarefas",
     "Estudo complementar": "Estudo complementar",
     "Estudo neuroanatômico completo": "Estudo neuroanatômico completo",
-    "Tentar novamente": "Tentar novamente"
+    "Tentar novamente": "Tentar novamente",
+    "Adicionar à fila": "Adicionar à fila",
+    "Gravando o pedido na fila…": "Gravando o pedido na fila…",
+    "Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas.": "Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas."
   },
   "en": {
     "TC": "CT",
@@ -69,7 +72,10 @@
     "Tarefas": "Tasks",
     "Estudo complementar": "Additional study",
     "Estudo neuroanatômico completo": "Complete neuroanatomy study",
-    "Tentar novamente": "Try again"
+    "Tentar novamente": "Try again",
+    "Adicionar à fila": "Add to queue",
+    "Gravando o pedido na fila…": "Saving the request to the queue…",
+    "Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas.": "Experimental research model. It can miss metastases, including small lesions. Do not use for clinical decisions."
   },
   "es": {
     "TC": "TC",
@@ -105,7 +111,10 @@
     "Tarefas": "Tareas",
     "Estudo complementar": "Estudio complementario",
     "Estudo neuroanatômico completo": "Estudio neuroanatómico completo",
-    "Tentar novamente": "Reintentar"
+    "Tentar novamente": "Reintentar",
+    "Adicionar à fila": "Añadir a la cola",
+    "Gravando o pedido na fila…": "Guardando la solicitud en la cola…",
+    "Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas.": "Modelo experimental solo para investigación. Puede pasar por alto metástasis, incluidas las pequeñas. No utilizar para decisiones clínicas."
   },
   "de": {
     "TC": "CT",
@@ -141,7 +150,10 @@
     "Tarefas": "Aufgaben",
     "Estudo complementar": "Zusatzstudie",
     "Estudo neuroanatômico completo": "Vollständige neuroanatomische Studie",
-    "Tentar novamente": "Erneut versuchen"
+    "Tentar novamente": "Erneut versuchen",
+    "Adicionar à fila": "Zur Warteschlange hinzufügen",
+    "Gravando o pedido na fila…": "Auftrag wird in der Warteschlange gespeichert…",
+    "Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas.": "Experimentelles Forschungsmodell. Es kann Metastasen übersehen, auch kleine Läsionen. Nicht für klinische Entscheidungen verwenden."
   },
   "fr": {
     "TC": "TDM",
@@ -177,7 +189,10 @@
     "Tarefas": "Tâches",
     "Estudo complementar": "Étude complémentaire",
     "Estudo neuroanatômico completo": "Étude neuroanatomique complète",
-    "Tentar novamente": "Réessayer"
+    "Tentar novamente": "Réessayer",
+    "Adicionar à fila": "Ajouter à la file",
+    "Gravando o pedido na fila…": "Enregistrement dans la file…",
+    "Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas.": "Modèle expérimental réservé à la recherche. Des métastases, notamment de petite taille, peuvent être manquées. Ne pas utiliser pour des décisions cliniques."
   },
   "it": {
     "TC": "TC",
@@ -213,7 +228,10 @@
     "Tarefas": "Attività",
     "Estudo complementar": "Studio complementare",
     "Estudo neuroanatômico completo": "Studio neuroanatomico completo",
-    "Tentar novamente": "Riprova"
+    "Tentar novamente": "Riprova",
+    "Adicionar à fila": "Aggiungi alla coda",
+    "Gravando o pedido na fila…": "Salvataggio della richiesta in coda…",
+    "Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas.": "Modello sperimentale per la sola ricerca. Può non rilevare metastasi, anche piccole. Non usare per decisioni cliniche."
   },
   "pl": {
     "TC": "TK",
@@ -249,7 +267,10 @@
     "Tarefas": "Zadania",
     "Estudo complementar": "Badanie dodatkowe",
     "Estudo neuroanatômico completo": "Pełne badanie neuroanatomiczne",
-    "Tentar novamente": "Spróbuj ponownie"
+    "Tentar novamente": "Spróbuj ponownie",
+    "Adicionar à fila": "Dodaj do kolejki",
+    "Gravando o pedido na fila…": "Zapisywanie zlecenia w kolejce…",
+    "Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas.": "Model eksperymentalny wyłącznie do badań. Może nie wykryć przerzutów, w tym małych zmian. Nie stosować do podejmowania decyzji klinicznych."
   },
   "ar": {
     "TC": "CT",
@@ -285,7 +306,10 @@
     "Tarefas": "المهام",
     "Estudo complementar": "دراسة تكميلية",
     "Estudo neuroanatômico completo": "دراسة تشريحية عصبية كاملة",
-    "Tentar novamente": "إعادة المحاولة"
+    "Tentar novamente": "إعادة المحاولة",
+    "Adicionar à fila": "إضافة إلى قائمة الانتظار",
+    "Gravando o pedido na fila…": "جارٍ حفظ الطلب في قائمة الانتظار…",
+    "Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas.": "نموذج تجريبي للبحث فقط. قد لا يكشف النقائل، بما فيها الآفات الصغيرة. لا يُستخدم لاتخاذ قرارات سريرية."
   },
   "bn": {
     "TC": "সিটি",
@@ -321,7 +345,10 @@
     "Tarefas": "কাজ",
     "Estudo complementar": "পরিপূরক স্টাডি",
     "Estudo neuroanatômico completo": "সম্পূর্ণ নিউরোঅ্যানাটমি স্টাডি",
-    "Tentar novamente": "আবার চেষ্টা করুন"
+    "Tentar novamente": "আবার চেষ্টা করুন",
+    "Adicionar à fila": "সারিতে যোগ করুন",
+    "Gravando o pedido na fila…": "অনুরোধ সারিতে সংরক্ষণ করা হচ্ছে…",
+    "Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas.": "শুধু গবেষণার জন্য পরীক্ষামূলক মডেল। ছোট ক্ষতসহ মেটাস্টেসিস বাদ পড়তে পারে। চিকিৎসার সিদ্ধান্তে ব্যবহার করবেন না।"
   },
   "ko": {
     "TC": "CT",
@@ -357,7 +384,10 @@
     "Tarefas": "작업",
     "Estudo complementar": "추가 연구",
     "Estudo neuroanatômico completo": "전체 신경해부학 연구",
-    "Tentar novamente": "다시 시도"
+    "Tentar novamente": "다시 시도",
+    "Adicionar à fila": "대기열에 추가",
+    "Gravando o pedido na fila…": "요청을 대기열에 저장하는 중…",
+    "Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas.": "연구 전용 실험 모델입니다. 작은 병변을 포함해 전이를 놓칠 수 있습니다. 임상 결정에 사용하지 마십시오."
   },
   "zh-CN": {
     "TC": "CT",
@@ -393,7 +423,10 @@
     "Tarefas": "任务",
     "Estudo complementar": "补充研究",
     "Estudo neuroanatômico completo": "完整神经解剖研究",
-    "Tentar novamente": "重试"
+    "Tentar novamente": "重试",
+    "Adicionar à fila": "加入队列",
+    "Gravando o pedido na fila…": "正在将请求保存到队列…",
+    "Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas.": "仅供研究的实验性模型。可能漏检转移灶，包括小病灶。不得用于临床决策。"
   },
   "ja": {
     "TC": "CT",
@@ -429,6 +462,9 @@
     "Tarefas": "タスク",
     "Estudo complementar": "追加スタディ",
     "Estudo neuroanatômico completo": "包括的神経解剖スタディ",
-    "Tentar novamente": "再試行"
+    "Tentar novamente": "再試行",
+    "Adicionar à fila": "キューに追加",
+    "Gravando o pedido na fila…": "キューに依頼を保存しています…",
+    "Modelo experimental, apenas para pesquisa. Pode deixar de detectar metástases, inclusive pequenas. Não utilizar para decisões clínicas.": "研究専用の実験モデルです。小さな病変を含む転移を見逃すことがあります。臨床判断には使用しないでください。"
   }
 }

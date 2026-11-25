@@ -49,8 +49,19 @@ class SharedQueueTests(unittest.TestCase):
                 'model_ids': ['MRI_GBM'], 'bindings_by_model': {},
                 'legacy_input_path': 'C:/PRIVATE_SYNTHETIC/path'}
 
-    def enqueue(self, suffix='a'):
-        return self.bridge.enqueue_study('request-' + suffix, self.item(suffix))
+    def enqueue(self, suffix='a', *, start=True):
+        ticket = self.bridge.enqueue_study('request-' + suffix, self.item(suffix))
+        if start:
+            self.host.autorizar_neuro()
+        return ticket
+
+    def test_manual_card_needs_station_start(self):
+        ticket = self.enqueue(start=False)
+        self.assertFalse(self.host.try_neuro_turn(ticket.id))
+        self.assertEqual(self.host.cartao(ticket.id)['estado'], self.Q.ESPERANDO)
+        self.assertTrue(self.host.autorizar_neuro())
+        with self.bridge.await_turn(ticket):
+            self.assertEqual(self.host.cartao(ticket.id)['estado'], self.Q.RODANDO)
 
     def wait_for(self, predicate):
         deadline = time.monotonic() + 2

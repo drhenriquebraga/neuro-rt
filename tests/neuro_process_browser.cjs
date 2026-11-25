@@ -60,7 +60,7 @@ function selection(data) {
         const d=req.postDataJSON();assert.equal(d.category,'unified');assert.equal(req.headers()['x-neuro-token'],'test');
         return route.fulfill({json:selection(d)});
       }
-      if(p==='/neuro/api/studies'){sent.push(req.postDataJSON());return route.fulfill({status:202,json:{studies:[]}});}
+      if(p==='/neuro/api/studies'){const request=req.postDataJSON();sent.push(request);return route.fulfill({status:202,json:{request_id:request.request_id,studies:request.studies.map(s=>({id:s.study_id,status:'queued'}))}});}
       if(p==='/neuro/api/protocols'){
         const {name,modality,plan}=req.postDataJSON();
         assert.deepEqual(plan.findings,['MRI_GBM','MRI_Meningioma']);

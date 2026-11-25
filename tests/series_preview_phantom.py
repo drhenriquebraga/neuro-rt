@@ -7,6 +7,8 @@ from unittest.mock import patch
 import numpy as np
 import pydicom
 from pydicom.uid import CTImageStorage, generate_uid
+# Windows' embedded Python does not add the invoked script directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from synthetic_dicom import make_series
 
 
