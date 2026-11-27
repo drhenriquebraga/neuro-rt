@@ -2012,7 +2012,16 @@ function nd3Pedir(){
  ND3.pedido=true;
  (window.requestAnimationFrame || setTimeout)(nd3Pintar);
 }
+function nd3CancelarMalhas(){
+ if(ND3.malhaCtl){ND3.malhaCtl.abort();ND3.malhaCtl=null}
+}
+window.addEventListener('pagehide',nd3CancelarMalhas);
+document.addEventListener('visibilitychange',function(){
+ if(document.hidden){if(ND3.malhaCtl){ND3.caixaMalha=null;nd3CancelarMalhas();ND3.n++;}}
+ else if(ND.b && !ND3.emSala)nd3Malhas();
+});
 function nd3Esquecer(){
+ nd3CancelarMalhas();
  ['vaso','osso','pele'].forEach(function(q){ if(ND3.objs[q]) r3gSoltarObj(ND3, ND3.objs[q]); delete ND3.objs[q] });
  ND3.caixaMalha=null; ND3.info={}; ND3.motivoMalha=''; ND3.n++;
 }
@@ -2025,9 +2034,10 @@ function nd3Malhas(){
  var c=nd3RecorteLocal();
  if(!c){ nd3Esquecer(); ND3.motivoMalha=''; nd3Pedir(); return }
  if(ND3.caixaMalha && nd3CaixaDentro(c, ND3.caixaMalha)){ nd3Pedir(); return }
- var meu=++ND3.n, b=ND.b, alvo=c.slice();
+ nd3CancelarMalhas();
+ var ctl=ND3.malhaCtl=new AbortController(), meu=++ND3.n, b=ND.b, alvo=c.slice();
  ND3.motivoMalha='montando…'; nd3Canto();
- fetch('/api/nidus/malhas',{method:'POST', headers:{'Content-Type':'application/json'},
+ fetch('/api/nidus/malhas',{method:'POST', signal:ctl.signal, headers:{'Content-Type':'application/json'},
    body:JSON.stringify({b:b, t:ND_ABA, n:meu, caixa:alvo.map(function(v){ return v.toFixed(4) }).join(',')})})
   .then(function(r){ return r.json() }).then(function(d){
    if(meu!==ND3.n || b!==ND.b) return;
@@ -2037,15 +2047,16 @@ function nd3Malhas(){
    var lista=(d && d.malhas) || [];
    lista.forEach(function(x){ ND3.info[x.qual]=x });
    nd3Canto(); nd3Pedir();
-   lista.forEach(function(x){
+   return Promise.all(lista.map(function(x){
     if(!x.m || !x.triangulos) return;
-    fetch('/api/nidus/malha?m='+encodeURIComponent(x.m)).then(function(r){
+    return fetch('/api/nidus/malha?m='+encodeURIComponent(x.m),{signal:ctl.signal}).then(function(r){
      if(!r.ok) throw new Error('HTTP '+r.status); return r.arrayBuffer() })
      .then(function(buf){ if(meu!==ND3.n) return;
       var o=r3gSubirEm(ND3, r3gLerStl(buf), ND3_COR[x.qual]); if(o) ND3.objs[x.qual]=o; nd3Pedir() })
      .catch(function(){ if(meu!==ND3.n) return; ND3.info[x.qual]={qual:x.qual, triangulos:0, motivo:'a malha não veio do servidor'}; nd3Canto() });
-   });
-  }).catch(function(){ if(meu!==ND3.n) return; ND3.motivoMalha='o 3D não veio do servidor'; nd3Canto() });
+   }));
+  }).catch(function(){ if(meu!==ND3.n || ctl.signal.aborted) return; ND3.motivoMalha='o 3D não veio do servidor'; nd3Canto() })
+  .finally(function(){if(ND3.malhaCtl===ctl)ND3.malhaCtl=null;});
 }
 function nd3RecorteLocal(){
  if(ND.caixa&&!ndCaixaCheia(ND.caixa))return ND.caixa;
@@ -3600,7 +3611,11 @@ def montar(app, host_services=None):
             tot -= len(v)
         return m
 
-    def _malhas_da_caixa(b, caixa, aba, seq):
+    def _malhas_da_caixa(b, caixa, aba, seq, parar):
+        from radai_leitura_ativa import LeituraCancelada
+        def conferir():
+            if parar() or (aba and seq and _PEDIDAS_MALHA.get(aba, 0) > seq):
+                raise LeituraCancelada('Prévia encerrada.')
         import radai_nidus as N
         import radai_recon3d as R
         with _TRAVA_MALHA:
@@ -3614,6 +3629,7 @@ def montar(app, host_services=None):
                 return {"erro": N.SEM_CAIXA_PARA_O_3D, "malhas": []}
             fora = []
             for qual in N.QUAIS_DA_MALHA:
+                conferir()
                 try:
                     lps, faces, info = N.malha_da_caixa(serie, cx, qual)
                 except N.MalhaRecusada as e:
@@ -3624,7 +3640,10 @@ def montar(app, host_services=None):
                         "motivo": info.get(u"motivo") or u"",
                         "passo_mm": float(info.get(u"passo_mm") or 0.0)}
                 if len(faces):
-                    item["m"] = _guardar_malha(R.stl_da_malha(lps, faces))
+                    conferir()
+                    stl = R.stl_da_malha(lps, faces)
+                    conferir()
+                    item["m"] = _guardar_malha(stl)
                 fora.append(item)
             return {"erro": u"", "malhas": fora,
                     "triangulos": sum(x["triangulos"] for x in fora)}
@@ -3643,8 +3662,10 @@ def montar(app, host_services=None):
                         _PEDIDAS_MALHA.move_to_end(aba)
                     while len(_PEDIDAS_MALHA) > 32:
                         _PEDIDAS_MALHA.popitem(last=False)
-            return await radai_web.no_threadpool(
-                _malhas_da_caixa, b, str(c.get("caixa") or ""), aba, seq)
+            from radai_leitura_ativa import executar
+            return await executar(request, _malhas_da_caixa, b, str(c.get("caixa") or ""), aba, seq)
+        except InterruptedError:
+            return {"erro": u"", "velha": True, "malhas": []}
         except Exception as e:
             return {"erro": _falhou(u"3D da caixa", b, e), "malhas": []}
 

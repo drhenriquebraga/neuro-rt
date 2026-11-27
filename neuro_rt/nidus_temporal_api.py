@@ -123,8 +123,8 @@ class TemporalService:
         self.lock = threading.RLock()
         self.pending = queue.Queue(maxsize=self.max_jobs)
         self.closed = threading.Event()
-        self.worker = threading.Thread(target=self._work, name='nidus-temporal-preview', daemon=True)
-        self.worker.start()
+        self.worker = None
+        self.expiry = None
 
     def close(self):
         self.closed.set()
@@ -132,7 +132,33 @@ class TemporalService:
             for job in self.jobs.values():
                 job.cancel.set()
                 job.pngs.clear()
-        self.worker.join(timeout=5)
+            self.groups.clear()
+            self.jobs.clear()
+            if self.expiry is not None:
+                self.expiry.cancel()
+                self.expiry = None
+            worker = self.worker
+        if worker is not None:
+            worker.join(timeout=5)
+
+    def _schedule_expiry(self):
+        # Called under self.lock. Renewing a ticket needs no new timer: its
+        # previous deadline rechecks the timestamp, then sleeps until expiry.
+        if self.expiry is not None or self.closed.is_set():
+            return
+        touched = [t for _, t in self.groups.values()]
+        touched.extend(job.touched for job in self.jobs.values())
+        if touched:
+            delay = max(.001, min(touched) + self.ttl - time.monotonic())
+            self.expiry = threading.Timer(delay, self._expire)
+            self.expiry.daemon = True
+            self.expiry.start()
+
+    def _expire(self):
+        with self.lock:
+            self.expiry = None
+            self._reap()
+            self._schedule_expiry()
 
     def _reap(self):
         now = time.monotonic()
@@ -184,6 +210,7 @@ class TemporalService:
                 self.groups[group.id] = (group, time.monotonic())
             while len(self.groups) > self.max_groups:
                 self.groups.popitem(last=False)
+            self._schedule_expiry()
         return {'groups': [g.public() for g in result.groups[:self.max_groups]], 'rejected': result.rejected}
 
     def prepare(self, body):
@@ -210,7 +237,14 @@ class TemporalService:
             self.jobs[job.id] = job
             self.groups[group.id] = (group, time.monotonic())
             try:
+                if self.closed.is_set():
+                    self.jobs.pop(job.id, None)
+                    raise temporal.TemporalError('CANCELLED')
                 self.pending.put_nowait(job)
+                if self.worker is None:
+                    self.worker = threading.Thread(target=self._work, name='nidus-temporal-preview', daemon=True)
+                    self.worker.start()
+                self._schedule_expiry()
             except queue.Full:
                 self.jobs.pop(job.id, None)
                 raise temporal.TemporalError('RESOURCE_LIMIT') from None
@@ -248,6 +282,7 @@ class TemporalService:
                 public.append(dict(group.public(), label='CINE %d' % number, series_tickets=tickets))
             while len(self.groups) > self.max_groups:
                 self.groups.popitem(last=False)
+            self._schedule_expiry()
         return {'groups': public, 'rejected': result.rejected, 'scope': 'patient-study',
                 'auto_select': public[0]['id'] if len(public) == 1 else None,
                 'selection_required': len(public) > 1}
@@ -305,13 +340,13 @@ class TemporalService:
             raise
 
     def _work(self):
-        while not self.closed.is_set():
-            try:
-                job = self.pending.get(timeout=.5)
-            except queue.Empty:
-                with self.lock:
-                    self._reap()
-                continue
+        while True:
+            with self.lock:
+                try:
+                    job = self.pending.get_nowait()
+                except queue.Empty:
+                    self.worker = None
+                    return
             try:
                 self._run(job)
             except temporal.TemporalError as error:
